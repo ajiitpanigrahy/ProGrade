@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A855F7" /> <!-- Tailwind purple-500 -->
+      <stop offset="100%" stop-color="#4C1D95" /> <!-- Tailwind purple-900 -->
+    </linearGradient>
+    <linearGradient id="checkGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#F0ABFC" /> <!-- Tailwind fuchsia-300 -->
+      <stop offset="100%" stop-color="#C026D3" /> <!-- Tailwind fuchsia-600 -->
+    </linearGradient>
+  </defs>
+
+  <!-- Outer Hexagon (Structure & Security) -->
+  <path d="M 256 32 L 450 144 V 368 L 256 480 L 62 368 V 144 Z" stroke="url(#shieldGrad)" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Inner Code Brackets (Technical Assessment) -->
+  <path d="M 160 180 L 90 256 L 160 332" stroke="url(#shieldGrad)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
+  <path d="M 352 180 L 422 256 L 352 332" stroke="url(#shieldGrad)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
+
+  <!-- Central Network/Grade Checkmark -->
+  <path d="M 175 270 L 245 340 L 350 190" stroke="url(#checkGrad)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Data Nodes (Analytics / AI) -->
+  <circle cx="175" cy="270" r="16" fill="#F0ABFC" />
+  <circle cx="245" cy="340" r="16" fill="#F0ABFC" />
+  <circle cx="350" cy="190" r="16" fill="#F0ABFC" />
+</svg>
