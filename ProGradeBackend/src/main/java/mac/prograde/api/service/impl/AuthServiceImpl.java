@@ -49,8 +49,17 @@ public class AuthServiceImpl implements AuthService {
 		String jwtToken = jwtService.generateToken(user);
 
 		// 6. Return the response payload
-		return new AuthDto.AuthResponse(jwtToken, user.getFullName(), user.getEmail(), user.getRole(),
-				user.isApproved());
+		return new AuthDto.AuthResponse(
+		        jwtToken, 
+		        user.getFullName(), 
+		        user.getEmail(), 
+		        user.getRole(),
+		        user.isApproved(),
+		        user.getProfilePictureUrl(),
+		        user.getPhoneNumber(),
+		        user.getGender(),
+		        user.getHighestQualification()
+		);
 	}
 
 	@Override
@@ -73,7 +82,16 @@ public class AuthServiceImpl implements AuthService {
 		String jwtToken = jwtService.generateToken(user);
 
 		// 4. Return the response payload
-		return new AuthDto.AuthResponse(jwtToken, user.getFullName(), user.getEmail(), user.getRole(),
-				user.isApproved());
+		return new AuthDto.AuthResponse(
+		        jwtToken, 
+		        user.getFullName(), 
+		        user.getEmail(), 
+		        user.getRole(),
+		        user.isApproved(),
+		        user.getProfilePictureUrl(),
+		        user.getPhoneNumber(),
+		        user.getGender(),
+		        user.getHighestQualification()
+		);
 	}
 }

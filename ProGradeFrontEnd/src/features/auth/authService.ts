@@ -1,5 +1,22 @@
 import { axiosClient } from '../../api/axiosClient';
-import type { AuthResponse, LoginRequest, RegisterRequest} from '../../types/auth';
+import type { LoginRequest, RegisterRequest } from '../../types/auth'; // Only import requests, NOT AuthResponse
+
+// 1. Define the UserData with all profile fields
+export interface UserData {
+    fullName: string;
+    email: string;
+    role: string;
+    isApproved: boolean;
+    profilePictureUrl?: string;
+    phoneNumber?: string;
+    gender?: string;
+    highestQualification?: string;
+}
+
+// 2. Define AuthResponse strictly here
+export interface AuthResponse extends UserData {
+    token: string;
+}
 
 export const authService = {
     register: async (data: RegisterRequest): Promise<AuthResponse> => {
@@ -9,20 +26,23 @@ export const authService = {
 
     login: async (credentials: LoginRequest): Promise<AuthResponse> => {
         const response = await axiosClient.post<AuthResponse>('/auth/login', credentials);
-        if (response.data.token) {
-            localStorage.setItem('token', response.data.token);
-            localStorage.setItem('user', JSON.stringify(response.data));
-        }
+        // 🚨 Removed localStorage.setItem from here! 
+        // AuthContext handles saving to storage based on the "Remember Me" checkbox.
         return response.data;
     },
 
-    logout: (): void => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+    logout: async (): Promise<void> => {
+        // Call the backend to blacklist the token, AuthContext handles the frontend storage clearing.
+        try {
+            await axiosClient.post('/auth/logout');
+        } catch (e) {
+            console.error("Backend logout failed", e);
+        }
     },
 
     getCurrentUser: (): AuthResponse | null => {
-        const user = localStorage.getItem('user');
-        return user ? JSON.parse(user) : null;
+        // Check both storages to support the Remember Me feature
+        const userStr = localStorage.getItem('user') || sessionStorage.getItem('user');
+        return userStr ? JSON.parse(userStr) : null;
     }
 };

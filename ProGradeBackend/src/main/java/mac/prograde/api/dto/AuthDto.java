@@ -27,6 +27,10 @@ public class AuthDto {
             String fullName,
             String email,
             Role role,
-            boolean isApproved
+            boolean isApproved,
+            String profilePictureUrl,
+            String phoneNumber,
+            String gender,
+            String highestQualification
     ) {}
 }

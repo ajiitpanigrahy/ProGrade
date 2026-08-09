@@ -29,7 +29,7 @@ public class ProfileController {
             email = ((UserDetails) authentication.getPrincipal()).getUsername();
         } else {
             email = authentication.getPrincipal().toString();
-        } ̰
+        }
         
         User user = userRepository.findByEmail(email);
         if (user == null) {

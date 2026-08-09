@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import AuthLayout from '../../layouts/AuthLayout';
@@ -7,8 +7,12 @@ import { authService } from '../../features/auth/authService';
 
 export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
+    
+    // Form State
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false); // ✅ Added Remember Me state
+    
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -16,31 +20,50 @@ export default function Login() {
     const navigate = useNavigate();
 
     const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
 
-    try {
-        await login({ email, password });
-        
-        // Fetch the user that was just saved to context
-        const user = authService.getCurrentUser();
-        
-        // Route based on role
-        if (user?.role === 'ADMIN') {
-    navigate('/admin/dashboard'); 
-} else if (user?.role === 'EDUCATOR') {
-    navigate('/educator/dashboard');
-} else {
-    navigate('/student/dashboard'); // ✅ FIXED: Use the URL route, not the file name
-}
+        try {
+            // response matches AuthResponse exactly
+            const response = await authService.login({ email, password });
+            
+            const token = response.token;
+            
+            // Extract the user data from the flat response
+            const userData = {
+                fullName: response.fullName,
+                email: response.email,
+                role: response.role,
+                isApproved: response.isApproved,
+                profilePictureUrl: response.profilePictureUrl,
+                phoneNumber: response.phoneNumber,
+                gender: response.gender,
+                highestQualification: response.highestQualification
+            };
 
-    } catch (err: any) {
-        setError(err?.response?.data || err?.message || 'Invalid credentials.');
-    } finally {
-        setIsLoading(false);
-    }
-};
+            if (!token || !userData.email) {
+                throw new Error("Invalid response from server.");
+            }
+
+            // 2. Call the AuthContext login with all 3 required arguments
+            login(token, userData, rememberMe);
+            
+            // 3. Route based on role
+            if (userData.role === 'ADMIN') {
+                navigate('/admin/dashboard'); 
+            } else if (userData.role === 'EDUCATOR') {
+                navigate('/educator/dashboard');
+            } else {
+                navigate('/student/dashboard');
+            }
+
+        } catch (err: any) {
+            setError(err?.response?.data || err?.message || 'Invalid credentials.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <AuthLayout 
@@ -125,13 +148,15 @@ export default function Login() {
                         </div>
                     </div>
 
-                    {/* Forgot Password Link */}
+                    {/* Remember Me & Forgot Password */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center">
                             <input
                                 id="remember-me"
                                 name="remember-me"
                                 type="checkbox"
+                                checked={rememberMe} // ✅ Linked to state
+                                onChange={(e) => setRememberMe(e.target.checked)} // ✅ Linked to state
                                 className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 dark:border-purple-900/50 rounded cursor-pointer dark:bg-[#0f0a1c]"
                             />
                             <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300 cursor-pointer transition-colors">

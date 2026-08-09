@@ -1,3 +1,19 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
+
+@layer base {
+  /* Default Light Mode */
+  html, body, #root {
+    background-color: #f9fafb; /* gray-50 */
+    overflow-x: hidden; 
+    transition: background-color 0.3s;
+    color-scheme: light;
+  }
+
+  /* Explicitly target the HTML/Body when dark mode is active */
+  html.dark, html.dark body, html.dark #root {
+    background-color: #05020a; /* Your deep dark purple */
+    color-scheme: dark; /* Forces browser native overscroll/scrollbars to be dark */
+  }
+}

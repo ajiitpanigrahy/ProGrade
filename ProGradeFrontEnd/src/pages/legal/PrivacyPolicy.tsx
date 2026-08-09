@@ -1,13 +1,35 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PublicLayout from '../../layouts/PublicLayout';
+import Loader3D from '../../components/Loader3D';
 
 export default function PrivacyPolicy() {
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        // Just a simple 1-second delay for static pages to give that premium feel
+        const timer = setTimeout(() => {
+            setIsLoading(false);
+        }, 1000); 
+        
+        return () => clearTimeout(timer);
+    }, []);
+
+    // Show the 3D loader inside the Public Layout
+    if (isLoading) {
+        return (
+            <PublicLayout>
+                <div className="h-[70vh] flex items-center justify-center">
+                    <Loader3D text="RETRIEVING LEGAL DOCUMENTS..." />
+                </div>
+            </PublicLayout>
+        );
+    }
+
     return (
         <PublicLayout>
             <div className="max-w-4xl mx-auto px-6 py-16 md:py-24">
                 <h1 className="text-4xl md:text-5xl font-extrabold mb-8 text-gray-900 dark:text-white">Privacy Policy</h1>
                 <p className="text-gray-500 dark:text-gray-400 mb-12">Last updated: August 2026</p>
-
                 <div className="space-y-8 text-gray-700 dark:text-gray-300 leading-relaxed">
                     <section>
                         <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">1. Introduction</h2>

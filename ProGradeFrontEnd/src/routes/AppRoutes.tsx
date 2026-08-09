@@ -12,7 +12,8 @@ import LandingPage from '../pages/LandingPage'; // Adjust path if needed
 import PrivacyPolicy from '../pages/legal/PrivacyPolicy';
 import TermsOfUse from '../pages/legal/TermsOfUse';
 import CookiesPolicy from '../pages/legal/CookiesPolicy';
-import NotFound from '../pages/NotFoundPage';
+// import NotFound from '../pages/NotFoundPage';
+import ForgotPassword from '../pages/auth/ForgotPassword';
 
 export const router = createBrowserRouter([
     {
@@ -54,15 +55,16 @@ export const router = createBrowserRouter([
     // {
     //     path: '*',
     //     element: <NotFoundPage />,
-    // }
+    // },
     {
         path: '/privacy',
         element: <PrivacyPolicy /> // <-- Missing JSX brackets! React sees this as a raw object.
     },
     { path: '/terms', element: <TermsOfUse /> },
     { path: '/cookies', element: <CookiesPolicy /> },
-    {
-        path: '*',
-        element: <NotFound />,
-    }
+    // {
+    //     path: '*',
+    //     element: <NotFound />,
+    // },
+    { path: '/forgot-password', element: <ForgotPassword /> }
 ]);

@@ -1,10 +1,43 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../layouts/DashboardLayout';
+import Loader3D from '../../components/Loader3D';
 import { PlusCircle, ClipboardList } from 'lucide-react';
 
 export default function EducatorDashboard() {
     const { user } = useAuth();
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const loadDashboardData = async () => {
+            try {
+                // Sleep function to force the 3D animation for 1.5 seconds
+                const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+                
+                await Promise.all([
+                    // Future backend API calls will go here
+                    sleep(1500) 
+                ]);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadDashboardData();
+    }, []);
+
+    // Show the 3D loader inside the Dashboard Layout
+    if (isLoading) {
+        return (
+            <DashboardLayout role="EDUCATOR">
+                <div className="h-[70vh] flex items-center justify-center">
+                    <Loader3D text="INITIALIZING EDUCATOR WORKSPACE..." />
+                </div>
+            </DashboardLayout>
+        );
+    }
 
     return (
         <DashboardLayout role="EDUCATOR">

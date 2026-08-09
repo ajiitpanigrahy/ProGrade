@@ -2,16 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { profileService } from '../features/profile/profileService';
 import { X, User, Camera, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useGlobalLoader } from '../context/GlobalLoaderContext';
 
 interface ProfileDrawerProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
+
+
 export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
     const { user, updateUser } = useAuth();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    
+
     // State
     const [formData, setFormData] = useState({
         fullName: '',
@@ -19,10 +22,12 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
         gender: '',
         highestQualification: ''
     });
-    
-    const [status, setStatus] = useState<{type: 'error' | 'success' | '', msg: string}>({ type: '', msg: '' });
+
+    const [status, setStatus] = useState<{ type: 'error' | 'success' | '', msg: string }>({ type: '', msg: '' });
     const [isUpdating, setIsUpdating] = useState(false);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+    const { withLoader } = useGlobalLoader();
 
     // Initialize form when opened
     useEffect(() => {
@@ -43,19 +48,19 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
     const handleUpdateProfile = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsUpdating(true);
         setStatus({ type: '', msg: '' });
 
-        try {
-            const updatedUser = await profileService.updateProfile(formData);
-            updateUser(updatedUser);
-            setStatus({ type: 'success', msg: 'Profile updated successfully!' });
-            setTimeout(onClose, 1500);
-        } catch (error) {
-            setStatus({ type: 'error', msg: 'Failed to update profile.' });
-        } finally {
-            setIsUpdating(false);
-        }
+        // Wrap the logic in withLoader!
+        await withLoader(async () => {
+            try {
+                const updatedUser = await profileService.updateProfile(formData);
+                updateUser(updatedUser);
+                setStatus({ type: 'success', msg: 'Profile updated successfully!' });
+                setTimeout(onClose, 1000);
+            } catch (error) {
+                setStatus({ type: 'error', msg: 'Failed to update profile.' });
+            }
+        }, "SYNCING PROFILE DATA..."); // The text that appears under the 3D loader
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,7 +92,7 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
         <>
             {/* Backdrop */}
             {isOpen && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity"
                     onClick={onClose}
                 />
@@ -95,7 +100,7 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
             {/* Slide-out Panel */}
             <div className={`fixed top-0 right-0 h-full w-full sm:w-[450px] bg-white dark:bg-[#0f0a1c] z-[60] shadow-2xl transform transition-transform duration-300 ease-in-out border-l border-gray-200 dark:border-purple-900/30 flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                
+
                 {/* Header */}
                 <div className="px-6 py-5 border-b border-gray-200 dark:border-purple-900/30 flex justify-between items-center bg-gray-50 dark:bg-[#150a29] shrink-0">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -109,14 +114,13 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
                 {/* Body */}
                 <div className="p-6 flex-1 overflow-y-auto">
-                    
+
                     {/* Status Message */}
                     {status.msg && (
-                        <div className={`mb-6 p-3 text-sm rounded-xl flex items-center gap-2 ${
-                            status.type === 'error' 
-                                ? 'text-red-500 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50' 
-                                : 'text-green-600 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-900/50'
-                        }`}>
+                        <div className={`mb-6 p-3 text-sm rounded-xl flex items-center gap-2 ${status.type === 'error'
+                            ? 'text-red-500 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50'
+                            : 'text-green-600 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-900/50'
+                            }`}>
                             {status.type === 'error' ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
                             <span>{status.msg}</span>
                         </div>
@@ -125,14 +129,14 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                     {/* Profile Picture Section */}
                     <div className="flex flex-col items-center justify-center mb-8">
                         {/* Wrapper enforces strict circular bounds */}
-                        <div 
-                            className="relative group cursor-pointer w-24 h-24 rounded-full overflow-hidden border-4 border-purple-100 dark:border-purple-900/50 shadow-md" 
+                        <div
+                            className="relative group cursor-pointer w-24 h-24 rounded-full overflow-hidden border-4 border-purple-100 dark:border-purple-900/50 shadow-md"
                             onClick={() => fileInputRef.current?.click()}
                         >
                             {user?.profilePictureUrl ? (
-                                <img 
-                                    src={user.profilePictureUrl} 
-                                    alt="Profile" 
+                                <img
+                                    src={user.profilePictureUrl}
+                                    alt="Profile"
                                     className={`w-full h-full object-cover transition-opacity ${isUploadingImage ? 'opacity-50' : 'group-hover:opacity-75'}`}
                                 />
                             ) : (
@@ -140,21 +144,21 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                                     {getInitials(user?.fullName || '')}
                                 </div>
                             )}
-                            
+
                             {/* Hover Overlay */}
                             <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Camera className="w-6 h-6 text-white mb-1" />
                                 <span className="text-[10px] font-bold text-white uppercase tracking-wider">Change</span>
                             </div>
                         </div>
-                        
+
                         {/* Hidden File Input */}
-                        <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            onChange={handleImageUpload} 
-                            accept="image/jpeg, image/png, image/webp" 
-                            className="hidden" 
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleImageUpload}
+                            accept="image/jpeg, image/png, image/webp"
+                            className="hidden"
                         />
                         <p className="mt-3 text-xs text-gray-500 dark:text-gray-400 font-semibold tracking-wider uppercase">
                             {user?.role} Account
@@ -163,7 +167,7 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
                     {/* Form Details */}
                     <form id="profile-form" onSubmit={handleUpdateProfile} className="space-y-5">
-                        
+
                         {/* Email (Read-only) */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Email Address</label>

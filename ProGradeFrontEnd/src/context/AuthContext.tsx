@@ -1,51 +1,49 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { ReactNode } from 'react';
-import type { AuthResponse, LoginRequest, RegisterRequest } from '../types/auth';
-import { authService } from '../features/auth/authService';
-import { axiosClient } from '../api/axiosClient';
 
 interface AuthContextType {
-    user: AuthResponse | null;
-    isAuthenticated: boolean;
-    login: (credentials: LoginRequest) => Promise<void>;
-    register: (data: RegisterRequest) => Promise<void>;
+    user: any;
+    login: (token: string, userData: any, rememberMe: boolean) => void;
     logout: () => void;
+    updateUser: (updatedUserData: any) => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<AuthResponse | null>(null);
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+    // Synchronously check BOTH storages on initial load to prevent the refresh bug!
+    const [user, setUser] = useState(() => {
+        const savedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
+        return savedUser ? JSON.parse(savedUser) : null;
+    });
 
-    useEffect(() => {
-        const currentUser = authService.getCurrentUser();
-        if (currentUser) {
-            setUser(currentUser);
+    const login = (token: string, userData: any, rememberMe: boolean) => {
+        setUser(userData);
+        const storage = rememberMe ? localStorage : sessionStorage;
+        
+        storage.setItem('token', token);
+        storage.setItem('user', JSON.stringify(userData));
+    };
+
+    const logout = () => {
+        setUser(null);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+    };
+
+    const updateUser = (updatedUserData: any) => {
+        setUser(updatedUserData);
+        // Update whichever storage currently has the user
+        if (localStorage.getItem('user')) {
+            localStorage.setItem('user', JSON.stringify(updatedUserData));
+        } else {
+            sessionStorage.setItem('user', JSON.stringify(updatedUserData));
         }
-    }, []);
-
-    const login = async (credentials: LoginRequest) => {
-        const data = await authService.login(credentials);
-        setUser(data);
     };
-
-    const register = async (data: RegisterRequest) => {
-        await authService.register(data);
-    };
-
-    const logout = async () => {
-    try {
-        await axiosClient.post('/auth/logout');
-    } catch (e) {
-        console.error("Logout error", e);
-    }
-    authService.logout();
-    setUser(null);
-    window.location.href = '/login';
-};
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, register, logout }}>
+        <AuthContext.Provider value={{ user, login, logout, updateUser }}>
             {children}
         </AuthContext.Provider>
     );
