@@ -1,17 +1,21 @@
 package mac.prograde.api.service.impl;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 
+import lombok.RequiredArgsConstructor;
 import mac.prograde.api.dto.AuthDto;
+import mac.prograde.api.entity.SystemSetting;
 import mac.prograde.api.entity.User;
 import mac.prograde.api.enums.Role;
 import mac.prograde.api.repository.UserRepository;
 import mac.prograde.api.security.JwtService;
 import mac.prograde.api.service.AuthService;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
+import mac.prograde.api.service.SystemSettingService;
 
 /**
  * Core business logic for User Authentication and Registration.
@@ -24,6 +28,7 @@ public class AuthServiceImpl implements AuthService {
 	private final PasswordEncoder passwordEncoder;
 	private final JwtService jwtService;
 	private final AuthenticationManager authenticationManager;
+	private final SystemSettingService systemSettingService;
 
 	@Override
 	public AuthDto.AuthResponse register(AuthDto.RegisterRequest request) {
@@ -49,17 +54,9 @@ public class AuthServiceImpl implements AuthService {
 		String jwtToken = jwtService.generateToken(user);
 
 		// 6. Return the response payload
-		return new AuthDto.AuthResponse(
-		        jwtToken, 
-		        user.getFullName(), 
-		        user.getEmail(), 
-		        user.getRole(),
-		        user.isApproved(),
-		        user.getProfilePictureUrl(),
-		        user.getPhoneNumber(),
-		        user.getGender(),
-		        user.getHighestQualification()
-		);
+		return new AuthDto.AuthResponse(jwtToken, user.getFullName(), user.getEmail(), user.getRole(),
+				user.isApproved(), user.getProfilePictureUrl(), user.getPhoneNumber(), user.getGender(),
+				user.getHighestQualification());
 	}
 
 	@Override
@@ -78,20 +75,28 @@ public class AuthServiceImpl implements AuthService {
 			throw new IllegalArgumentException("Invalid email or password");
 		}
 
+		SystemSetting settings = systemSettingService.getGlobalSettings();
+		if (settings.isMaintenanceMode()) {
+			boolean isAdmin = user.getRole().name().equals("ADMIN"); // Adjust to match your Role Enum
+
+			if (!isAdmin || !settings.isAdminBypass()) {
+				// This throws a 401 Unauthorized to the React frontend
+				throw new LockedException("MAINTENANCE_MODE: " + settings.getMaintenanceMessage());
+			}
+		}
+
+		if (user.getRole().name().equals("EDUCATOR") && !user.isApproved()) {
+			// This exact string "PENDING VERIFICATION" will be caught by the React catch
+			// block!
+			throw new DisabledException("ACCOUNT PENDING VERIFICATION");
+		}
+
 		// 3. Generate a new JWT token for the session
 		String jwtToken = jwtService.generateToken(user);
 
 		// 4. Return the response payload
-		return new AuthDto.AuthResponse(
-		        jwtToken, 
-		        user.getFullName(), 
-		        user.getEmail(), 
-		        user.getRole(),
-		        user.isApproved(),
-		        user.getProfilePictureUrl(),
-		        user.getPhoneNumber(),
-		        user.getGender(),
-		        user.getHighestQualification()
-		);
+		return new AuthDto.AuthResponse(jwtToken, user.getFullName(), user.getEmail(), user.getRole(),
+				user.isApproved(), user.getProfilePictureUrl(), user.getPhoneNumber(), user.getGender(),
+				user.getHighestQualification());
 	}
 }

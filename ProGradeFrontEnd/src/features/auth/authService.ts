@@ -31,6 +31,11 @@ export const authService = {
         return response.data;
     },
 
+    checkSystemStatus: async () => {
+        const response = await axiosClient.get('/public/system/status');
+        return response.data;
+    },
+
     logout: async (): Promise<void> => {
         // Call the backend to blacklist the token, AuthContext handles the frontend storage clearing.
         try {

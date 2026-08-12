@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle2, GraduationCap, Briefcase, Info, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle2, GraduationCap, Briefcase, Info, CheckCircle, Wrench, Clock } from 'lucide-react';
 import AuthLayout from '../../layouts/AuthLayout';
-import { authService } from '../../features/auth/authService'; // <-- ADDED THIS
+import { authService } from '../../features/auth/authService';
 
 export default function Register() {
+    // --- System Maintenance State ---
+    const [isMaintenance, setIsMaintenance] = useState(false);
+    const [maintenanceMsg, setMaintenanceMsg] = useState('');
+
     // Role State (Student or Educator)
     const [role, setRole] = useState<'STUDENT' | 'EDUCATOR'>('STUDENT');
 
@@ -14,13 +18,34 @@ export default function Register() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    // UI & API State (ADDED THESE)
+    // UI & API State
     const [visibleField, setVisibleField] = useState<'none' | 'password' | 'confirm'>('none');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-    
-    const navigate = useNavigate(); // <-- ADDED THIS
+
+    const navigate = useNavigate();
+
+    // Fetch system status silently on mount
+    useEffect(() => {
+        const verifyStatus = async () => {
+            try {
+                const response = await authService.checkSystemStatus();
+                if (response?.maintenanceMode) {
+                    setIsMaintenance(true);
+                    setMaintenanceMsg(response.message);
+                }
+            } catch (error: any) {
+                if (error.response && error.response.status === 503) {
+                    setIsMaintenance(true);
+                    setMaintenanceMsg(error.response.data?.message || "Platform upgrades are currently in progress.");
+                } else {
+                    console.error("Could not verify system status:", error);
+                }
+            }
+        };
+        verifyStatus();
+    }, []);
 
     // --- Validation Logic ---
     const validateFullName = (value: string) => {
@@ -62,13 +87,13 @@ export default function Register() {
 
     // --- Input Handlers ---
     const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value.toUpperCase(); 
+        const val = e.target.value.toUpperCase();
         setFullName(val);
         setErrors(prev => ({ ...prev, fullName: validateFullName(val) }));
     };
 
     const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value.toLowerCase(); 
+        const val = e.target.value.toLowerCase();
         setEmail(val);
         setErrors(prev => ({ ...prev, email: validateEmail(val) }));
     };
@@ -76,8 +101,8 @@ export default function Register() {
     const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
         setPassword(val);
-        setErrors(prev => ({ 
-            ...prev, 
+        setErrors(prev => ({
+            ...prev,
             password: validatePassword(val),
             confirmPassword: confirmPassword ? validateConfirmPassword(confirmPassword, val) : ''
         }));
@@ -92,7 +117,7 @@ export default function Register() {
     // --- Password Strength Meter Logic ---
     const getPasswordStrength = () => {
         if (!password) return { label: '', color: 'bg-gray-200 dark:bg-gray-700', width: 'w-0', textColor: 'text-gray-500' };
-        
+
         const hasLetters = /[a-zA-Z]/.test(password);
         const hasNumbers = /\d/.test(password);
         const hasSymbols = /[!@#$%^&*(),.?":{}|<>]/.test(password);
@@ -102,34 +127,32 @@ export default function Register() {
         if (hasLetters && hasNumbers && hasSymbols) return { label: 'Excellent', color: 'bg-green-500', width: 'w-full', textColor: 'text-green-500' };
         if (hasLetters && hasNumbers) return { label: 'Medium', color: 'bg-yellow-500', width: 'w-2/4', textColor: 'text-yellow-500' };
         if (hasLetters || hasNumbers) return { label: 'Easy', color: 'bg-orange-500', width: 'w-1/3', textColor: 'text-orange-500' };
-        
+
         return { label: 'Weak', color: 'bg-red-500', width: 'w-1/4', textColor: 'text-red-500' };
     };
 
     const strength = getPasswordStrength();
 
-    // --- FIXED Form Submission ---
-   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
+    // --- Form Submission ---
+    const handleRegister = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
 
-    try {
-        // Send the role exactly as 'EDUCATOR' or 'STUDENT'
-        const payload = { fullName, email, password, role };
-        
-        await authService.register(payload);
-        setIsSuccessModalOpen(true);
-    } catch (err: any) {
-        setError(err?.response?.data || err?.message || 'Registration failed.');
-    } finally {
-        setIsLoading(false);
-    }
-};
+        try {
+            const payload = { fullName, email, password, role };
+            await authService.register(payload);
+            setIsSuccessModalOpen(true);
+        } catch (err: any) {
+            setError(err?.response?.data?.message || err?.response?.data || err?.message || 'Registration failed.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
-        <AuthLayout 
-            title="Join Pro Grade today." 
+        <AuthLayout
+            title="Join Pro Grade today."
             subtitle="Create an account to start experiencing secure, AI-driven technical assessments."
         >
             <div className="text-center lg:text-left mb-6">
@@ -144,8 +167,30 @@ export default function Register() {
                 </p>
             </div>
 
+            {/* NATIVE SYSTEM MAINTENANCE NOTICE BOX */}
+            {isMaintenance && (
+                <div className="mb-6 bg-gradient-to-r from-amber-500/10 via-purple-500/5 to-amber-500/10 dark:from-amber-950/40 dark:via-[#1a0d36] dark:to-amber-950/40 border border-amber-500/40 rounded-2xl p-5 shadow-sm transition-all">
+                    <div className="flex items-start gap-3.5">
+                        <div className="p-2.5 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl shrink-0 mt-0.5 border border-amber-500/30">
+                            <Wrench className="w-5 h-5 animate-pulse" />
+                        </div>
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider">System Maintenance Active</h4>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200">
+                                    Signup Paused
+                                </span>
+                            </div>
+                            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
+                                {maintenanceMsg || "Platform upgrades are currently in progress. New user registrations are temporarily paused."}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="bg-white dark:bg-[#1a0d36] py-8 px-6 shadow-xl sm:rounded-2xl border border-gray-100 dark:border-purple-900/30 transition-colors duration-300">
-                
+
                 {/* Error Banner */}
                 {error && (
                     <div className="mb-6 p-3 text-sm text-red-500 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl flex items-center gap-2">
@@ -160,11 +205,10 @@ export default function Register() {
                         <button
                             type="button"
                             onClick={() => setRole('STUDENT')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                                role === 'STUDENT' 
-                                ? 'bg-white dark:bg-[#1a0d36] text-purple-700 dark:text-purple-400 shadow-sm border border-gray-200 dark:border-purple-900/50' 
-                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                            }`}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${role === 'STUDENT'
+                                    ? 'bg-white dark:bg-[#1a0d36] text-purple-700 dark:text-purple-400 shadow-sm border border-gray-200 dark:border-purple-900/50'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
                         >
                             <GraduationCap className="w-5 h-5" />
                             Student
@@ -172,17 +216,16 @@ export default function Register() {
                         <button
                             type="button"
                             onClick={() => setRole('EDUCATOR')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                                role === 'EDUCATOR' 
-                                ? 'bg-white dark:bg-[#1a0d36] text-purple-700 dark:text-purple-400 shadow-sm border border-gray-200 dark:border-purple-900/50' 
-                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                            }`}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${role === 'EDUCATOR'
+                                    ? 'bg-white dark:bg-[#1a0d36] text-purple-700 dark:text-purple-400 shadow-sm border border-gray-200 dark:border-purple-900/50'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
                         >
                             <Briefcase className="w-5 h-5" />
                             Educator
                         </button>
                     </div>
-                    
+
                     {role === 'EDUCATOR' && (
                         <div className="mt-3 flex items-start gap-2 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/50 rounded-lg animate-in fade-in slide-in-from-top-2">
                             <Info className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
@@ -218,7 +261,7 @@ export default function Register() {
                                 </div>
                             )}
                         </div>
-                        {errors.fullName && fullName && <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{errors.fullName}</p>}
+                        {errors.fullName && fullName && <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.fullName}</p>}
                     </div>
 
                     {/* Email Field */}
@@ -245,7 +288,7 @@ export default function Register() {
                                 </div>
                             )}
                         </div>
-                        {errors.email && email && <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{errors.email}</p>}
+                        {errors.email && email && <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.email}</p>}
                     </div>
 
                     {/* Password Field */}
@@ -275,8 +318,8 @@ export default function Register() {
                                 {visibleField === 'password' ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                             </button>
                         </div>
-                        {errors.password && password && <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{errors.password}</p>}
-                        
+                        {errors.password && password && <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.password}</p>}
+
                         {/* Password Strength Meter */}
                         {password && (
                             <div className="mt-2">
@@ -318,9 +361,9 @@ export default function Register() {
                                 {visibleField === 'confirm' ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                             </button>
                         </div>
-                        {errors.confirmPassword && confirmPassword && <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{errors.confirmPassword}</p>}
+                        {errors.confirmPassword && confirmPassword && <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.confirmPassword}</p>}
                         {!errors.confirmPassword && confirmPassword && (
-                            <p className="mt-1.5 text-xs text-green-500 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/>Passwords match</p>
+                            <p className="mt-1.5 text-xs text-green-500 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Passwords match</p>
                         )}
                     </div>
 
@@ -328,36 +371,55 @@ export default function Register() {
                     <div className="pt-2">
                         <button
                             type="submit"
-                            disabled={isLoading || !!(errors.fullName || errors.email || errors.password || errors.confirmPassword) || !fullName || !email || !password || !confirmPassword}
-                            className="cursor-pointer w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 dark:disabled:bg-purple-800 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-600 transition-all active:scale-[0.98]"
+                            disabled={isLoading || isMaintenance || !!(errors.fullName || errors.email || errors.password || errors.confirmPassword) || !fullName || !email || !password || !confirmPassword}
+                            className="cursor-pointer w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-amber-600/50 dark:disabled:bg-amber-900/50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-600 transition-all active:scale-[0.98]"
                         >
-                            {isLoading ? 'Creating account...' : `Create ${role === 'STUDENT' ? 'Student' : 'Educator'} Account`}
+                            {isMaintenance
+                                ? 'Registrations Paused for Maintenance'
+                                : isLoading
+                                    ? 'Creating account...'
+                                    : `Create ${role === 'STUDENT' ? 'Student' : 'Educator'} Account`}
                         </button>
                     </div>
                 </form>
             </div>
 
-            {/* --- SUCCESS POPUP MODAL --- */}
+            {/* --- DYNAMIC SUCCESS POPUP MODAL --- */}
             {isSuccessModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-[#1a0d36] p-8 rounded-3xl shadow-2xl border border-purple-100 dark:border-purple-900/50 max-w-md w-full mx-4 text-center transform transition-all scale-100">
-                        <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <CheckCircle className="w-12 h-12" />
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in duration-300 px-4">
+                    <div className="bg-white dark:bg-[#1a0d36] p-8 rounded-3xl shadow-2xl border border-gray-100 dark:border-purple-900/50 max-w-md w-full text-center relative overflow-hidden transform transition-all scale-100">
+                        
+                        {/* Background Glow */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-purple-500/10 blur-[50px] rounded-full pointer-events-none"></div>
+
+                        {/* Dynamic Icon */}
+                        <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm border ${
+                            role === 'EDUCATOR' 
+                            ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800/30' 
+                            : 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-100 dark:border-green-800/30'
+                        }`}>
+                            {role === 'EDUCATOR' ? <Clock className="w-10 h-10" /> : <CheckCircle className="w-10 h-10" />}
                         </div>
                         
-                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                            Registration Successful! 🎉
+                        {/* Dynamic Title */}
+                        <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-3">
+                            {role === 'EDUCATOR' ? 'Application Submitted!' : 'Registration Complete! 🎉'}
                         </h3>
                         
-                        <p className="text-sm text-gray-600 dark:text-gray-300 mb-8">
-                            Welcome to Pro Grade, {fullName.split(' ')[0]}! Your account has been created successfully. You can now sign in to access your dashboard.
+                        {/* Dynamic Body Text */}
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
+                            {role === 'EDUCATOR' ? (
+                                <>Thank you for joining Pro Grade, <strong className="text-gray-900 dark:text-white">{fullName.split(' ')[0]}</strong>! Your educator account is currently <strong>under review</strong> by our administration team. You will receive an email once your account is verified and ready for access.</>
+                            ) : (
+                                <>Welcome to Pro Grade, <strong className="text-gray-900 dark:text-white">{fullName.split(' ')[0]}</strong>! Your student account has been created successfully. You can now sign in to access your technical assessments.</>
+                            )}
                         </p>
 
                         <button
                             onClick={() => navigate('/login')}
-                            className="w-full py-3 px-4 rounded-xl text-white font-bold bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-600/30 transition-all active:scale-[0.98] cursor-pointer"
+                            className="w-full py-3.5 px-4 rounded-xl text-white font-bold bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-600/20 transition-all active:scale-[0.98] cursor-pointer"
                         >
-                            Go to Login
+                            Proceed to Login
                         </button>
                     </div>
                 </div>

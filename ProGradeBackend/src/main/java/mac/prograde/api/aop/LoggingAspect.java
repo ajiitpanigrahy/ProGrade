@@ -1,80 +1,91 @@
 package mac.prograde.api.aop;
 
+import jakarta.servlet.http.HttpServletRequest;
+import mac.prograde.api.service.DatabaseAuditService;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StopWatch;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
-/**
- * Aspect for tracking and logging the execution time of API controllers and services.
- * This keeps logging logic entirely separated from business logic.
- */
 @Aspect
 @Component
 public class LoggingAspect {
 
-    private final Logger log = LoggerFactory.getLogger(this.getClass());
+	private final Logger log = LoggerFactory.getLogger(this.getClass());
 
-    /**
-     * Pointcut that targets all methods within the controller package.
-     */
-    @Pointcut("within(mac.prograde.api.controller..*)")
-    public void controllerPointcut() {
-        // Method is empty as this is just a Pointcut declaration
-    }
+	@Autowired
+	private DatabaseAuditService auditService; // 🌟 Inject the DB Writer
 
-    /**
-     * Pointcut that targets all methods within the service package.
-     */
-    @Pointcut("within(mac.prograde.api.service.impl..*)")
-    public void servicePointcut() {
-        // Method is empty as this is just a Pointcut declaration
-    }
+	@Pointcut("within(mac.prograde.api.controller..*)")
+	public void controllerPointcut() {
+	}
 
-    /**
-     * The @Around advice intercepts the method execution.
-     * It logs the start of the method, measures how long it takes to run,
-     * and logs the end along with the total execution time in milliseconds.
-     */
-    @Around("controllerPointcut() || servicePointcut()")
-    public Object logExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {
+	@Pointcut("within(mac.prograde.api.service.impl..*)")
+	public void servicePointcut() {
+	}
 
-        // 1. Get the class name and method name being intercepted
-        String className = joinPoint.getTarget().getClass().getSimpleName();
-        String methodName = joinPoint.getSignature().getName();
-        String identifier = className + "." + methodName;
+	@Around("controllerPointcut() || servicePointcut()")
+	public Object logExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {
 
-        log.info("▶️ START: Executing method '{}'", identifier);
+		String className = joinPoint.getTarget().getClass().getSimpleName();
+		String methodName = joinPoint.getSignature().getName();
+		String loggerName = joinPoint.getTarget().getClass().getName();
 
-        // 2. Start the stopwatch
-        StopWatch stopWatch = new StopWatch();
-        stopWatch.start();
+		String actor = extractCurrentUser();
+		String ipAddress = extractClientIp();
 
-        Object result;
-        try {
-            // 3. Proceed with the actual method execution
-            result = joinPoint.proceed();
-        } catch (IllegalArgumentException e) {
-            // Log known business exceptions gracefully
-            log.warn("⚠️ WARN: Method '{}' threw IllegalArgumentException: {}", identifier, e.getMessage());
-            throw e;
-        } catch (Throwable e) {
-            // Log unexpected errors
-            log.error("❌ ERROR: Method '{}' threw exception: {}", identifier, e.getMessage());
-            throw e;
-        } finally {
-            // 4. Stop the stopwatch
-            stopWatch.stop();
-            long timeTaken = stopWatch.getTotalTimeMillis();
+		log.info(" START: {} - User: {}", methodName, actor);
 
-            // 5. Log the execution time
-            log.info("⏹️ END: Method '{}' executed in {} ms", identifier, timeTaken);
-        }
+		StopWatch stopWatch = new StopWatch();
+		stopWatch.start();
 
-        return result;
-    }
+		Object result;
+		try {
+			result = joinPoint.proceed();
+		} catch (Throwable e) {
+			// 🌟 Write ERROR to Database
+			auditService.saveLog("ERROR", loggerName, "Method failed: " + e.getMessage(), actor, ipAddress, className,
+					methodName, e);
+			throw e;
+		} finally {
+			stopWatch.stop();
+			long timeTaken = stopWatch.getTotalTimeMillis();
+
+			String msg = timeTaken > 2000 ? "🐢 SLOW EXECUTION: " + timeTaken + "ms" : " END: " + timeTaken + "ms";
+			String level = timeTaken > 2000 ? "WARN" : "INFO";
+
+			// 🌟 Write INFO/WARN to Database
+			auditService.saveLog(level, loggerName, msg, actor, ipAddress, className, methodName, null);
+		}
+
+		return result;
+	}
+
+	private String extractCurrentUser() {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		return (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) ? auth.getName()
+				: "SYSTEM";
+	}
+
+	private String extractClientIp() {
+		try {
+			ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+			if (attrs != null) {
+				HttpServletRequest req = attrs.getRequest();
+				String ip = req.getHeader("X-Forwarded-For");
+				return (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) ? req.getRemoteAddr() : ip;
+			}
+		} catch (Exception e) {
+		}
+		return "INTERNAL";
+	}
 }

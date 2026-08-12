@@ -33,12 +33,17 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             // Keep authorizeHttpRequests as a safety net
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/**").permitAll()
-                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-             // Add this line to your authorizeHttpRequests block:
-                .requestMatchers("/api/v1/profile/images/**").permitAll()
-                .anyRequest().authenticated()
-            )
+                    // 🌟 ADD THIS LINE to allow the login page to check the status:
+                    .requestMatchers("/api/v1/public/**").permitAll() 
+                    .requestMatchers("/api/v1/profile/images/**").permitAll()
+                    // ... (Any other endpoints like assessments)
+                    .requestMatchers("/api/v1/assessments/**").hasAnyRole("ADMIN", "EDUCATOR")
+                    .requestMatchers("/api/v1/auth/**").permitAll()
+                    .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "EDUCATOR")
+                    .requestMatchers("/api/v1/educator/**").hasAnyRole("EDUCATOR", "ADMIN")
+                    .requestMatchers("/api/v1/student/**").hasAnyRole("STUDENT", "ADMIN")
+                    .anyRequest().authenticated()
+                )
                 // Stateless sessions because we are using JWTs
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider)
@@ -57,7 +62,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         // Allow the React frontend
         configuration.setAllowedOrigins(List.of("http://localhost:1112"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
 

@@ -5,7 +5,7 @@ import ProtectedRoute from './ProtectedRoute';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import StudentDashboard from '../pages/student/StudentDashboard';
 import EducatorDashboard from '../pages/educator/EducatorDashboard'; // Adjust path if needed
-// import NotFoundPage from '../pages/NotFoundPage'; // Adjust path if needed
+import NotFoundPage from '../pages/NotFoundPage'; // Adjust path if needed
 // import UnauthorizedPage from '../pages/UnauthorizedPage'; // Adjust path if needed
 import LandingPage from '../pages/LandingPage'; // Adjust path if needed
 
@@ -52,19 +52,12 @@ export const router = createBrowserRouter([
             </ProtectedRoute>
         ),
     },
-    // {
-    //     path: '*',
-    //     element: <NotFoundPage />,
-    // },
     {
         path: '/privacy',
         element: <PrivacyPolicy /> // <-- Missing JSX brackets! React sees this as a raw object.
     },
     { path: '/terms', element: <TermsOfUse /> },
     { path: '/cookies', element: <CookiesPolicy /> },
-    // {
-    //     path: '*',
-    //     element: <NotFound />,
-    // },
-    { path: '/forgot-password', element: <ForgotPassword /> }
+    { path: '/forgot-password', element: <ForgotPassword /> },
+    { path: '*', element: <NotFoundPage /> }
 ]);

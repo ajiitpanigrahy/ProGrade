@@ -22,16 +22,25 @@ axiosClient.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// Optional but highly recommended: Kick user to login if the backend says their token expired
+// SINGLE Response Interceptor
 axiosClient.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response && error.response.status === 401) {
-            // Clear storage and redirect on 401 Unauthorized
-            localStorage.clear();
-            sessionStorage.clear();
-            window.location.href = '/login';
+        // Catch 401 (Unauthorized) and 403 (Forbidden)
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+            
+            const currentPath = window.location.pathname;
+            const isAuthPage = currentPath === '/login' || currentPath === '/register';
+
+            // ONLY clear session and redirect if they are NOT on the login/register page
+            if (!isAuthPage) {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = '/login';
+            }
+            // If they ARE on the login page, do nothing here. Let Login.tsx catch it and show the modal!
         }
+        
         return Promise.reject(error);
     }
 );

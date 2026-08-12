@@ -1,270 +1,125 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { adminService } from '../../features/admin/adminService';
-import type { DashboardMetrics, DashboardCharts, PendingEducator } from '../../types/admin';
-import {
-    Users, Activity, DollarSign, ShieldCheck,
-    CheckCircle2, XCircle, Server, AlertCircle
-} from 'lucide-react';
-import {
-    LineChart, Line, PieChart, Pie, Cell,
-    XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
-import Loader3D from '../../components/Loader3D';
+import { useLocation } from 'react-router-dom';
 import DashboardLayout from '../../layouts/DashboardLayout';
+import Loader3D from '../../components/Loader3D';
+import { adminService } from '../../features/admin/adminService';
+import QuestionBankTab from './tabs/QuestionBankTab';
+
+// Import all Hubs
+import OverviewTab from './tabs/OverviewTab';
+import EducatorHubTab from './tabs/EducatorHubTab';
+import StudentHubTab from './tabs/StudentHubTab';
+import AssessmentHubTab from './tabs/AssessmentHubTab';
+import SystemLogsTab from './tabs/SystemLogsTab';
+import GovernanceTab from './tabs/GovernanceTab';
+import SystemHealthTab from './tabs/SystemHealthTab';
 
 export default function AdminDashboard() {
-    const { user } = useAuth();
+    const location = useLocation();
+    const searchParams = new URLSearchParams(location.search);
+    const activeView = searchParams.get('view') || 'overview';
 
-    // State
-    const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-    const [charts, setCharts] = useState<DashboardCharts | null>(null);
-    const [pendingEducators, setPendingEducators] = useState<PendingEducator[]>([]);
+    // Global Data States
+    const [metrics, setMetrics] = useState<any>(null);
+    const [charts, setCharts] = useState<any>(null);
+    const [pendingEducators, setPendingEducators] = useState<any[]>([]);
 
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null); // ✅ Added error state
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
+    const [isSwitching, setIsSwitching] = useState(false);
 
-    // Fetch Data on Load
+    // 1. Initial Data Fetch
     useEffect(() => {
         const loadDashboardData = async () => {
             try {
-                setError(null);
-
-                // 1. Create a simple sleep function
                 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-                // 2. Add the sleep function to your Promise.all array!
+                // Fetch from backend (with safe fallback to mock data if backend isn't ready)
                 const [metricsData, chartsData, educatorsData] = await Promise.all([
-                    adminService.getMetrics(),
-                    adminService.getCharts(),
-                    adminService.getPendingEducators(),
-                    sleep(1500) // Forces the 3D loader to spin for 1.5s
+                    adminService.getMetrics().catch(() => null),
+                    adminService.getCharts().catch(() => null),
+                    adminService.getPendingEducators().catch(() => []),
+                    sleep(1500)
                 ]);
 
-                setMetrics(metricsData);
-                setCharts(chartsData);
-                setPendingEducators(educatorsData);
-            } catch (err: any) {
-                console.error("Failed to load admin dashboard data:", err);
-                setError(err.response?.data?.message || err.response?.data || err.message || "Failed to connect to the backend.");
+                // Set Data (Using Mock Data if Backend fails during development)
+                setMetrics(metricsData || { totalUsers: 1250, pendingApprovals: 5, activeExams: 42, monthlyRevenue: 15400 });
+                setCharts(chartsData || {
+                    userGrowth: [{ name: 'Mon', students: 400, educators: 10 }, { name: 'Tue', students: 600, educators: 15 }],
+                    roleDistribution: [{ name: 'STUDENT', value: 850 }, { name: 'INSTRUCTOR', value: 120 }, { name: 'ADMIN', value: 5 }]
+                });
+                setPendingEducators(educatorsData || []);
+
+            } catch (err) {
+                console.error("Failed to load dashboard data", err);
             } finally {
-                setIsLoading(false);
+                setIsInitialLoad(false);
             }
         };
 
         loadDashboardData();
     }, []);
 
-    // Action Handlers
-    const handleApprove = async (id: string) => {
-        try {
-            await adminService.approveEducator(id);
-            setPendingEducators(prev => prev.filter(edu => edu.id !== id));
-            const updatedMetrics = await adminService.getMetrics();
-            setMetrics(updatedMetrics);
-        } catch (error) {
-            console.error("Failed to approve educator:", error);
+    // 2. Small loader when clicking different sidebar links
+    useEffect(() => {
+        if (!isInitialLoad) {
+            setIsSwitching(true);
+            const timer = setTimeout(() => setIsSwitching(false), 500);
+            return () => clearTimeout(timer);
         }
-    };
+    }, [activeView, isInitialLoad]);
 
-    const handleReject = async (id: string) => {
-        try {
-            await adminService.rejectEducator(id);
-            setPendingEducators(prev => prev.filter(edu => edu.id !== id));
-            const updatedMetrics = await adminService.getMetrics();
-            setMetrics(updatedMetrics);
-        } catch (error) {
-            console.error("Failed to reject educator:", error);
-        }
-    };
-
-    // ✅ 1. Show Loading State
-    if (isLoading) {
-        return <Loader3D text="Initializing Command Center..." />;
-    }
-
-    // ✅ 2. Show Error State if Backend fails (Wrapped in layout so you can still logout/navigate)
-    if (error) {
+    // Render Full Screen Loader
+    if (isInitialLoad || isSwitching) {
         return (
-            <DashboardLayout role="ADMIN">
-                <div className="flex-1 flex items-center justify-center p-6 h-full min-h-[70vh]">
-                    <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-8 rounded-3xl border border-red-200 dark:border-red-900/50 text-center max-w-lg shadow-xl">
-                        <AlertCircle className="w-16 h-16 mx-auto mb-4 opacity-80" />
-                        <h2 className="text-2xl font-bold mb-2">Backend Connection Error</h2>
-                        <p className="font-medium">{error}</p>
-                        <p className="mt-6 text-sm text-red-500/70 dark:text-red-400/70">
-                            Check your Spring Boot console for stack traces, or press F12 and check the Network tab.
-                        </p>
-                    </div>
-                </div>
-            </DashboardLayout>
+            <div className="fixed inset-0 z-[9999] bg-gray-50/95 dark:bg-[#0f0a1c]/95 backdrop-blur-md flex items-center justify-center">
+                <Loader3D text={isInitialLoad ? "INITIALIZING COMMAND CENTER..." : "ROUTING..."} />
+            </div>
         );
     }
 
-    // ✅ 3. Safety catch
-    if (!metrics || !charts) return null;
+    // Dynamic Module Routing
+    const renderContent = () => {
+        switch (activeView) {
+            case 'overview':
+                return <OverviewTab metrics={metrics} charts={charts} />;
+            case 'question-bank':
+                return <QuestionBankTab />;
+            case 'educator-management':
+                return <EducatorHubTab activeSubTab="MANAGEMENT" pendingEducators={pendingEducators} />;
+            case 'educator-analytics':
+                return <EducatorHubTab activeSubTab="ANALYTICS" pendingEducators={pendingEducators} />;
 
-    // ✅ 4. Main Dashboard Render
+            case 'student-management':
+                return <StudentHubTab />; // We handled subtabs internally here earlier
+            case 'student-analytics':
+                return <StudentHubTab />;
+
+            case 'assessment-management':
+                return <AssessmentHubTab activeSubTab="MANAGEMENT" />;
+            case 'assessment-fraud':
+                return <AssessmentHubTab activeSubTab="FRAUD" />;
+
+            case 'logs':
+                return <SystemLogsTab />;
+
+            case 'health':                   // 🌟 NEW ROUTE
+                return <SystemHealthTab />;
+
+            case 'settings':
+                return <GovernanceTab />;
+
+            default:
+                return (
+                    <div className="h-64 flex items-center justify-center border-2 border-dashed border-gray-200 dark:border-purple-900/30 rounded-2xl text-gray-500">
+                        Module in development...
+                    </div>
+                );
+        }
+    };
+
     return (
         <DashboardLayout role="ADMIN">
-            <div className="bg-gray-50 dark:bg-[#0f0a1c] transition-colors">
-
-                {/* --- Header --- */}
-                <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">Overview</h1>
-                        <p className="text-gray-600 dark:text-gray-400 mt-1">Welcome back, {user?.fullName}. Here is what's happening today.</p>
-                    </div>
-                    <div className="flex items-center gap-3 bg-white dark:bg-[#1a0d36] px-4 py-2 rounded-xl shadow-sm border border-gray-100 dark:border-purple-900/30">
-                        <Server className="w-5 h-5 text-green-500" />
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">System Status: All Operational</span>
-                    </div>
-                </div>
-
-                {/* --- KPI Cards --- */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Users</p>
-                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{metrics.totalUsers}</h3>
-                        </div>
-                        <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full flex items-center justify-center">
-                            <Users className="w-6 h-6" />
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Pending Approvals</p>
-                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{metrics.pendingApprovals}</h3>
-                        </div>
-                        <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full flex items-center justify-center">
-                            <ShieldCheck className="w-6 h-6" />
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Active Exams</p>
-                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{metrics.activeExams}</h3>
-                        </div>
-                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center">
-                            <Activity className="w-6 h-6" />
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Monthly Revenue</p>
-                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">${metrics.monthlyRevenue.toLocaleString()}</h3>
-                        </div>
-                        <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center">
-                            <DollarSign className="w-6 h-6" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* --- Main Charts Grid --- */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                    {/* User Growth Line Chart */}
-                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 lg:col-span-2">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">User Registration Growth</h3>
-                        <div className="h-72 w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={charts.userGrowth} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-                                    <XAxis dataKey="name" stroke="#6b7280" />
-                                    <YAxis stroke="#6b7280" />
-                                    <Tooltip contentStyle={{ backgroundColor: '#1a0d36', borderColor: '#4c1d95', color: '#fff', borderRadius: '8px' }} />
-                                    <Legend />
-                                    <Line type="monotone" dataKey="students" name="Students" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                                    <Line type="monotone" dataKey="educators" name="Educators" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-
-                    {/* Role Distribution Pie Chart */}
-                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Role Distribution</h3>
-                        <div className="h-72 w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie data={charts.roleDistribution} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
-                                        {charts.roleDistribution.map((entry, index) => {
-                                            const color = entry.name === 'STUDENT' ? '#8b5cf6' : entry.name === 'INSTRUCTOR' ? '#10b981' : '#f59e0b';
-                                            return <Cell key={`cell-${index}`} fill={color} />;
-                                        })}
-                                    </Pie>
-                                    <Tooltip contentStyle={{ backgroundColor: '#1a0d36', borderColor: '#4c1d95', color: '#fff', borderRadius: '8px' }} />
-                                    <Legend verticalAlign="bottom" height={36} />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-
-                {/* --- Educator Approval Queue Table --- */}
-                <div className="bg-white dark:bg-[#1a0d36] rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 dark:border-purple-900/30 flex justify-between items-center">
-                        <div>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Educator Approval Queue</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Review and approve new educator registrations.</p>
-                        </div>
-                        <span className="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 py-1 px-3 rounded-full text-xs font-bold">
-                            {pendingEducators.length} Pending
-                        </span>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-gray-50 dark:bg-[#150a29] text-gray-500 dark:text-gray-400 text-sm">
-                                    <th className="py-4 px-6 font-semibold">Name</th>
-                                    <th className="py-4 px-6 font-semibold">Email</th>
-                                    <th className="py-4 px-6 font-semibold text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-purple-900/30">
-                                {pendingEducators.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={3} className="py-8 text-center text-gray-500 dark:text-gray-400">
-                                            No pending educators to review.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    pendingEducators.map((edu) => (
-                                        <tr key={edu.id} className="hover:bg-gray-50 dark:hover:bg-[#150a29]/50 transition-colors">
-                                            <td className="py-4 px-6">
-                                                <div className="font-medium text-gray-900 dark:text-white">{edu.name}</div>
-                                            </td>
-                                            <td className="py-4 px-6 text-gray-600 dark:text-gray-300">{edu.email}</td>
-                                            <td className="py-4 px-6 text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <button
-                                                        onClick={() => handleReject(edu.id)}
-                                                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer"
-                                                        title="Reject"
-                                                    >
-                                                        <XCircle className="w-5 h-5" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleApprove(edu.id)}
-                                                        className="p-2 text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors cursor-pointer"
-                                                        title="Approve"
-                                                    >
-                                                        <CheckCircle2 className="w-5 h-5" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+            {renderContent()}
         </DashboardLayout>
     );
 }

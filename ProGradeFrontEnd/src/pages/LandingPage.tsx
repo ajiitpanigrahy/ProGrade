@@ -317,7 +317,7 @@ export default function LandingPage() {
                     </div>
                     <div>
                       <h4 className="text-base sm:text-lg font-semibold text-white">Email Us</h4>
-                      <p className="text-sm sm:text-base text-gray-400 mt-1">support@prograde.com</p>
+                      <p className="text-sm sm:text-base text-gray-400 mt-1">mailtoajitpanigrahy@gmail.com</p>
                     </div>
                   </div>
 
@@ -327,7 +327,7 @@ export default function LandingPage() {
                     </div>
                     <div>
                       <h4 className="text-base sm:text-lg font-semibold text-white">Call Us</h4>
-                      <p className="text-sm sm:text-base text-gray-400 mt-1">+1 (555) 123-4567</p>
+                      <p className="text-sm sm:text-base text-gray-400 mt-1">+91 6370 440 273</p>
                     </div>
                   </div>
 
@@ -337,7 +337,7 @@ export default function LandingPage() {
                     </div>
                     <div>
                       <h4 className="text-base sm:text-lg font-semibold text-white">Visit Us</h4>
-                      <p className="text-sm sm:text-base text-gray-400 mt-1">Tech Park, Bhubaneswar, Odisha, India</p>
+                      <p className="text-sm sm:text-base text-gray-400 mt-1">Bhubaneswar, Odisha, India</p>
                     </div>
                   </div>
                 </div>
