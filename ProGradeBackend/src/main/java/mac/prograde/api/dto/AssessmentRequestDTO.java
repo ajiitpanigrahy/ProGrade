@@ -15,7 +15,7 @@ public class AssessmentRequestDTO {
 	private int totalQuestions; // 🌟 Add this field
 	// For Manual Mode
 	private List<Long> questionIds;
-
+    private String tags; 
 	// For Automatic Mode
 	private List<AutoRuleDTO> autoRules;
 	// Add these fields

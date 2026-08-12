@@ -3,15 +3,24 @@ import { ShieldAlert, Plus, FileText, KeyRound, Fingerprint, Copy, ChevronRight,
 import AssessmentBuilder from './subtabs/AssessmentBuilder';
 import AssessmentDetailsPanel from './subtabs/AssessmentDetailsPanel';
 import { adminService } from '../../../features/admin/adminService';
-import { useAuth } from '../../../context/AuthContext'; // 🌟 IMPORTED AUTH CONTEXT
+import { useAuth } from '../../../context/AuthContext';
 
 export default function AssessmentHubTab({ activeSubTab }: { activeSubTab: string }) {
-    const { user } = useAuth(); // 🌟 GET LOGGED IN USER
+    const { user } = useAuth();
     
     const [isBuilding, setIsBuilding] = useState(false);
     const [selectedAssessment, setSelectedAssessment] = useState<any | null>(null);
     const [assessments, setAssessments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // 🌟 HELPER ADDED HERE: Extracts Full Name from email string
+    const formatFullName = (email: string) => {
+        if (!email) return 'Admin User';
+        return email.split('@')[0]
+            .split(/[._-]/)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    };
 
     const loadAssessments = () => {
         setLoading(true);
@@ -126,7 +135,7 @@ export default function AssessmentHubTab({ activeSubTab }: { activeSubTab: strin
                                         <tr key={exam.id} onClick={() => setSelectedAssessment(exam)} className="hover:bg-gray-50 dark:hover:bg-[#150a29]/50 transition-colors cursor-pointer group">
                                             <td className="py-4 px-6">
                                                 <p className="font-bold text-gray-900 dark:text-white group-hover:text-purple-600 transition-colors">{exam.title}</p>
-                                                <p className="text-xs text-gray-500 mt-0.5">By: <span className="font-medium text-purple-600 dark:text-purple-400">{exam.creatorEmail}</span></p>
+                                                <p className="text-xs text-gray-500 mt-0.5">By: <span className="font-medium text-purple-600 dark:text-purple-400">{formatFullName(exam.creatorEmail)}</span></p>
                                             </td>
                                             <td className="py-4 px-6">
                                                 <div className="flex flex-col gap-1.5">
@@ -159,7 +168,7 @@ export default function AssessmentHubTab({ activeSubTab }: { activeSubTab: strin
                                                 {canEdit ? (
                                                     <ChevronRight className="w-5 h-5 text-gray-400 inline-block group-hover:text-purple-600 transition-colors" />
                                                 ) : (
-                                                    <span className="flex items-center justify-end gap-1 text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 dark:text-gray-400 px-2 py-1 rounded">
+                                                    <span className="flex items-center justify-end gap-1 text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 dark:text-gray-400 px-2 py-1 rounded w-max ml-auto">
                                                         <Eye className="w-3 h-3"/> VIEW
                                                     </span>
                                                 )}

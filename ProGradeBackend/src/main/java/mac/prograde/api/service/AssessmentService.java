@@ -55,12 +55,14 @@ public class AssessmentService {
 		List<Question> finalQuestions = new ArrayList<>();
 
 		if (assessment.getCreationMode() == Assessment.CreationMode.MANUAL) {
+			assessment.setTags(dto.getTags() != null ? dto.getTags() : "General Tech");
 			finalQuestions = questionRepository.findAllById(dto.getQuestionIds());
 			if (finalQuestions.size() != assessment.getTotalQuestions()) {
 				throw new RuntimeException("Selected questions (" + finalQuestions.size()
 						+ ") do not match configured total (" + assessment.getTotalQuestions() + ").");
 			}
 		} else {
+			assessment.setTags(dto.getTags() != null ? dto.getTags() : "General Tech");
 			int collectedCount = 0;
 			for (AssessmentRequestDTO.AutoRuleDTO rule : dto.getAutoRules()) {
 				List<Question> randomQuestions = questionRepository.findRandomQuestions(

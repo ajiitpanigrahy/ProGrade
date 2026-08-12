@@ -30,11 +30,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private final TokenBlacklistRepository tokenBlacklistRepository;
 
 	@Override
-	protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-		String path = request.getServletPath();
-		// Skip the JWT filter entirely for auth endpoints
-		return path.startsWith("/api/v1/auth/");
-	}
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+        return path.startsWith("/api/v1/auth/");
+    }
 
 	@Override
 	protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
@@ -84,4 +83,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		// Continue down the filter chain
 		filterChain.doFilter(request, response);
 	}
+	
+	
 }

@@ -70,8 +70,7 @@ public class StudentAssessmentController {
                         "assessmentId", assessment.getId()
                 ));
             } else {
-                // 🌟 Returns 401 to trigger the shaking animation on the frontend
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            	return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("verified", false, "error", "Invalid passkey token."));
             }
         } catch (Exception e) {

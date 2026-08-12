@@ -36,7 +36,8 @@ public class Assessment {
 
 	@Enumerated(EnumType.STRING)
 	private CreationMode creationMode;
-
+	@Column(name = "tags")
+    private String tags; //
 	private java.time.LocalDateTime startTime; // If null, exam is always open
 	private int maxAttempts = 1; // Default to 1 attempt per student
     @Column(nullable = false, updatable = false)
