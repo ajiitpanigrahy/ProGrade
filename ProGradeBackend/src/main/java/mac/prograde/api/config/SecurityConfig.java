@@ -1,14 +1,12 @@
 package mac.prograde.api.config;
 
-import lombok.RequiredArgsConstructor;
-import mac.prograde.api.security.JwtAuthenticationFilter;
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -16,7 +14,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
+import mac.prograde.api.security.JwtAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -33,10 +32,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             // Keep authorizeHttpRequests as a safety net
             .authorizeHttpRequests(auth -> auth
-                    // 🌟 ADD THIS LINE to allow the login page to check the status:
                     .requestMatchers("/api/v1/public/**").permitAll() 
                     .requestMatchers("/api/v1/profile/images/**").permitAll()
-                    // ... (Any other endpoints like assessments)
                     .requestMatchers("/api/v1/assessments/**").hasAnyRole("ADMIN", "EDUCATOR")
                     .requestMatchers("/api/v1/auth/**").permitAll()
                     .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "EDUCATOR")
@@ -44,10 +41,8 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/student/**").hasAnyRole("STUDENT", "ADMIN")
                     .anyRequest().authenticated()
                 )
-                // Stateless sessions because we are using JWTs
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider)
-                // Run our custom JWT filter BEFORE the standard Username/Password filter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

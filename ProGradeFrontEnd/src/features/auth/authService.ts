@@ -46,8 +46,14 @@ export const authService = {
     },
 
     getCurrentUser: (): AuthResponse | null => {
-        // Check both storages to support the Remember Me feature
-        const userStr = localStorage.getItem('user') || sessionStorage.getItem('user');
+        // 🌟 Only check localStorage
+        const userStr = localStorage.getItem('user');
         return userStr ? JSON.parse(userStr) : null;
+    },
+
+    // Add this to your frontend service files
+    getAssessmentReports: async (assessmentId: string) => {
+        const response = await axiosClient.get(`/assessments/${assessmentId}/reports`);
+        return response.data;
     }
 };

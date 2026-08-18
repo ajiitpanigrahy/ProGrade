@@ -1,283 +1,525 @@
-import React, { useState } from 'react';
-import { ChevronLeft, CalendarClock, Trophy, ShieldAlert, Trash2, PauseCircle, PlayCircle, Settings, Fingerprint, KeyRound, Clock, X, Calendar as CalendarIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Settings, Users, ShieldAlert, CheckCircle2, AlertTriangle, Filter, Lock, Download, Search, Clock, Trophy, Frown, X, FileText, Trash2, PauseCircle, PlayCircle, CalendarClock, Loader2 } from 'lucide-react';
+import { axiosClient } from '../../../../api/axiosClient';
+import { useAuth } from '../../../../context/AuthContext'; 
 import { adminService } from '../../../../features/admin/adminService';
-import { useAuth } from '../../../../context/AuthContext';
 
-export default function AssessmentDetailsPanel({ assessment, onBack }: { assessment: any, onBack: () => void }) {
+interface Props {
+    assessment: any;
+    onBack: () => void;
+}
+
+export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
+    const { user } = useAuth(); 
     const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'LEADERBOARD' | 'FRAUD'>('OVERVIEW');
+    const [reportData, setReportData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    
+    // 🌟 LOCAL ASSESSMENT STATE (to reflect live changes without reloading)
     const [localAssessment, setLocalAssessment] = useState(assessment);
-    const [isActionLoading, setIsActionLoading] = useState(false);
 
-    // 🌟 Check Edit Permissions
-    const { user } = useAuth();
-    const canEdit = user?.role === 'ADMIN' || assessment.creatorEmail === user?.email;
+    // Leaderboard & Filter States
+    const [fraudFilter, setFraudFilter] = useState('ALL');
+    const [lbSearch, setLbSearch] = useState('');
+    const [lbSort, setLbSort] = useState<'RANK' | 'NAME' | 'SCORE' | 'TIME'>('RANK');
+    const [lbLimit, setLbLimit] = useState<'ALL' | 'TOP5' | 'TOP10'>('ALL');
 
-    // 🌟 State for Postpone Modal
-    const [isPostponeOpen, setIsPostponeOpen] = useState(false);
-    const [newStartTime, setNewStartTime] = useState(assessment.startTime ? assessment.startTime.slice(0, 16) : '');
-    const [postponeError, setPostponeError] = useState('');
+    // Access Control States
+    const [newEducatorEmail, setNewEducatorEmail] = useState('');
+    const [allowedEducators, setAllowedEducators] = useState<string[]>(
+        localAssessment.allowedEducators 
+            ? localAssessment.allowedEducators.split(',').map((e:string) => e.trim()).filter(Boolean) 
+            : []
+    );
 
-    // MOCK DATA: Ready to be wired to a real backend endpoint later
-    const mockLeaderboard = [
-        { id: 1, rank: 1, name: "Alice Johnson", score: 95.5, timeTaken: "42m 15s", submittedAt: "2026-08-10 14:20" },
-        { id: 2, rank: 2, name: "Bob Smith", score: 95.5, timeTaken: "45m 30s", submittedAt: "2026-08-10 14:25" },
-        { id: 3, rank: 3, name: "Charlie Davis", score: 88.0, timeTaken: "59m 10s", submittedAt: "2026-08-10 15:00" },
-    ];
+    // 🌟 ACTION MODAL STATES
+    const [activeModal, setActiveModal] = useState<'NONE' | 'DELETE' | 'TOGGLE' | 'POSTPONE'>('NONE');
+    const [postponeDate, setPostponeDate] = useState<string>('');
+    const [actionLoading, setActionLoading] = useState(false);
 
-    const mockFraud = [
-        { id: 1, student: "David Wilson", infraction: "MULTIPLE_FACES", severity: "CRITICAL", time: "10:42 AM" },
-        { id: 2, student: "Eve Brown", infraction: "TAB_SWITCH (x3)", severity: "MEDIUM", time: "11:15 AM" },
-    ];
+    useEffect(() => {
+        adminService.getAdvancedAssessmentReport(localAssessment.id)
+            .then(res => setReportData(res))
+            .catch(err => console.error("Could not fetch details", err))
+            .finally(() => setLoading(false));
+    }, [localAssessment.id]);
 
-    // --- Action: Delete ---
-    const handleDelete = async () => {
-        if (window.confirm(`Are you absolutely sure you want to delete "${localAssessment.title}"? This action cannot be undone and will erase all student submissions.`)) {
-            setIsActionLoading(true);
-            try {
-                await adminService.deleteAssessment(localAssessment.id);
-                onBack(); // Go back to list
-            } catch (err) {
-                alert("Failed to delete assessment.");
-            } finally {
-                setIsActionLoading(false);
-            }
+    const updateEducatorAccess = async (updatedList: string[]) => {
+        try {
+            const csvList = updatedList.join(',');
+            await axiosClient.put(`/assessments/${localAssessment.id}/allow-educators`, { allowedEducators: csvList });
+            setAllowedEducators(updatedList);
+            setNewEducatorEmail(''); 
+        } catch (e) {
+            alert("Failed to update educator access.");
         }
     };
 
-    // --- Action: Pause/Resume ---
+    const handleAddEducator = () => {
+        if (!newEducatorEmail.trim()) return;
+        const email = newEducatorEmail.trim().toLowerCase();
+        if (allowedEducators.includes(email)) { setNewEducatorEmail(''); return; }
+        updateEducatorAccess([...allowedEducators, email]);
+    };
+
+    const handleRemoveEducator = (emailToRemove: string) => updateEducatorAccess(allowedEducators.filter(e => e !== emailToRemove));
+
+    // 🌟 EXAM ACTION HANDLERS
+    const handleDelete = async () => {
+        setActionLoading(true);
+        try {
+            await adminService.deleteAssessment(localAssessment.id);
+            onBack(); // Go back to hub
+        } catch (err) {
+            alert("Failed to delete assessment.");
+        } finally { setActionLoading(false); }
+    };
+
     const handleToggleStatus = async () => {
-        setIsActionLoading(true);
+        setActionLoading(true);
         try {
             const updated = await adminService.toggleAssessmentStatus(localAssessment.id);
-            setLocalAssessment(updated); // Instantly update UI
+            setLocalAssessment(updated);
+            setActiveModal('NONE');
         } catch (err) {
             alert("Failed to update status.");
-        } finally {
-            setIsActionLoading(false);
-        }
+        } finally { setActionLoading(false); }
     };
 
-    // --- Action: Submit Postpone ---
-    const submitPostpone = async () => {
-        setPostponeError('');
-        if (!newStartTime) return setPostponeError("Please select a valid date and time.");
-
-        const selectedDate = new Date(newStartTime);
-        if (selectedDate < new Date()) {
-            return setPostponeError("Cannot postpone to a date in the past.");
-        }
-
+    const handlePostpone = async () => {
+        if (!postponeDate) return;
+        setActionLoading(true);
         try {
-            const updated = await adminService.postponeAssessment(localAssessment.id, newStartTime);
+            const updated = await adminService.postponeAssessment(localAssessment.id, postponeDate);
             setLocalAssessment(updated);
-            setIsPostponeOpen(false);
+            setActiveModal('NONE');
         } catch (err) {
-            setPostponeError("Failed to postpone assessment.");
-        }
+            alert("Failed to postpone assessment.");
+        } finally { setActionLoading(false); }
+    };
+
+    const formatTime = (seconds: number | undefined | null) => {
+        if (seconds === undefined || seconds === null || isNaN(seconds)) return '--';
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}m ${s}s`;
+    };
+
+    const formatFullName = (email: string) => {
+        if (!email) return 'Unknown';
+        return email.split('@')[0].split(/[._-]/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    };
+
+    const rawSubmissions = reportData?.submissions || [];
+    const maxScore = rawSubmissions.length > 0 ? rawSubmissions[0].maxScore : (localAssessment.totalQuestions * 1);
+
+    const rankedSubmissions = [...rawSubmissions].map(s => ({
+        ...s,
+        studentName: s.studentName || formatFullName(s.studentEmail),
+        timeTaken: s.timeTaken || 0 
+    })).sort((a, b) => {
+        if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+        return a.timeTaken - b.timeTaken; 
+    }).map((s, idx) => ({ ...s, rank: idx + 1 }));
+
+    const highestScorer = rankedSubmissions.length > 0 ? rankedSubmissions[0] : null;
+    const lowestScorer = rankedSubmissions.length > 0 ? rankedSubmissions[rankedSubmissions.length - 1] : null;
+
+    let displayLeaderboard = [...rankedSubmissions];
+    if (lbSearch.trim()) {
+        const q = lbSearch.toLowerCase();
+        displayLeaderboard = displayLeaderboard.filter(s => s.studentName.toLowerCase().includes(q) || s.studentEmail.toLowerCase().includes(q));
+    }
+    if (lbLimit === 'TOP5') displayLeaderboard = displayLeaderboard.slice(0, 5);
+    if (lbLimit === 'TOP10') displayLeaderboard = displayLeaderboard.slice(0, 10);
+    
+    displayLeaderboard.sort((a, b) => {
+        if (lbSort === 'NAME') return a.studentName.localeCompare(b.studentName);
+        if (lbSort === 'TIME') return a.timeTaken - b.timeTaken;
+        if (lbSort === 'SCORE') return b.totalScore - a.totalScore;
+        return a.rank - b.rank; 
+    });
+
+    const fraudLogs = reportData?.fraudLogs || [];
+    const filteredFraud = fraudFilter === 'ALL' ? fraudLogs : fraudLogs.filter((log: any) => log.infractionType === fraudFilter);
+    const uniqueFraudTypes = Array.from(new Set(fraudLogs.map((log: any) => log.infractionType)));
+
+    const handleExport = (format: 'CSV' | 'PDF') => {
+        if (format === 'PDF') { window.print(); return; }
+        const headers = ["Rank", "Name", "Email", "Score", "Time Taken (Seconds)"];
+        const rows = displayLeaderboard.map(s => [ `#${s.rank}`, `"${s.studentName}"`, `"${s.studentEmail}"`, s.totalScore, s.timeTaken ]);
+        const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Leaderboard_${localAssessment.title.replace(/\s+/g, '_')}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // 🌟 CUSTOM ACTION MODALS
+    const ActionModals = () => {
+        if (activeModal === 'NONE') return null;
+
+        return (
+            <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={() => setActiveModal('NONE')}>
+                <div className="bg-white dark:bg-[#150a29] max-w-md w-full rounded-[2rem] p-8 text-center shadow-2xl border-2 border-gray-100 dark:border-purple-900/50 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+                    
+                    {activeModal === 'DELETE' && (
+                        <>
+                            <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-5 border-4 border-red-100 dark:border-red-800">
+                                <Trash2 className="w-10 h-10 text-red-500" />
+                            </div>
+                            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Obliterate Assessment?</h2>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">This action is irreversible. All student submissions, malpractice logs, and analytics tied to <strong className="text-gray-900 dark:text-white">{localAssessment.title}</strong> will be permanently erased.</p>
+                            <div className="flex gap-3">
+                                <button onClick={() => setActiveModal('NONE')} className="flex-1 py-3 rounded-xl font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+                                <button onClick={handleDelete} disabled={actionLoading} className="flex-1 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 transition-colors flex justify-center items-center gap-2">
+                                    {actionLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : 'Yes, Delete'}
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    {activeModal === 'TOGGLE' && (
+                        <>
+                            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 border-4 ${localAssessment.status === 'PUBLISHED' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800 text-amber-500' : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800 text-emerald-500'}`}>
+                                {localAssessment.status === 'PUBLISHED' ? <PauseCircle className="w-10 h-10" /> : <PlayCircle className="w-10 h-10" />}
+                            </div>
+                            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">
+                                {localAssessment.status === 'PUBLISHED' ? 'Pause Assessment?' : 'Publish Assessment?'}
+                            </h2>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">
+                                {localAssessment.status === 'PUBLISHED' 
+                                    ? 'Pausing will immediately stop new students from starting this exam. Existing active sessions will not be interrupted.' 
+                                    : 'Publishing will make this exam instantly live and accessible to the assigned operational batches.'}
+                            </p>
+                            <div className="flex gap-3">
+                                <button onClick={() => setActiveModal('NONE')} className="flex-1 py-3 rounded-xl font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+                                <button onClick={handleToggleStatus} disabled={actionLoading} className={`flex-1 py-3 rounded-xl font-bold text-white transition-colors flex justify-center items-center gap-2 ${localAssessment.status === 'PUBLISHED' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
+                                    {actionLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : localAssessment.status === 'PUBLISHED' ? 'Pause Exam' : 'Go Live'}
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    {activeModal === 'POSTPONE' && (
+                        <>
+                            <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-5 border-4 border-blue-100 dark:border-blue-800">
+                                <CalendarClock className="w-10 h-10 text-blue-500" />
+                            </div>
+                            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Reschedule Exam</h2>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">Select a new future date and time for this assessment to unlock.</p>
+                            
+                            <div className="text-left mb-8">
+                                <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider mb-2 block">New Launch Date</label>
+                                <input 
+                                    type="datetime-local" 
+                                    value={postponeDate} 
+                                    onChange={(e) => setPostponeDate(e.target.value)} 
+                                    className="w-full bg-gray-50 dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:border-blue-500 [color-scheme:light] dark:[color-scheme:dark]" 
+                                />
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button onClick={() => setActiveModal('NONE')} className="flex-1 py-3 rounded-xl font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+                                <button onClick={handlePostpone} disabled={!postponeDate || actionLoading} className="flex-1 py-3 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors flex justify-center items-center gap-2">
+                                    {actionLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : 'Confirm Reschedule'}
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                </div>
+            </div>
+        );
     };
 
     return (
         <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-right-4 relative">
             
-            {/* Header Area */}
-            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 sm:gap-6 bg-white dark:bg-[#1a0d36] p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30">
-                <div className="w-full lg:w-auto">
-                    <button onClick={onBack} className="flex items-center gap-1 text-xs sm:text-sm font-bold text-gray-500 hover:text-purple-600 mb-2 sm:mb-3 transition-colors cursor-pointer w-max">
-                        <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" /> Back to Assessments
-                    </button>
-                    <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 dark:text-white flex flex-wrap items-center gap-2 sm:gap-3 leading-tight">
-                        {localAssessment.title}
-                        <span className={`text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1 rounded-full border uppercase ${
-                            localAssessment.status === 'PUBLISHED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800' :
-                            'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-                        }`}>
-                            {localAssessment.status}
-                        </span>
-                    </h2>
-                </div>
-                
-                {/* 🌟 CONDITIONAL RENDER: Only show controls if user can Edit */}
-                {canEdit && (
-                    <div className="flex flex-wrap lg:flex-nowrap items-center gap-2 w-full lg:w-auto shrink-0">
-                        <button onClick={() => setIsPostponeOpen(true)} disabled={isActionLoading} className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-100 dark:bg-[#0f0a1c] text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-purple-900/40 transition-colors text-xs sm:text-sm cursor-pointer disabled:opacity-50">
-                            <CalendarClock className="w-3 h-3 sm:w-4 sm:h-4" /> Postpone
-                        </button>
-                        
-                        <button onClick={handleToggleStatus} disabled={isActionLoading} className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl font-bold transition-colors text-xs sm:text-sm cursor-pointer disabled:opacity-50 ${
-                            localAssessment.status === 'PUBLISHED' 
-                            ? 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 hover:bg-amber-200' 
-                            : 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-200'
-                        }`}>
-                            {localAssessment.status === 'PUBLISHED' ? <><PauseCircle className="w-3 h-3 sm:w-4 sm:h-4" /> Pause</> : <><PlayCircle className="w-3 h-3 sm:w-4 sm:h-4" /> Resume</>}
-                        </button>
+            <ActionModals />
 
-                        <button onClick={handleDelete} disabled={isActionLoading} className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-xl font-bold hover:bg-red-200 dark:hover:bg-red-900/40 transition-colors text-xs sm:text-sm cursor-pointer disabled:opacity-50">
-                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" /> Delete
-                        </button>
-                    </div>
-                )}
+            <style>
+                {`
+                    @media print {
+                        body * { visibility: hidden; }
+                        .print-container, .print-container * { visibility: visible; }
+                        .print-container { position: absolute; left: 0; top: 0; width: 100%; background: white !important; }
+                        .no-print { display: none !important; }
+                        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+                        .dark body { background: white !important; color: black !important; }
+                    }
+                `}
+            </style>
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 border-b border-gray-200 dark:border-purple-900/30 pb-4 no-print">
+                <button onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-purple-900/30 rounded-lg transition-colors cursor-pointer w-max">
+                    <ArrowLeft className="w-5 h-5 text-gray-500" />
+                </button>
+                <div>
+                    <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white">{localAssessment.title}</h1>
+                    <p className="text-xs sm:text-sm text-purple-600 dark:text-purple-400 font-bold tracking-wider uppercase mt-0.5">Configuration & Analytics</p>
+                </div>
             </div>
 
-            {/* Tab Navigation (Scrollable horizontally on mobile) */}
-            <div className="flex items-center gap-2 sm:gap-4 border-b border-gray-200 dark:border-purple-900/30 overflow-x-auto no-scrollbar whitespace-nowrap">
-                <button onClick={() => setActiveTab('OVERVIEW')} className={`pb-2 sm:pb-3 px-2 sm:px-0 font-bold text-xs sm:text-sm border-b-2 transition-colors cursor-pointer ${activeTab === 'OVERVIEW' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}><Settings className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2"/> Overview & Config</button>
-                <button onClick={() => setActiveTab('LEADERBOARD')} className={`pb-2 sm:pb-3 px-2 sm:px-0 font-bold text-xs sm:text-sm border-b-2 transition-colors cursor-pointer ${activeTab === 'LEADERBOARD' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}><Trophy className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2"/> Submissions & Leaderboard</button>
-                <button onClick={() => setActiveTab('FRAUD')} className={`pb-2 sm:pb-3 px-2 sm:px-0 font-bold text-xs sm:text-sm border-b-2 transition-colors cursor-pointer ${activeTab === 'FRAUD' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}><ShieldAlert className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2"/> Malpractice Logs</button>
+            <div className="flex gap-2 sm:gap-3 overflow-x-auto custom-scrollbar pb-2 sm:pb-4 w-full no-print">
+                <button onClick={() => setActiveTab('OVERVIEW')} className={`px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'OVERVIEW' ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20' : 'bg-white dark:bg-[#150a29] text-gray-600 border border-gray-200 hover:bg-gray-50 dark:border-purple-900/30 dark:text-gray-400'}`}>
+                    <Settings className="w-4 h-4"/> Overview & Config
+                </button>
+                <button onClick={() => setActiveTab('LEADERBOARD')} className={`px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'LEADERBOARD' ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20' : 'bg-white dark:bg-[#150a29] text-gray-600 border border-gray-200 hover:bg-gray-50 dark:border-purple-900/30 dark:text-gray-400'}`}>
+                    <Users className="w-4 h-4"/> Submissions & Leaderboard
+                </button>
+                <button onClick={() => setActiveTab('FRAUD')} className={`px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'FRAUD' ? 'bg-red-600 text-white shadow-md shadow-red-600/20' : 'bg-white dark:bg-[#150a29] text-gray-600 border border-gray-200 hover:bg-gray-50 dark:border-purple-900/30 dark:text-gray-400'}`}>
+                    <ShieldAlert className="w-4 h-4"/> Malpractice Logs 
+                    {fraudLogs.length > 0 && <span className={`px-1.5 py-0.5 rounded text-[10px] ${activeTab === 'FRAUD' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400'}`}>{fraudLogs.length}</span>}
+                </button>
             </div>
 
-            {/* TAB: OVERVIEW */}
-            {activeTab === 'OVERVIEW' && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 animate-in slide-in-from-bottom-4">
-                    {/* Access Credentials Card */}
-                    <div className="bg-gradient-to-br from-purple-600 to-fuchsia-600 p-5 sm:p-6 rounded-2xl shadow-sm text-white h-max">
-                        <h3 className="font-bold text-purple-100 mb-4 sm:mb-6 text-sm sm:text-base">Student Access Credentials</h3>
-                        <div className="space-y-3 sm:space-y-4">
+            {loading ? (
+                <div className="h-40 flex items-center justify-center text-purple-600 animate-pulse font-bold text-sm tracking-widest uppercase no-print">Fetching Diagnostics...</div>
+            ) : (
+                <div className={`bg-white dark:bg-[#1a0d36] rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 p-4 sm:p-6 overflow-hidden ${activeTab === 'LEADERBOARD' ? 'print-container' : 'no-print'}`}>
+                    
+                    {activeTab === 'OVERVIEW' && (
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
                             <div>
-                                <p className="text-[10px] sm:text-xs text-purple-200 font-medium mb-1 uppercase tracking-wider">Assessment ID</p>
-                                <div className="flex items-center gap-2 sm:gap-3 bg-black/20 p-2.5 sm:p-3 rounded-xl font-mono font-bold text-base sm:text-lg">
-                                    <Fingerprint className="w-4 h-4 sm:w-5 sm:h-5 text-purple-300" /> {localAssessment.examId}
+                                <h3 className="text-gray-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-3 sm:mb-4">Exam Configuration</h3>
+                                <div className="space-y-3 sm:space-y-4 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-[#0f0a1c] p-4 sm:p-5 rounded-xl border border-gray-100 dark:border-purple-900/30">
+                                    <div className="flex justify-between border-b border-gray-200 dark:border-purple-900/30 pb-2">
+                                        <span className="font-semibold">Duration</span>
+                                        <span className="font-black text-blue-600 dark:text-blue-400">{localAssessment.durationMinutes} Minutes</span>
+                                    </div>
+                                    <div className="flex justify-between border-b border-gray-200 dark:border-purple-900/30 pb-2">
+                                        <span className="font-semibold">Total Questions</span>
+                                        <span className="font-black text-gray-900 dark:text-white">{localAssessment.totalQuestions} Qs</span>
+                                    </div>
+                                    <div className="flex justify-between border-b border-gray-200 dark:border-purple-900/30 pb-2">
+                                        <span className="font-semibold">Assigned Batches</span>
+                                        <span className="font-black text-emerald-600 dark:text-emerald-400 text-right">
+                                            {localAssessment.assignedBatches && localAssessment.assignedBatches.length > 0 
+                                                ? localAssessment.assignedBatches.map((b:any) => b.name).join(', ') 
+                                                : 'All Batches (Public)'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between border-b border-gray-200 dark:border-purple-900/30 pb-2">
+                                        <span className="font-semibold">Marking Scheme</span>
+                                        <span className="font-black text-gray-900 dark:text-gray-300">+{localAssessment.positiveMarks || 1} <span className="text-gray-400">/</span> <span className="text-red-500">-{localAssessment.negativeMarks || 0.25}</span></span>
+                                    </div>
+                                    <div className="flex justify-between pb-1">
+                                        <span className="font-semibold">Status</span>
+                                        <span className={`font-black uppercase text-[10px] px-2 py-1 rounded border ${localAssessment.status === 'PUBLISHED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400'}`}>
+                                            {localAssessment.status}
+                                        </span>
+                                    </div>
+
+                                    {/* 🌟 NEW: ASSESSMENT ACTIONS */}
+                                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-purple-900/30">
+                                        <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-wider mb-3">Lifecycle Controls</h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <button onClick={() => setActiveModal('TOGGLE')} className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold border-2 transition-all active:scale-95 cursor-pointer ${localAssessment.status === 'PUBLISHED' ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/40' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900/40'}`}>
+                                                {localAssessment.status === 'PUBLISHED' ? <PauseCircle className="w-4 h-4"/> : <PlayCircle className="w-4 h-4"/>} 
+                                                {localAssessment.status === 'PUBLISHED' ? 'Pause Exam' : 'Publish Live'}
+                                            </button>
+                                            <button onClick={() => setActiveModal('POSTPONE')} className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold border-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-all active:scale-95 cursor-pointer">
+                                                <CalendarClock className="w-4 h-4"/> Reschedule
+                                            </button>
+                                            <button onClick={() => setActiveModal('DELETE')} className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold border-2 bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-all active:scale-95 cursor-pointer">
+                                                <Trash2 className="w-4 h-4"/> Delete Exam
+                                            </button>
+                                        </div>
+                                        {localAssessment.startTime && (
+                                            <p className="text-[10px] text-gray-500 font-bold mt-3 bg-white dark:bg-[#150a29] p-2 rounded-lg border border-gray-100 dark:border-gray-800 shadow-inner">
+                                                Scheduled for: <span className="text-blue-600 dark:text-blue-400">{new Date(localAssessment.startTime).toLocaleString()}</span>
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {user?.role === 'ADMIN' && (
+                                        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-purple-900/30">
+                                            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                <Lock className="w-3.5 h-3.5 text-amber-500" /> Security Delegation
+                                            </h4>
+                                            <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                                                <input 
+                                                    type="email" 
+                                                    value={newEducatorEmail}
+                                                    onChange={(e) => setNewEducatorEmail(e.target.value)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleAddEducator()}
+                                                    placeholder="Assign educator email..."
+                                                    className="flex-1 bg-white dark:bg-[#150a29] border-2 border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5 text-xs font-bold text-gray-900 dark:text-white outline-none focus:border-purple-500 transition-colors shadow-inner"
+                                                />
+                                                <button onClick={handleAddEducator} disabled={!newEducatorEmail.trim()} className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-4 py-2 rounded-lg text-xs font-bold shadow-md hover:opacity-90 transition-opacity whitespace-nowrap cursor-pointer disabled:opacity-50">
+                                                    Grant Access
+                                                </button>
+                                            </div>
+
+                                            {allowedEducators.length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mt-3 p-3 bg-white dark:bg-[#1a0d36] rounded-xl border border-gray-100 dark:border-purple-900/30 shadow-inner">
+                                                    {allowedEducators.map(email => (
+                                                        <div key={email} className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 px-2.5 py-1.5 rounded-md text-[10px] font-bold">
+                                                            <span>{email}</span>
+                                                            <button onClick={() => handleRemoveEducator(email)} className="hover:bg-amber-200 dark:hover:bg-amber-900/50 rounded-full p-0.5 text-amber-500 transition-colors cursor-pointer"><X className="w-3.5 h-3.5"/></button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
+
                             <div>
-                                <p className="text-[10px] sm:text-xs text-purple-200 font-medium mb-1 uppercase tracking-wider">Secure Password</p>
-                                <div className="flex items-center gap-2 sm:gap-3 bg-black/20 p-2.5 sm:p-3 rounded-xl font-mono font-bold text-base sm:text-lg">
-                                    <KeyRound className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300" /> {localAssessment.password}
+                                <h3 className="text-gray-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-3 sm:mb-4">Performance Metrics</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-purple-50 dark:bg-purple-900/10 p-5 rounded-xl border border-purple-100 dark:border-purple-900/30 text-center">
+                                        <p className="text-4xl font-black text-purple-600 dark:text-purple-400">{rankedSubmissions.length}</p>
+                                        <p className="text-[10px] font-bold text-gray-500 uppercase mt-2">Participants</p>
+                                    </div>
+                                    <div className="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-xl border border-blue-100 dark:border-blue-900/30 text-center">
+                                        <p className="text-4xl font-black text-blue-600 dark:text-blue-400">{reportData?.averageScore || 0}</p>
+                                        <p className="text-[10px] font-bold text-gray-500 uppercase mt-2">Platform Average</p>
+                                    </div>
+                                    <div className="bg-emerald-50 dark:bg-emerald-900/10 p-5 rounded-xl border border-emerald-100 dark:border-emerald-900/30 text-center flex flex-col justify-center">
+                                        <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1"><Trophy className="w-5 h-5"/> {highestScorer ? highestScorer.totalScore : 0}</p>
+                                        <p className="text-[10px] font-bold text-gray-500 uppercase mt-2">Highest Score</p>
+                                        <p className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 mt-1 truncate px-2">{highestScorer ? highestScorer.studentName : '--'}</p>
+                                    </div>
+                                    <div className="bg-red-50 dark:bg-red-900/10 p-5 rounded-xl border border-red-100 dark:border-red-900/30 text-center flex flex-col justify-center">
+                                        <p className="text-3xl font-black text-red-600 dark:text-red-400 flex items-center justify-center gap-1"><Frown className="w-5 h-5"/> {lowestScorer ? lowestScorer.totalScore : 0}</p>
+                                        <p className="text-[10px] font-bold text-gray-500 uppercase mt-2">Lowest Score</p>
+                                        <p className="text-[10px] font-black text-red-700 dark:text-red-300 mt-1 truncate px-2">{lowestScorer ? lowestScorer.studentName : '--'}</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
-                    {/* Configuration Details */}
-                    <div className="lg:col-span-2 bg-white dark:bg-[#1a0d36] p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30">
-                        <h3 className="font-bold text-gray-900 dark:text-white mb-4 sm:mb-6 text-sm sm:text-base">Exam Configuration</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
-                            <div>
-                                <p className="text-[10px] sm:text-xs text-gray-500 font-bold mb-1 uppercase">Total Questions</p>
-                                <p className="text-base sm:text-lg font-black text-gray-900 dark:text-white">{localAssessment.totalQuestions}</p>
+                    {activeTab === 'LEADERBOARD' && (
+                        <div className="flex flex-col h-full max-h-[80vh]">
+                            <div className="flex flex-col lg:flex-row gap-3 justify-between mb-4 bg-gray-50 dark:bg-[#0f0a1c] p-3 rounded-xl border border-gray-100 dark:border-purple-900/50 no-print">
+                                <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                                    <div className="relative w-full sm:w-64">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input type="text" placeholder="Search by name or email..." value={lbSearch} onChange={(e) => setLbSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:border-purple-500 dark:text-white" />
+                                    </div>
+                                    <select value={lbSort} onChange={(e) => setLbSort(e.target.value as any)} className="bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 outline-none cursor-pointer">
+                                        <option value="RANK">Sort by Rank</option><option value="SCORE">Sort by Score</option><option value="TIME">Sort by Time Taken</option><option value="NAME">Sort by Name</option>
+                                    </select>
+                                    <select value={lbLimit} onChange={(e) => setLbLimit(e.target.value as any)} className="bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 outline-none cursor-pointer">
+                                        <option value="ALL">All Participants</option><option value="TOP5">Top 5 Only</option><option value="TOP10">Top 10 Only</option>
+                                    </select>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => handleExport('CSV')} className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100 px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer">
+                                        <Download className="w-3.5 h-3.5"/> Export CSV
+                                    </button>
+                                    <button onClick={() => handleExport('PDF')} className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-900/50 hover:bg-red-100 px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer">
+                                        <FileText className="w-3.5 h-3.5"/> Print PDF
+                                    </button>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-[10px] sm:text-xs text-gray-500 font-bold mb-1 uppercase">Time Limit</p>
-                                <p className="text-base sm:text-lg font-black text-gray-900 dark:text-white flex items-center gap-1"><Clock className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500"/> {localAssessment.durationMinutes} Min</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] sm:text-xs text-gray-500 font-bold mb-1 uppercase">Max Attempts</p>
-                                <p className="text-base sm:text-lg font-black text-gray-900 dark:text-white">{localAssessment.maxAttempts || 1}</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] sm:text-xs text-gray-500 font-bold mb-1 uppercase">Creation Mode</p>
-                                <p className="text-xs sm:text-sm font-bold text-purple-600 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded w-max mt-1">{localAssessment.creationMode}</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] sm:text-xs text-gray-500 font-bold mb-1 uppercase">Positive Score</p>
-                                <p className="text-base sm:text-lg font-black text-emerald-500">+{localAssessment.positiveMarks}</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] sm:text-xs text-gray-500 font-bold mb-1 uppercase">Negative Penalty</p>
-                                <p className="text-base sm:text-lg font-black text-rose-500">-{localAssessment.negativeMarks}</p>
-                            </div>
-                            <div className="col-span-2 sm:col-span-3 md:col-span-2">
-                                <p className="text-[10px] sm:text-xs text-gray-500 font-bold mb-1 uppercase">Start Time</p>
-                                <p className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white mt-1">
-                                    {localAssessment.startTime ? new Date(localAssessment.startTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'Always Open (No schedule)'}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
-            {/* TAB: LEADERBOARD */}
-            {activeTab === 'LEADERBOARD' && (
-                <div className="bg-white dark:bg-[#1a0d36] rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 overflow-hidden animate-in slide-in-from-bottom-4">
-                    <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-purple-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                            <h3 className="font-bold text-gray-900 dark:text-white text-base sm:text-lg">Performance Leaderboard</h3>
-                            <p className="text-[10px] sm:text-xs text-gray-500 mt-1">Ranked by Score (Highest First), then Time Taken.</p>
+                            {displayLeaderboard.length === 0 ? (
+                                <div className="text-center text-gray-500 py-10 font-medium border border-dashed border-gray-200 rounded-xl">No leaderboard data matches your filters.</div>
+                            ) : (
+                                <div className="flex-1 overflow-auto rounded-xl border border-gray-200 dark:border-purple-900/30 print:border-none print:shadow-none">
+                                    <h2 className="hidden print:block text-2xl font-black mb-6 text-center text-purple-700">Official Leaderboard: {localAssessment.title}</h2>
+                                    <table className="w-full text-left border-collapse whitespace-nowrap">
+                                        <thead className="bg-gray-50 dark:bg-[#150a29] sticky top-0 z-10 shadow-sm print:bg-gray-100">
+                                            <tr className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">
+                                                <th className="py-3 px-4 w-16 text-center">Rank</th><th className="py-3 px-4">Participant Details</th><th className="py-3 px-4 text-center">Time Taken</th><th className="py-3 px-4 text-center">Total Score</th><th className="py-3 px-4 text-right">Accuracy Breakdown</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 dark:divide-purple-900/30 bg-white dark:bg-[#1a0d36]">
+                                            {displayLeaderboard.map((sub: any) => (
+                                                <tr key={sub.id} className="hover:bg-gray-50 dark:hover:bg-[#0f0a1c]/50 transition-colors">
+                                                    <td className="py-3 px-4 text-center font-black text-gray-400 dark:text-gray-600">#{sub.rank}</td>
+                                                    <td className="py-3 px-4">
+                                                        <p className="text-sm font-bold text-gray-900 dark:text-white">{sub.studentName}</p>
+                                                        <p className="text-[10px] text-gray-500 font-mono">{sub.studentEmail}</p>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center">
+                                                        <span className="flex items-center justify-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded w-max mx-auto border border-blue-100 dark:border-blue-900/50">
+                                                            <Clock className="w-3 h-3"/> {formatTime(sub.timeTaken)}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center">
+                                                        <span className="text-base font-black text-purple-600 dark:text-purple-400">{sub.totalScore}</span>
+                                                        <span className="text-[10px] text-gray-400 font-bold ml-1">/ {maxScore}</span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-right">
+                                                        <div className="flex justify-end gap-1.5 text-[9px] font-bold uppercase">
+                                                            <span className="text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-100 dark:border-emerald-900/30">{sub.correctCount} ✓</span>
+                                                            <span className="text-red-600 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded border border-red-100 dark:border-red-900/30">{sub.incorrectCount} ✗</span>
+                                                            <span className="text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700">{sub.unattemptedCount} -</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
-                        <span className="font-bold text-xs sm:text-sm bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 px-3 py-1 rounded-lg w-max">3 Submissions</span>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs sm:text-sm">
-                            <thead className="bg-gray-50 dark:bg-[#150a29] uppercase text-gray-500 whitespace-nowrap">
-                                <tr><th className="py-3 sm:py-4 px-4 sm:px-6 w-12 sm:w-16">Rank</th><th className="py-3 sm:py-4 px-4 sm:px-6">Student Name</th><th className="py-3 sm:py-4 px-4 sm:px-6">Score</th><th className="py-3 sm:py-4 px-4 sm:px-6">Time Taken</th><th className="py-3 sm:py-4 px-4 sm:px-6">Submitted At</th></tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-purple-900/30">
-                                {mockLeaderboard.map((student) => (
-                                    <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-[#150a29]/50 whitespace-nowrap">
-                                        <td className="py-3 sm:py-4 px-4 sm:px-6">
-                                            {student.rank === 1 ? <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" /> : 
-                                             student.rank === 2 ? <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" /> : 
-                                             student.rank === 3 ? <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-700" /> : 
-                                             <span className="font-bold text-gray-400">#{student.rank}</span>}
-                                        </td>
-                                        <td className="py-3 sm:py-4 px-4 sm:px-6 font-bold text-gray-900 dark:text-white">{student.name}</td>
-                                        <td className="py-3 sm:py-4 px-4 sm:px-6 font-black text-emerald-500">{student.score}</td>
-                                        <td className="py-3 sm:py-4 px-4 sm:px-6 text-gray-600 dark:text-gray-300 font-mono">{student.timeTaken}</td>
-                                        <td className="py-3 sm:py-4 px-4 sm:px-6 text-gray-500 text-[10px] sm:text-xs">{student.submittedAt}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
+                    )}
 
-            {/* TAB: FRAUD */}
-            {activeTab === 'FRAUD' && (
-                <div className="bg-white dark:bg-[#1a0d36] rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 overflow-hidden animate-in slide-in-from-bottom-4">
-                    <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-purple-900/30">
-                        <h3 className="font-bold text-gray-900 dark:text-white text-base sm:text-lg text-red-500 flex items-center gap-2"><ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5"/> Malpractice & Infraction Logs</h3>
-                        <p className="text-[10px] sm:text-xs text-gray-500 mt-1">Summary of AI proctoring events triggered during this specific exam.</p>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs sm:text-sm">
-                            <thead className="bg-gray-50 dark:bg-[#150a29] uppercase text-gray-500 whitespace-nowrap">
-                                <tr><th className="py-3 sm:py-4 px-4 sm:px-6">Student</th><th className="py-3 sm:py-4 px-4 sm:px-6">Infraction Type</th><th className="py-3 sm:py-4 px-4 sm:px-6">Severity</th><th className="py-3 sm:py-4 px-4 sm:px-6">Time</th></tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-purple-900/30">
-                                {mockFraud.map((event) => (
-                                    <tr key={event.id} className="hover:bg-gray-50 dark:hover:bg-[#150a29]/50 whitespace-nowrap">
-                                        <td className="py-3 sm:py-4 px-4 sm:px-6 font-bold text-gray-900 dark:text-white">{event.student}</td>
-                                        <td className="py-3 sm:py-4 px-4 sm:px-6 font-bold text-red-500">{event.infraction}</td>
-                                        <td className="py-3 sm:py-4 px-4 sm:px-6">
-                                            <span className={`px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[10px] font-bold text-white ${event.severity === 'CRITICAL' ? 'bg-red-500' : 'bg-amber-500'}`}>{event.severity}</span>
-                                        </td>
-                                        <td className="py-3 sm:py-4 px-4 sm:px-6 text-gray-500 text-[10px] sm:text-xs">{event.time}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {/* 🌟 POSTPONE MODAL OVERLAY */}
-            {isPostponeOpen && (
-                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-[#1a0d36] w-full max-w-md rounded-3xl shadow-2xl border border-gray-100 dark:border-purple-900/30 overflow-hidden animate-in zoom-in-95">
-                        <div className="p-6 border-b border-gray-100 dark:border-purple-900/30 flex justify-between items-center">
-                            <h3 className="font-bold text-xl flex items-center gap-2 dark:text-white"><CalendarIcon className="text-purple-600" /> Postpone Assessment</h3>
-                            <button onClick={() => setIsPostponeOpen(false)} className="text-gray-400 hover:text-red-500 transition-colors"><X className="w-5 h-5" /></button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            {postponeError && <div className="p-3 bg-red-50 text-red-600 text-sm font-bold rounded-xl border border-red-200">{postponeError}</div>}
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">New Scheduled Start Time</label>
-
-                            <div className="relative">
-                                <input
-                                    type="datetime-local"
-                                    value={newStartTime}
-                                    onChange={e => setNewStartTime(e.target.value)}
-                                    className="w-full bg-gray-50 dark:bg-[#0f0a1c] border border-gray-200 dark:border-purple-900/50 rounded-xl px-4 py-3.5 focus:ring-2 ring-purple-600 outline-none text-gray-900 dark:text-white transition-all cursor-pointer text-sm [color-scheme:light] dark:[color-scheme:dark]"
-                                />
+                    {activeTab === 'FRAUD' && (
+                        <div className="flex flex-col h-full max-h-[80vh]">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3 shrink-0 no-print">
+                                <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base flex items-center gap-2">
+                                    <ShieldAlert className="w-5 h-5 text-red-500"/> Detected Malpractice Incidents
+                                </h3>
+                                {uniqueFraudTypes.length > 0 && (
+                                    <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#0f0a1c] border border-gray-200 dark:border-purple-900/50 rounded-lg px-2 sm:px-3 py-1.5">
+                                        <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 shrink-0"/>
+                                        <select value={fraudFilter} onChange={(e) => setFraudFilter(e.target.value)} className="bg-transparent text-[10px] sm:text-xs font-bold text-gray-700 dark:text-gray-300 outline-none cursor-pointer w-full">
+                                            <option value="ALL">All Violations</option>
+                                            {(uniqueFraudTypes as string[]).map(type => <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>)}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
-                            <p className="text-xs text-gray-500">Students will not be able to access the exam until this specific time.</p>
+
+                            {filteredFraud.length === 0 ? (
+                                <div className="text-center py-10 sm:py-16 text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-200 dark:border-emerald-900/30">
+                                    <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-2 sm:mb-3 opacity-50"/>
+                                    No malpractice incidents detected for this assessment!
+                                </div>
+                            ) : (
+                                <div className="flex-1 overflow-auto rounded-xl border border-red-200 dark:border-red-900/30">
+                                    <table className="w-full text-left text-sm whitespace-nowrap">
+                                        <thead className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400 font-bold uppercase tracking-wider text-[10px] sticky top-0 z-10 shadow-sm">
+                                            <tr>
+                                                <th className="px-4 py-3">Timestamp</th><th className="px-4 py-3">Student Identity</th><th className="px-4 py-3">Infraction Type</th><th className="px-4 py-3">Security Details</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-red-100 dark:divide-red-900/30 bg-white dark:bg-[#1a0d36]">
+                                            {filteredFraud.map((log: any) => (
+                                                <tr key={log.id} className="hover:bg-red-50/50 dark:hover:bg-red-900/10 transition-colors">
+                                                    <td className="px-4 py-3 font-mono text-xs text-gray-500">
+                                                        {log.timestamp ? new Date(log.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Live Session'}
+                                                    </td>
+                                                    <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">
+                                                        {formatFullName(log.studentEmail)} <span className="text-[10px] text-gray-400 font-mono block font-normal">{log.studentEmail}</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 font-black text-red-600 dark:text-red-500">
+                                                        <span className="bg-red-100 dark:bg-red-900/30 px-2.5 py-1 rounded border border-red-200 dark:border-red-900/50 text-[10px] uppercase">
+                                                            <AlertTriangle className="w-3 h-3 inline mr-1 -mt-0.5"/> {log.infractionType.replace(/_/g, ' ')}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs text-red-800/80 dark:text-red-300/80 whitespace-normal min-w-[250px]">{log.details}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
-                        <div className="p-4 bg-gray-50 dark:bg-[#0f0a1c] flex justify-end gap-3 border-t border-gray-100 dark:border-purple-900/30">
-                            <button onClick={() => setIsPostponeOpen(false)} className="px-5 py-2.5 rounded-xl font-bold text-gray-600 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-purple-900/30 transition-colors">Cancel</button>
-                            <button onClick={submitPostpone} className="px-5 py-2.5 rounded-xl font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors">Confirm Postpone</button>
-                        </div>
-                    </div>
+                    )}
                 </div>
             )}
         </div>

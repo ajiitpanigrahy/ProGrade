@@ -43,4 +43,18 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
 	// 🌟 Removed LIMIT from the string, added Pageable to the parameters
 		@Query(value = "SELECT * FROM questions WHERE technology = :tech AND difficulty_level = :diff ORDER BY RAND()", nativeQuery = true)
 		List<Question> findRandomQuestions(@Param("tech") String tech, @Param("diff") String diff, Pageable pageable);
+		
+		
+		// 🌟 NEW: Fetch by Tech, Topic, and Difficulty
+	    @Query("SELECT q FROM Question q WHERE UPPER(q.technology) = UPPER(:tech) AND UPPER(q.topic) = UPPER(:topic) AND UPPER(q.difficultyLevel) = UPPER(:diff) ORDER BY RAND()")
+	    List<Question> findRandomQuestionsWithTopic(
+	        @Param("tech") String tech, 
+	        @Param("topic") String topic, 
+	        @Param("diff") String diff, 
+	        org.springframework.data.domain.Pageable pageable
+	    );
+	    
+	 // 🌟 ADDED: Fetches available topics and counts grouped by difficulty
+	    @Query("SELECT q.topic, q.difficultyLevel, COUNT(q) FROM Question q WHERE UPPER(q.technology) = UPPER(:tech) GROUP BY q.topic, q.difficultyLevel")
+	    List<Object[]> getTopicDifficultyCountsByTech(@Param("tech") String tech);
 }

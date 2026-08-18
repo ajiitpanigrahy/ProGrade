@@ -37,11 +37,11 @@ public class Assessment {
 	@Enumerated(EnumType.STRING)
 	private CreationMode creationMode;
 	@Column(name = "tags")
-    private String tags; //
+	private String tags; //
 	private java.time.LocalDateTime startTime; // If null, exam is always open
-	private int maxAttempts = 1; // Default to 1 attempt per student
-    @Column(nullable = false, updatable = false)
-    private String creatorRole = "ADMIN";
+	private Integer maxAttempts; // Default to 1 attempt per student
+	@Column(nullable = false, updatable = false)
+	private String creatorRole = "ADMIN";
 	@JsonIgnore // 🌟 Prevents massive payload sizes when listing assessments
 	@ManyToMany(fetch = FetchType.LAZY)
 	@JoinTable(name = "assessment_questions", joinColumns = @JoinColumn(name = "assessment_id"), inverseJoinColumns = @JoinColumn(name = "question_id"))
@@ -49,6 +49,32 @@ public class Assessment {
 
 	private String status = "PUBLISHED";
 	private LocalDateTime createdAt = LocalDateTime.now();
+
+	// Add this field to your Assessment class
+	@Column(name = "allowed_educators", columnDefinition = "TEXT")
+	private String allowedEducators; // Will store comma-separated emails: "edu1@mail.com, edu2@mail.com"
+
+	// Inside Assessment.java
+	@ManyToMany(fetch = FetchType.LAZY)
+	@JoinTable(name = "assessment_batch", joinColumns = @JoinColumn(name = "assessment_id"), inverseJoinColumns = @JoinColumn(name = "batch_id"))
+	private java.util.Set<Batch> assignedBatches = new java.util.HashSet<>();
+
+	public java.util.Set<Batch> getAssignedBatches() {
+		return assignedBatches;
+	}
+
+	public void setAssignedBatches(java.util.Set<Batch> assignedBatches) {
+		this.assignedBatches = assignedBatches;
+	}
+
+	// Make sure you have getters and setters for it!
+	public String getAllowedEducators() {
+		return allowedEducators;
+	}
+
+	public void setAllowedEducators(String allowedEducators) {
+		this.allowedEducators = allowedEducators;
+	}
 
 	public enum CreationMode {
 		MANUAL, AUTOMATIC

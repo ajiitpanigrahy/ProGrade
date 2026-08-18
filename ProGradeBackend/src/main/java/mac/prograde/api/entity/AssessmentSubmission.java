@@ -5,14 +5,17 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "assessment_submissions")
 @Data
 public class AssessmentSubmission {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private Long assessmentId;
     private String studentEmail;
+    private String studentName;
     
     private double totalScore;
     private double maxScore;
@@ -20,18 +23,24 @@ public class AssessmentSubmission {
     private int incorrectCount;
     private int unattemptedCount;
     private int flaggedCount;
+
     @Column(columnDefinition = "TEXT")
     private String responseJson;
+    
     private LocalDateTime submittedAt;
- // 🌟 ADD THESE NEW FIELDS
-    private java.time.LocalDateTime startedAt;
+    private LocalDateTime startedAt;
+    
     @Column(columnDefinition = "TEXT")
     private String questionTimeJson;
 
-    // (Keep your existing submittedAt and responseJson fields...)
+    // 🌟 CRITICAL FIX: Must be 'Integer' (Object) not 'int' (primitive) so it can be null-checked!
+    @Column(name = "time_taken_seconds")
+    private Integer timeTaken;
 
     @PrePersist
     protected void onCreate() {
-        submittedAt = LocalDateTime.now();
+        if (submittedAt == null) {
+            submittedAt = LocalDateTime.now();
+        }
     }
 }

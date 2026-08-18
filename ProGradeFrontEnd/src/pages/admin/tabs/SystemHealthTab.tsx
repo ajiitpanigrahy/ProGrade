@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Server, Database, Zap, Clock, ShieldCheck, Settings2, RefreshCw } from 'lucide-react';
+import { Activity, Server, Database, Zap, ShieldCheck, Settings2, RefreshCw, Cpu, HardDrive, AlertTriangle, Clock, Terminal, HeartPulse, Network, XCircle } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { adminService } from '../../../features/admin/adminService';
 
@@ -7,34 +7,21 @@ export default function SystemHealthTab() {
     const [healthData, setHealthData] = useState<any>(null);
     const [logLevel, setLogLevel] = useState('INFO');
     const [isRefreshing, setIsRefreshing] = useState(false);
-
-    // Initial Mock Data (Instantly looks beautiful before backend connects)
-    const [history, setHistory] = useState([
-        { time: '10:00', cpu: 22, memory: 45, http2xx: 120, http4xx: 5, http5xx: 0, gcPause: 12 },
-        { time: '10:10', cpu: 35, memory: 48, http2xx: 145, http4xx: 8, http5xx: 0, gcPause: 15 },
-        { time: '10:20', cpu: 85, memory: 75, http2xx: 310, http4xx: 45, http5xx: 12, gcPause: 240 }, // Load Spike
-        { time: '10:30', cpu: 40, memory: 50, http2xx: 180, http4xx: 10, http5xx: 1, gcPause: 18 },
-        { time: '10:40', cpu: 38, memory: 52, http2xx: 160, http4xx: 5, http5xx: 0, gcPause: 14 },
-    ]);
+    const [history, setHistory] = useState<any[]>([]);
 
     const fetchData = async () => {
         setIsRefreshing(true);
         try {
             const data = await adminService.getSystemHealth();
             setHealthData(data);
-            if (data.history && data.history.length > 0) {
-                setHistory(data.history);
-            }
-        } catch (error) {
-            console.error("Failed to fetch health data", error);
-        } finally {
-            setTimeout(() => setIsRefreshing(false), 500);
-        }
+            if (data.history) setHistory(data.history);
+        } catch (error) { console.error("Failed to fetch health data", error); } 
+        finally { setTimeout(() => setIsRefreshing(false), 800); }
     };
 
     useEffect(() => {
         fetchData();
-        const interval = setInterval(fetchData, 30000); // Auto-refresh every 30s
+        const interval = setInterval(fetchData, 30000); 
         return () => clearInterval(interval);
     }, []);
 
@@ -42,182 +29,223 @@ export default function SystemHealthTab() {
         try {
             await adminService.updateLogLevel('mac.prograde', logLevel);
             alert(`Log level successfully changed to ${logLevel}`);
-        } catch (e) {
-            alert('Failed to change log level.');
-        }
+        } catch (e) { alert('Failed to change log level.'); }
     };
 
-    const jvmUsed = healthData?.jvmUsedMb || 412;
+    // Safely Extract Metrics
+    const jvmUsed = healthData?.jvmUsedMb || 0;
     const jvmMax = healthData?.jvmMaxMb || 1024;
-    const memPercent = (jvmUsed / jvmMax) * 100;
-    const dbActive = healthData?.dbActive || 3;
-    const dbPending = healthData?.dbPending || 0;
+    const memPercent = jvmMax > 0 ? (jvmUsed / jvmMax) * 100 : 0;
+    
+    const dbActive = healthData?.dbActive || 0;
+    const dbIdle = healthData?.dbIdle || 0;
+    const dbMax = healthData?.dbMax || 10;
+    
+    const appCpu = healthData?.appCpu || 0;
+    const hostCpu = healthData?.hostCpu || 0;
+
+    const activeThreads = healthData?.activeThreads || 0;
+    const blockedThreads = healthData?.blockedThreads || 0;
+
+    const diskFree = healthData?.diskFreeGb || 0;
+    const diskTotal = healthData?.diskTotalGb || 100;
+    const diskPercent = diskTotal > 0 ? ((diskTotal - diskFree) / diskTotal) * 100 : 0;
+
+    // 🌟 CUSTOM GLASSMORPHISM TOOLTIP
+    const CustomTooltip = ({ active, payload, label }: any) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className="bg-white/90 dark:bg-[#150a29]/90 backdrop-blur-md border-2 border-gray-200 dark:border-purple-900/50 p-4 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] z-50">
+                    <p className="text-xs font-black text-gray-500 mb-2 uppercase tracking-widest border-b border-gray-200 dark:border-purple-900/50 pb-2">{label}</p>
+                    {payload.map((p: any, idx: number) => (
+                        <p key={idx} className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2 my-1">
+                            <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: p.color || p.fill || p.stroke }}></span>
+                            {p.name}: <span style={{ color: p.color || p.fill || p.stroke }}>{Number(p.value).toFixed(1)}</span>
+                        </p>
+                    ))}
+                </div>
+            );
+        }
+        return null;
+    };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500 max-w-7xl">
+        <div className="space-y-6 animate-in fade-in duration-500 relative min-h-screen pb-10">
             
-            {/* Header & Refresh */}
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-3">
-                    <Activity className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-                    <div>
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">System Infrastructure</h2>
-                        <p className="text-sm text-gray-500">Live JVM footprint, Database pools, and Traffic velocity.</p>
-                    </div>
+            {/* Glowing Atmosphere */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0 opacity-40">
+                <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[120px] mix-blend-screen"></div>
+                <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] mix-blend-screen"></div>
+            </div>
+
+            {/* Header */}
+            <div className="bg-white/80 dark:bg-[#150a29]/80 backdrop-blur-xl border-b-2 border-gray-200 dark:border-purple-900/50 p-6 sm:p-8 rounded-[2rem] flex flex-col md:flex-row md:items-center justify-between gap-6 shrink-0 z-10 shadow-[0_10px_40px_rgba(0,0,0,0.03)] relative">
+                <div>
+                    <h2 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-blue-600 dark:from-emerald-400 dark:to-blue-400 flex items-center gap-3 drop-shadow-sm">
+                        <Server className="w-8 h-8 text-emerald-600 dark:text-emerald-400" /> NOC Dashboard
+                    </h2>
+                    <p className="text-sm text-gray-500 font-bold mt-2 tracking-wide">Network Operations Center: Deep-dive diagnostics and infrastructure health.</p>
                 </div>
-                <button onClick={fetchData} className="flex items-center gap-2 bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-purple-900/50 px-4 py-2 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 transition-colors">
-                    <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh
+                <button onClick={fetchData} disabled={isRefreshing} className="w-full md:w-auto bg-gradient-to-b from-white to-gray-50 dark:from-[#1a0d36] dark:to-[#110820] text-gray-700 dark:text-gray-300 font-black px-8 py-3.5 rounded-xl border-2 border-gray-200 dark:border-purple-900/50 border-b-[6px] active:border-b-2 active:translate-y-1 hover:bg-gray-50 dark:hover:bg-[#1a0d36] shadow-lg transition-all flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer uppercase tracking-widest text-xs">
+                    <RefreshCw className={`w-5 h-5 text-emerald-500 ${isRefreshing ? 'animate-spin' : ''}`} /> Sync Telemetry
                 </button>
             </div>
 
-            {/* --- TOP KPIs: The Metric Cards --- */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* 🌟 SECTION 1: KPI CARDS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 relative z-10">
                 
-                {/* 1. JVM Memory Health */}
-                <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">JVM Heap Memory</p>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{Math.round(jvmUsed)} MB <span className="text-sm text-gray-500 font-medium">/ {Math.round(jvmMax)} MB</span></h3>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-1">
-                        <div className={`h-2 rounded-full transition-all duration-500 ${memPercent > 80 ? 'bg-orange-500' : memPercent > 90 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${Math.min(memPercent, 100)}%` }}></div>
-                    </div>
-                    <p className="text-xs text-gray-500">{memPercent.toFixed(1)}% Utilized</p>
-                </div>
-
-                {/* 2. Database Pool Strain */}
-                <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 relative overflow-hidden">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Hikari DB Pool</p>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{dbActive} <span className="text-sm text-gray-500 font-medium">Active Connects</span></h3>
-                    <p className={`text-xs font-bold ${dbPending > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                        {dbPending} Threads Pending
-                    </p>
-                    {/* Pulsing Status Dot */}
-                    <div className="absolute top-6 right-6">
-                        <span className="relative flex h-4 w-4">
-                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${dbPending > 0 ? 'bg-red-400' : 'bg-green-400'}`}></span>
-                            <span className={`relative inline-flex rounded-full h-4 w-4 ${dbPending > 0 ? 'bg-red-500' : 'bg-green-500'}`}></span>
-                        </span>
+                {/* 1. App Heartbeat */}
+                <div className="group bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-emerald-100 dark:border-emerald-900/30 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-emerald-400">
+                    <div className="absolute -top-6 -right-6 p-4 opacity-5 group-hover:opacity-20 transition-all duration-500"><HeartPulse className="w-32 h-32 text-emerald-500"/></div>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2"><HeartPulse className="w-4 h-4 text-emerald-500"/> Application Heartbeat</p>
+                    <h3 className="text-4xl font-black text-gray-900 dark:text-white mb-4">99.98% <span className="text-sm text-gray-500 font-bold">Uptime</span></h3>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800">
+                        <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></span> {healthData?.status || 'UP'} | {healthData?.uptime || '0d 0h'}
                     </div>
                 </div>
 
-                {/* 3. API Response Velocity */}
-                <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">API Velocity</p>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">42<span className="text-sm text-gray-500 font-medium">ms</span></h3>
-                    <p className="text-xs text-green-500 font-bold">↓ 12% vs last hour</p>
+                {/* 2. CPU Usage */}
+                <div className="group bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-blue-400">
+                    <div className="absolute -top-6 -right-6 p-4 opacity-5 group-hover:opacity-20 transition-all duration-500"><Cpu className="w-32 h-32 text-blue-500"/></div>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Cpu className="w-4 h-4 text-blue-500"/> System CPU Usage</p>
+                    <h3 className="text-4xl font-black text-gray-900 dark:text-white mb-4">{hostCpu.toFixed(1)}<span className="text-2xl text-gray-500">%</span></h3>
+                    <div className="flex gap-4">
+                        <span className="text-xs font-black text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg">App: {appCpu.toFixed(1)}%</span>
+                        <span className="text-xs font-black text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-lg">Host: {hostCpu.toFixed(1)}%</span>
+                    </div>
                 </div>
 
-                {/* 4. Active Thread Count */}
-                <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tomcat Threads</p>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{healthData?.activeThreads || 18} <span className="text-sm text-gray-500 font-medium">Live</span></h3>
-                    <p className="text-xs text-blue-500 font-bold">High Concurrency Ready</p>
+                {/* 3. JVM Heap */}
+                <div className="group bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-purple-400">
+                    <div className="absolute -top-6 -right-6 p-4 opacity-5 group-hover:opacity-20 transition-all duration-500"><HardDrive className="w-32 h-32 text-purple-500"/></div>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2"><HardDrive className="w-4 h-4 text-purple-500"/> JVM Heap Status</p>
+                    <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-4">{Math.round(jvmUsed)} <span className="text-sm text-gray-500">MB</span> <span className="text-sm text-gray-400 font-bold">/ {Math.round(jvmMax)}</span></h3>
+                    <div className="w-full bg-gray-100 dark:bg-[#0f0a1c] rounded-full h-2 mb-2"><div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min(memPercent, 100)}%` }}></div></div>
+                    <p className="text-xs text-gray-500 font-black tracking-wider">{memPercent.toFixed(1)}% Allocated</p>
+                </div>
+
+                {/* 4. Active Threads */}
+                <div className="group bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-amber-400">
+                    <div className="absolute -top-6 -right-6 p-4 opacity-5 group-hover:opacity-20 transition-all duration-500"><Activity className="w-32 h-32 text-amber-500"/></div>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Activity className="w-4 h-4 text-amber-500"/> Active Thread Count</p>
+                    <h3 className="text-4xl font-black text-gray-900 dark:text-white mb-4">{Math.round(activeThreads)}</h3>
+                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 text-[10px] font-black uppercase tracking-wider shadow-inner ${blockedThreads > 0 ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}>
+                        {blockedThreads > 0 ? <AlertTriangle className="w-3.5 h-3.5"/> : <ShieldCheck className="w-3.5 h-3.5"/>}
+                        {blockedThreads} Blocked Threads
+                    </div>
+                </div>
+
+                {/* 5. Database Pool */}
+                <div className="group bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-indigo-400">
+                    <div className="absolute -top-6 -right-6 p-4 opacity-5 group-hover:opacity-20 transition-all duration-500"><Database className="w-32 h-32 text-indigo-500"/></div>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Database className="w-4 h-4 text-indigo-500"/> HikariCP Database Pool</p>
+                    <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-4">{Math.round(dbActive)} <span className="text-sm text-gray-500 font-bold">Active</span></h3>
+                    <div className="flex gap-4">
+                        <span className="text-xs font-black text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-lg">Idle: {Math.round(dbIdle)}</span>
+                        <span className="text-xs font-black text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-lg">Max: {Math.round(dbMax)}</span>
+                    </div>
+                </div>
+
+                {/* 6. Disk Space */}
+                <div className="group bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-pink-400">
+                    <div className="absolute -top-6 -right-6 p-4 opacity-5 group-hover:opacity-20 transition-all duration-500"><Server className="w-32 h-32 text-pink-500"/></div>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Server className="w-4 h-4 text-pink-500"/> Disk Space Availability</p>
+                    <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-4">{diskFree} <span className="text-sm text-gray-500">GB Free</span></h3>
+                    <div className="w-full bg-gray-100 dark:bg-[#0f0a1c] rounded-full h-2 mb-2"><div className="h-full bg-pink-500 rounded-full" style={{ width: `${Math.min(diskPercent, 100)}%` }}></div></div>
+                    <p className="text-xs text-gray-500 font-black tracking-wider">Total: {diskTotal} GB</p>
                 </div>
             </div>
 
-            {/* --- MIDDLE: The Analytics Charts --- */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 🌟 SECTION 2: GRAPHS */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
                 
-                {/* Chart A: System Resource Timeline */}
-                <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">System Resource Timeline (60m)</h3>
-                    <div className="h-64 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={history} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4}/> {/* Neon Blue */}
-                                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
-                                    </linearGradient>
-                                    <linearGradient id="colorRam" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.4}/> {/* Deep Purple */}
-                                        <stop offset="95%" stopColor="#7c3aed" stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} vertical={false} />
-                                <XAxis dataKey="time" stroke="#6b7280" tick={{fontSize: 12}} />
-                                <YAxis stroke="#6b7280" tick={{fontSize: 12}} />
-                                <Tooltip contentStyle={{ backgroundColor: '#1a0d36', borderColor: '#4c1d95', color: '#fff' }} />
-                                <Legend />
-                                <Area type="monotone" dataKey="cpu" name="CPU %" stroke="#06b6d4" strokeWidth={2} fillOpacity={1} fill="url(#colorCpu)" />
-                                <Area type="monotone" dataKey="memory" name="RAM %" stroke="#7c3aed" strokeWidth={2} fillOpacity={1} fill="url(#colorRam)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* Chart B: API Traffic & Error Volatility */}
-                <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">API Traffic Volatility</h3>
-                    <div className="h-64 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={history} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} vertical={false} />
-                                <XAxis dataKey="time" stroke="#6b7280" tick={{fontSize: 12}} />
-                                <YAxis stroke="#6b7280" tick={{fontSize: 12}} />
-                                <Tooltip contentStyle={{ backgroundColor: '#1a0d36', borderColor: '#4c1d95', color: '#fff' }} />
-                                <Legend />
-                                <Bar dataKey="http2xx" name="2xx Success" stackId="a" fill="#10b981" /> {/* Emerald Green */}
-                                <Bar dataKey="http4xx" name="4xx Client Error" stackId="a" fill="#f59e0b" /> {/* Amber Yellow */}
-                                <Bar dataKey="http5xx" name="5xx Server Crash" stackId="a" fill="#e11d48" /> {/* Crimson Red */}
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-            </div>
-
-            {/* --- BOTTOM: Controls & Integrations --- */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
-                {/* Chart C: GC Pauses */}
-                <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 lg:col-span-2">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Garbage Collection Pauses (Latency Spikes)</h3>
-                    <div className="h-48 w-full">
+                {/* A. Sawtooth Memory Graph */}
+                <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30 lg:col-span-2">
+                    <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><HardDrive className="w-5 h-5 text-purple-500"/> JVM Memory Behavior (Sawtooth)</h3>
+                    <div className="h-80 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={history} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-                                <XAxis dataKey="time" stroke="#6b7280" tick={{fontSize: 12}} />
-                                <YAxis stroke="#6b7280" tick={{fontSize: 12}} />
-                                <Tooltip contentStyle={{ backgroundColor: '#1a0d36', borderColor: '#4c1d95', color: '#fff' }} />
-                                <Line type="step" dataKey="gcPause" name="GC Pause (ms)" stroke="#f43f5e" strokeWidth={2} dot={{ r: 3 }} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#6b7280" opacity={0.15} vertical={false}/>
+                                <XAxis dataKey="time" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                <YAxis stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
+                                <Line type="monotone" dataKey="heap" name="Heap (MB)" stroke="#a855f7" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#fff', stroke: '#a855f7', strokeWidth: 2 }} />
+                                <Line type="monotone" dataKey="nonHeap" name="Non-Heap (MB)" stroke="#0ea5e9" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#fff', stroke: '#0ea5e9', strokeWidth: 2 }} />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-                {/* System Integrity Controls */}
-                <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 flex flex-col justify-between">
-                    <div>
-                        <div className="flex items-center gap-2 mb-4">
-                            <Settings2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Live Logger Control</h3>
-                        </div>
-                        <p className="text-sm text-gray-500 mb-4">Temporarily increase verbosity to trace production bugs without restarting the server.</p>
-                        <select 
-                            value={logLevel} 
-                            onChange={(e) => setLogLevel(e.target.value)}
-                            className="w-full bg-gray-50 dark:bg-[#0f0a1c] border border-gray-200 dark:border-purple-900/50 rounded-lg px-4 py-2 text-sm font-bold focus:outline-none focus:border-purple-500 dark:text-white mb-4"
-                        >
-                            <option value="INFO">Standard (INFO)</option>
-                            <option value="DEBUG">Detailed (DEBUG)</option>
-                            <option value="TRACE">Maximum (TRACE)</option>
-                        </select>
-                        <button onClick={handleChangeLogLevel} className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg text-sm font-bold transition-colors">
-                            Apply Level to Engine
-                        </button>
+                {/* B. GC Pauses */}
+                <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30">
+                    <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><Zap className="w-5 h-5 text-rose-500"/> GC Pause Latencies</h3>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={history} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                                <defs><linearGradient id="colorGc" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f43f5e" stopOpacity={0.6}/><stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/></linearGradient></defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#6b7280" opacity={0.15} vertical={false}/>
+                                <XAxis dataKey="time" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                <YAxis stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Area type="step" dataKey="gcPause" name="Pause (ms)" stroke="#f43f5e" strokeWidth={3} fillOpacity={1} fill="url(#colorGc)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
                     </div>
+                </div>
 
-                    <div className="mt-8">
-                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Integrations</h4>
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-center bg-gray-50 dark:bg-[#0f0a1c] p-2.5 rounded-lg border border-gray-100 dark:border-purple-900/30">
-                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2"><Server className="w-4 h-4 text-blue-500"/> AWS S3 Storage</span>
-                                <span className="w-2.5 h-2.5 bg-green-500 rounded-full"></span>
-                            </div>
-                            <div className="flex justify-between items-center bg-gray-50 dark:bg-[#0f0a1c] p-2.5 rounded-lg border border-gray-100 dark:border-purple-900/30">
-                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2"><Zap className="w-4 h-4 text-orange-500"/> Code Compiler Sandbox</span>
-                                <span className="w-2.5 h-2.5 bg-green-500 rounded-full"></span>
-                            </div>
-                        </div>
+                {/* C. API Throughput Stacked Bar */}
+                <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30">
+                    <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><Network className="w-5 h-5 text-blue-500"/> API Throughput & Status</h3>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={history} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#6b7280" opacity={0.15} vertical={false}/>
+                                <XAxis dataKey="time" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                <YAxis stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                <Tooltip cursor={{fill: 'rgba(107, 114, 128, 0.1)'}} content={<CustomTooltip />} />
+                                <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
+                                <Bar dataKey="http2xx" name="2xx Success" stackId="a" fill="#10b981" />
+                                <Bar dataKey="http4xx" name="4xx Error" stackId="a" fill="#f59e0b" />
+                                <Bar dataKey="http5xx" name="5xx Error" stackId="a" fill="#ef4444" radius={[4,4,0,0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* D. Thread States */}
+                <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30">
+                    <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><Activity className="w-5 h-5 text-amber-500"/> Thread Allocation States</h3>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={history} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#6b7280" opacity={0.15} vertical={false}/>
+                                <XAxis dataKey="time" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                <YAxis stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
+                                <Line type="monotone" dataKey="runnable" name="Runnable" stroke="#10b981" strokeWidth={3} dot={false} />
+                                <Line type="monotone" dataKey="waiting" name="Waiting" stroke="#f59e0b" strokeWidth={3} dot={false} />
+                                <Line type="step" dataKey="blocked" name="Blocked" stroke="#ef4444" strokeWidth={3} dot={false} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* E. System I/O */}
+                <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30">
+                    <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><Database className="w-5 h-5 text-indigo-500"/> System I/O (File Descriptors)</h3>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={history} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                                <defs><linearGradient id="colorIo" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.6}/><stop offset="95%" stopColor="#6366f1" stopOpacity={0}/></linearGradient></defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#6b7280" opacity={0.15} vertical={false}/>
+                                <XAxis dataKey="time" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                <YAxis stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Area type="monotone" dataKey="ioFiles" name="Open Files" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorIo)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
 

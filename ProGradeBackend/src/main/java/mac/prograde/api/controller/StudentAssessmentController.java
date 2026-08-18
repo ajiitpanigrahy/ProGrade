@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,64 +15,61 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/student/assessments")
-@PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')") // Admin allowed for testing
+@PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
 public class StudentAssessmentController {
 
     @Autowired
     private StudentAssessmentService studentService;
 
-    // 1. Fetch all Public Admin Assessments for the Default Grid
     @GetMapping("/public")
-    public ResponseEntity<?> getPublicAssessments() {
+    public ResponseEntity<?> getPublicAssessments(Authentication auth) {
         try {
-            List<Assessment> publicExams = studentService.getPublicAssessments();
-            
-            // 🌟 CRITICAL SECURITY: Strip the password from the payload so students can't cheat via Network Tab
-            publicExams.forEach(exam -> exam.setPassword(null));
-            
-            return ResponseEntity.ok(publicExams);
+            // Logic moved cleanly to the Service layer
+            List<Assessment> exams = studentService.getPermittedPublicAssessments(auth.getName());
+            exams.forEach(exam -> exam.setPassword(null));
+            return ResponseEntity.ok(exams);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
-    // 2. Search for Private Educator Exams via Exam ID
     @GetMapping("/search")
-    public ResponseEntity<?> searchPrivateAssessment(@RequestParam String examId) {
+    public ResponseEntity<?> searchPrivateAssessment(@RequestParam String examId, Authentication auth) {
         try {
-            Assessment assessment = studentService.searchAssessmentByExamId(examId);
-            
-            // 🌟 CRITICAL SECURITY: Strip the password
-            assessment.setPassword(null); 
-            
+            // Logic moved cleanly to the Service layer
+            Assessment assessment = studentService.getPermittedPrivateAssessment(examId, auth.getName());
+            assessment.setPassword(null);
             return ResponseEntity.ok(assessment);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "No active educator exam found with that ID."));
         }
     }
 
-    // 3. Secure Passkey Validation Loop
     @PostMapping("/{examId}/verify")
-    public ResponseEntity<?> verifyExamPassword(@PathVariable String examId, @RequestBody Map<String, String> payload) {
+    public ResponseEntity<?> verifyExamPassword(@PathVariable String examId, @RequestBody Map<String, String> payload, Authentication auth) {
         try {
+            // 🌟 1. MAX ATTEMPTS INTERCEPTOR
+            // We pass the examId and the student's email to see if they are blocked!
+            Map<String, Object> attemptStatus = studentService.checkMaxAttemptsStatus(examId, auth.getName());
+            
+            if (attemptStatus != null) {
+                // If attemptStatus is not null, they hit the limit! Return a 400 Bad Request
+                // to trigger your gorgeous custom UI Trophy Popup.
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(attemptStatus);
+            }
+
+            // 🌟 2. NORMAL PASSKEY VERIFICATION
             String providedPassword = payload.get("password");
             boolean isVerified = studentService.verifyPasskey(examId, providedPassword);
 
             if (isVerified) {
                 Assessment assessment = studentService.searchAssessmentByExamId(examId);
-                
-                // Generate a temporary access token for the live exam viewport
                 String tempAccessToken = "VFY-" + UUID.randomUUID().toString();
-                
-                return ResponseEntity.ok(Map.of(
-                        "verified", true, 
-                        "accessToken", tempAccessToken,
-                        "assessmentId", assessment.getId()
-                ));
+                return ResponseEntity.ok(Map.of("verified", true, "accessToken", tempAccessToken, "assessmentId", assessment.getId()));
             } else {
-            	return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of("verified", false, "error", "Invalid passkey token."));
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("verified", false, "error", "Invalid passkey token."));
             }
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));

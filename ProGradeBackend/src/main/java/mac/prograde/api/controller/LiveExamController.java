@@ -12,7 +12,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -255,48 +260,27 @@ public class LiveExamController {
 	}
 
 	@GetMapping("/analysis/{submissionId}/ai-insights")
-	public ResponseEntity<?> getGeminiInsights(@PathVariable Long submissionId) {
-		AssessmentSubmission sub = submissionRepository.findById(submissionId).orElseThrow();
-		Assessment exam = assessmentRepository.findById(sub.getAssessmentId()).orElseThrow();
+    public ResponseEntity<?> getGeminiInsights(@PathVariable Long submissionId) {
+        AssessmentSubmission sub = submissionRepository.findById(submissionId).orElseThrow();
+        Assessment exam = assessmentRepository.findById(sub.getAssessmentId()).orElseThrow();
 
-		ObjectMapper mapper = new ObjectMapper();
-		Map<String, String> studentAnswers;
-		try {
-			studentAnswers = mapper.readValue(sub.getResponseJson(), new TypeReference<Map<String, String>>() {
-			});
-		} catch (Exception e) {
-			studentAnswers = Map.of();
-		}
+        // 🌟 OPTIMIZED PROMPT: Saves massive amounts of tokens by only asking for overall analysis
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("You are an expert AI Tutor. Provide a short, encouraging 3-sentence overall analysis of this student's exam performance.\n");
+        prompt.append("Exam Title: ").append(exam.getTitle()).append("\n");
+        prompt.append("Score: ").append(sub.getTotalScore()).append(" out of ").append(sub.getMaxScore()).append("\n");
+        prompt.append("Correct Answers: ").append(sub.getCorrectCount()).append("\n");
+        prompt.append("Incorrect Answers: ").append(sub.getIncorrectCount()).append("\n");
+        prompt.append("Skipped: ").append(sub.getUnattemptedCount()).append("\n\n");
+        
+        prompt.append("Provide a JSON response EXACTLY in this format, with no markdown fences:\n");
+        prompt.append("{\n");
+        prompt.append("  \"overallAnalysis\": \"Your 3-sentence paragraph here.\"\n");
+        prompt.append("}");
 
-		StringBuilder prompt = new StringBuilder();
-		prompt.append("You are an expert AI Tutor. Analyze this student's exam performance.\n");
-		prompt.append("Exam Title: ").append(exam.getTitle()).append("\n");
-		prompt.append("Score: ").append(sub.getTotalScore()).append(" / ").append(sub.getMaxScore()).append("\n\n");
-
-		List<Question> questions = exam.getQuestions();
-		for (int i = 0; i < questions.size(); i++) {
-			Question q = questions.get(i);
-			String studentChoice = studentAnswers.get(String.valueOf(i));
-			String correctText = getOptionText(q, q.getCorrectOption());
-			String studentText = studentChoice != null ? getOptionText(q, studentChoice) : "Skipped";
-
-			prompt.append("Q").append(i + 1).append(": ").append(q.getQuestionText()).append("\n");
-			prompt.append("Correct Answer: ").append(correctText).append("\n");
-			prompt.append("Student Chose: ").append(studentText).append("\n\n");
-		}
-
-		prompt.append("Provide a JSON response EXACTLY in this format, with no markdown fences:\n");
-		prompt.append("{\n");
-		prompt.append("  \"overallAnalysis\": \"A 3-sentence paragraph analyzing their performance.\",\n");
-		prompt.append("  \"explanations\": {\n");
-		prompt.append("     \"0\": \"Short explanation for Q1\",\n");
-		prompt.append("     \"1\": \"Short explanation for Q2\"\n");
-		prompt.append("  }\n");
-		prompt.append("}");
-
-		Map<String, Object> aiResponse = geminiAiService.generateTestAnalysis(prompt.toString());
-		return ResponseEntity.ok(aiResponse);
-	}
+        Map<String, Object> aiResponse = geminiAiService.generateTestAnalysis(prompt.toString());
+        return ResponseEntity.ok(aiResponse);
+    }
 
 	@PostMapping("/{assessmentId}/fraud-log")
 	public ResponseEntity<?> reportMalpractice(@PathVariable Long assessmentId,

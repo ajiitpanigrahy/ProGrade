@@ -9,94 +9,107 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import mac.prograde.api.dto.AuthDto;
+import mac.prograde.api.entity.Notification;
 import mac.prograde.api.entity.SystemSetting;
 import mac.prograde.api.entity.User;
+import mac.prograde.api.enums.NotificationType;
 import mac.prograde.api.enums.Role;
 import mac.prograde.api.repository.UserRepository;
 import mac.prograde.api.security.JwtService;
 import mac.prograde.api.service.AuthService;
+import mac.prograde.api.service.NotificationService;
 import mac.prograde.api.service.SystemSettingService;
 
-/**
- * Core business logic for User Authentication and Registration.
- */
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-	private final UserRepository userRepository;
-	private final PasswordEncoder passwordEncoder;
-	private final JwtService jwtService;
-	private final AuthenticationManager authenticationManager;
-	private final SystemSettingService systemSettingService;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final AuthenticationManager authenticationManager;
+    private final SystemSettingService systemSettingService;
+    private final NotificationService notificationService; // 🌟 ADDED
 
-	@Override
-	public AuthDto.AuthResponse register(AuthDto.RegisterRequest request) {
+    @Override
+    public AuthDto.AuthResponse register(AuthDto.RegisterRequest request) {
 
-		// 1. Check if email is already taken to prevent duplicates
-		if (userRepository.existsByEmail(request.email())) {
-			throw new IllegalArgumentException("User with this email already exists");
-		}
+        if (userRepository.existsByEmail(request.email())) {
+            throw new IllegalArgumentException("User with this email already exists");
+        }
 
-		// 2. Determine approval status based on the role
-		// Students are instantly approved. Educators need admin verification.
-		boolean isApproved = request.role() == Role.STUDENT;
+        boolean isApproved = request.role() == Role.STUDENT;
 
-		// 3. Build the User entity using the builder pattern
-		User user = User.builder().fullName(request.fullName()).email(request.email())
-				.password(passwordEncoder.encode(request.password())) // Hash the password securely!
-				.role(request.role()).isApproved(isApproved).build();
+        User user = User.builder()
+                .fullName(request.fullName())
+                .email(request.email())
+                .password(passwordEncoder.encode(request.password()))
+                .role(request.role())
+                .isApproved(isApproved)
+                .status("ACTIVE") 
+                .build();
 
-		// 4. Save the new user to the database
-		userRepository.save(user);
+        userRepository.save(user);
 
-		// 5. Generate a JWT Token for the newly registered user
-		String jwtToken = jwtService.generateToken(user);
+        // 🌟 NOTIFICATION LOGIC
+        if (request.role() == Role.STUDENT) {
+            Notification notif = new Notification();
+            notif.setRecipientEmail(user.getEmail());
+            notif.setSender("System");
+            notif.setTitle("Welcome to Pro Grade! 🚀");
+            notif.setMessage("Your student account is active. Check the 'Active Examinations' tab for any assigned tests.");
+            notif.setType(NotificationType.SUCCESS);
+            notificationService.sendNotification(notif);
+        } else if (request.role() == Role.EDUCATOR) {
+            // Alert all admins about the pending educator
+            List<User> admins = userRepository.findByRole(Role.ADMIN);
+            for (User admin : admins) {
+                Notification notif = new Notification();
+                notif.setRecipientEmail(admin.getEmail());
+                notif.setSender("System Security");
+                notif.setTitle("New Educator Registration");
+                notif.setMessage(user.getFullName() + " (" + user.getEmail() + ") has registered and is awaiting account approval.");
+                notif.setType(NotificationType.INFO);
+                notif.setTargetUrl("/admin/dashboard?view=educator-management");
+                notificationService.sendNotification(notif);
+            }
+        }
 
-		// 6. Return the response payload
-		return new AuthDto.AuthResponse(jwtToken, user.getFullName(), user.getEmail(), user.getRole(),
-				user.isApproved(), user.getProfilePictureUrl(), user.getPhoneNumber(), user.getGender(),
-				user.getHighestQualification());
-	}
+        String jwtToken = jwtService.generateToken(user);
 
-	@Override
-	public AuthDto.AuthResponse authenticate(AuthDto.LoginRequest request) {
+        return new AuthDto.AuthResponse(jwtToken, user.getFullName(), user.getEmail(), user.getRole(),
+                user.isApproved(), user.getProfilePictureUrl(), user.getPhoneNumber(), user.getGender(),
+                user.getHighestQualification());
+    }
 
-		// 1. Authenticate user credentials via Spring Security
-		// This automatically throws an exception if the password doesn't match
-		// or if the account is disabled (e.g., an unapproved Educator)
-		authenticationManager
-				.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+    @Override
+    public AuthDto.AuthResponse authenticate(AuthDto.LoginRequest request) {
+        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+        User user = userRepository.findByEmail(request.email());
 
-		// 2. Fetch the user from the database
-		User user = userRepository.findByEmail(request.email());
+        if (user == null) throw new IllegalArgumentException("Invalid email or password");
 
-		if (user == null) {
-			throw new IllegalArgumentException("Invalid email or password");
-		}
+        SystemSetting settings = systemSettingService.getGlobalSettings();
+        if (settings.isMaintenanceMode()) {
+            boolean isAdmin = user.getRole().name().equals("ADMIN"); 
+            if (!isAdmin || !settings.isAdminBypass()) {
+                throw new LockedException("MAINTENANCE_MODE: " + settings.getMaintenanceMessage());
+            }
+        }
 
-		SystemSetting settings = systemSettingService.getGlobalSettings();
-		if (settings.isMaintenanceMode()) {
-			boolean isAdmin = user.getRole().name().equals("ADMIN"); // Adjust to match your Role Enum
+        if (user.getRole().name().equals("EDUCATOR") && !user.isApproved()) {
+            throw new DisabledException("ACCOUNT PENDING VERIFICATION");
+        }
+        if ("BLOCKED".equalsIgnoreCase(user.getStatus()) || "SUSPENDED".equalsIgnoreCase(user.getStatus())) {
+            throw new LockedException("ACCOUNT RESTRICTED: Contact Administration.");
+        }
 
-			if (!isAdmin || !settings.isAdminBypass()) {
-				// This throws a 401 Unauthorized to the React frontend
-				throw new LockedException("MAINTENANCE_MODE: " + settings.getMaintenanceMessage());
-			}
-		}
+        String jwtToken = jwtService.generateToken(user);
 
-		if (user.getRole().name().equals("EDUCATOR") && !user.isApproved()) {
-			// This exact string "PENDING VERIFICATION" will be caught by the React catch
-			// block!
-			throw new DisabledException("ACCOUNT PENDING VERIFICATION");
-		}
-
-		// 3. Generate a new JWT token for the session
-		String jwtToken = jwtService.generateToken(user);
-
-		// 4. Return the response payload
-		return new AuthDto.AuthResponse(jwtToken, user.getFullName(), user.getEmail(), user.getRole(),
-				user.isApproved(), user.getProfilePictureUrl(), user.getPhoneNumber(), user.getGender(),
-				user.getHighestQualification());
-	}
+        return new AuthDto.AuthResponse(jwtToken, user.getFullName(), user.getEmail(), user.getRole(),
+                user.isApproved(), user.getProfilePictureUrl(), user.getPhoneNumber(), user.getGender(),
+                user.getHighestQualification());
+    }
 }

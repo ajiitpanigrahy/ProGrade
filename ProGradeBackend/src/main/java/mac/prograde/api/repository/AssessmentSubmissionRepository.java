@@ -12,4 +12,8 @@ public interface AssessmentSubmissionRepository extends JpaRepository<Assessment
 	
 	List<AssessmentSubmission> findByStudentEmailOrderBySubmittedAtDesc(String email);
 	
+	List<AssessmentSubmission> findByAssessmentIdOrderByTotalScoreDesc(Long assessmentId);
+	
+	List<AssessmentSubmission> findByAssessmentIdAndStudentEmail(Long assessmentId, String studentEmail);
+	
 }

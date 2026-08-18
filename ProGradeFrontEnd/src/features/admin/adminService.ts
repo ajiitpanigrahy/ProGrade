@@ -149,4 +149,64 @@ export const adminService = {
         const response = await axiosClient.patch(`/assessments/${id}/postpone`, { startTime });
         return response.data;
     },
+    // Add these alongside your other functions in adminService.ts
+    getAllBatches: async () => {
+        const res = await axiosClient.get('/batches');
+        return res.data;
+    },
+    uploadBatchRoster: async (file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await axiosClient.post('/batches/upload', formData, { 
+            headers: { 'Content-Type': 'multipart/form-data' } 
+        });
+        return res.data;
+    },
+    // Add inside your adminService object:
+    getStudents: async () => {
+        const res = await axiosClient.get('/admin/students');
+        return res.data;
+    },
+    toggleStudentStatus: async (id: string) => {
+        const res = await axiosClient.patch(`/admin/students/${id}/toggle-status`);
+        return res.data;
+    },
+    deleteStudent: async (id: string) => {
+        const res = await axiosClient.delete(`/admin/students/${id}`);
+        return res.data;
+    },
+    getBatchInfo: async () => (await axiosClient.get('/admin/batches/info')).data,
+    deleteBatch: async (id: string) => (await axiosClient.delete(`/admin/batches/${id}`)).data,
+    
+    getOverallAnalytics: async () => (await axiosClient.get('/admin/analytics/overall')).data,
+    getStudentAnalytics: async (id: string) => (await axiosClient.get(`/admin/analytics/student/${id}`)).data,
+    getExamAnalytics: async (id: string) => (await axiosClient.get(`/admin/analytics/exam/${id}`)).data,
+    // Inside src/features/admin/adminService.ts
+    removeStudentFromBatch: async (studentId: string) => {
+        const res = await axiosClient.delete(`/admin/batches/student/${studentId}`);
+        return res.data;
+    },
+
+    getGlobalFraudLogs: async () => {
+        const response = await axiosClient.get('/admin/fraud-logs');
+        return response.data;
+    },
+    getQuestionAvailability: async (technology: string) => {
+        const res = await axiosClient.get(`/admin/questions/availability?technology=${technology}`);
+        return res.data;
+    },
+    getAdvancedAssessmentReport: async (assessmentId: number | string) => {
+        const response = await axiosClient.get(`/admin/assessments/${assessmentId}/advanced-report`);
+        return response.data;
+    },
+
+    getAllEducators: async () => {
+        const response = await axiosClient.get('/admin/educators');
+        return response.data;
+    },
+
+    toggleEducatorStatus: async (id: string) => {
+        const response = await axiosClient.patch(`/admin/educators/${id}/toggle-status`);
+        return response.data;
+    },
 };

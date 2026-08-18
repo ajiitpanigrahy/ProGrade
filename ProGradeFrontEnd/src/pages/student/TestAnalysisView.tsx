@@ -90,11 +90,11 @@ export default function TestAnalysisView() {
             <div className="max-w-6xl mx-auto space-y-4 sm:space-y-8 relative">
                 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print relative z-50">
-                    <button onClick={() => navigate('/student/dashboard?view=transcripts')} className="flex items-center gap-1.5 sm:gap-2 text-gray-400 text-xs sm:text-sm font-bold hover:text-purple-400 transition-colors w-fit">
+                    <button onClick={() => navigate('/student/dashboard?view=transcripts')} className="flex items-center gap-1.5 sm:gap-2 text-gray-400 text-xs sm:text-sm font-bold hover:text-purple-400 transition-colors w-fit cursor-pointer">
                         <ArrowLeft className="w-4 h-4"/> Back to Transcripts
                     </button>
-                    <button onClick={handleDownloadPDF} className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition-all active:scale-95 text-xs sm:text-sm w-full sm:w-auto">
-                        <Download className="w-4 h-4" /> Download Dark PDF
+                    <button onClick={handleDownloadPDF} className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition-all active:scale-95 text-xs sm:text-sm w-full sm:w-auto cursor-pointer">
+                        <Download className="w-4 h-4" /> Download Analysis Report
                     </button>
                 </div>
 
@@ -157,7 +157,6 @@ export default function TestAnalysisView() {
                     )}
                 </div>
 
-                {/* 🌟 FULLY FIXED, UNCRUSHABLE GRAPH */}
                 <div className="bg-[#150a29] rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-sm border border-purple-900/50 print-shadow-none print-break-inside overflow-hidden">
                     <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-4 sm:mb-6">
                         <h3 className="font-bold text-base sm:text-lg text-white flex items-center gap-2"><BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500"/> Time Spent per Question</h3>
@@ -168,7 +167,6 @@ export default function TestAnalysisView() {
                         </div>
                     </div>
 
-                    {/* Added 'w-full' and 'justify-start' to force scroll on overflow */}
                     <div className="h-48 sm:h-56 w-full flex items-end justify-start gap-2 sm:gap-4 overflow-x-auto pt-10 sm:pt-12 pb-2 px-1 sm:px-2 border-b border-purple-900/30 custom-scrollbar">
                         {analysis.details.map((q: any, i: number) => {
                             const timeSec = q.timeSpentSeconds || 0;
@@ -179,19 +177,12 @@ export default function TestAnalysisView() {
                             else if (q.studentOption !== "UNATTEMPTED") barColor = "#f87171"; 
 
                             return (
-                                // 🌟 ADDED `shrink-0`, `w-8`, `h-full` so it NEVER crushes!
                                 <div key={i} className="flex flex-col items-center justify-end h-full gap-1 sm:gap-2 shrink-0 w-8 sm:w-10 group relative">
                                     <div className="absolute top-0 bg-white text-gray-900 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20 no-print">
                                         Q{i+1}: {formatDuration(timeSec)}
                                     </div>
-                                    
                                     <span className="text-[8px] sm:text-[10px] font-black text-gray-400">{timeSec}s</span>
-                                    
-                                    <div 
-                                        className="w-full rounded-t-sm sm:rounded-t-md transition-all duration-500 shadow-sm" 
-                                        style={{ height: `${heightPercent}%`, backgroundColor: barColor }}
-                                    ></div>
-                                    
+                                    <div className="w-full rounded-t-sm sm:rounded-t-md transition-all duration-500 shadow-sm" style={{ height: `${heightPercent}%`, backgroundColor: barColor }}></div>
                                     <span className="text-[8px] sm:text-[10px] font-bold text-gray-400 mt-1">Q{i+1}</span>
                                 </div>
                             );
@@ -223,7 +214,7 @@ export default function TestAnalysisView() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6 sm:pl-12">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                     {['A', 'B', 'C', 'D'].map(opt => {
                                         const isStudentChoice = q.studentOption === opt;
                                         const isActualCorrect = q.correctOption === opt;
@@ -249,21 +240,6 @@ export default function TestAnalysisView() {
                                         );
                                     })}
                                 </div>
-
-                                <div className="ml-0 sm:ml-12 bg-purple-900/20 border border-purple-800/50 rounded-xl p-4 flex gap-4 items-start">
-                                    <div className="w-10 h-10 bg-purple-900/50 rounded-full flex items-center justify-center shrink-0">
-                                        <BrainCircuit className="w-5 h-5 text-purple-300" />
-                                    </div>
-                                    <div className="flex-1 mt-0.5">
-                                        <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                                            <Sparkles className="w-3 h-3 text-purple-500" /> Gemini Insight
-                                        </p>
-                                        <div className="text-xs sm:text-sm text-gray-200 font-medium leading-relaxed">
-                                            {aiData ? (aiData.explanations?.[i] || q.aiExplanation) : <span className="animate-pulse text-purple-500">Generating AI feedback...</span>}
-                                        </div>
-                                    </div>
-                                </div>
-
                             </div>
                         );
                     })}

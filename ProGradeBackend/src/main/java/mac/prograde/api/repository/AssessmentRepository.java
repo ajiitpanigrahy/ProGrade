@@ -3,8 +3,11 @@ package mac.prograde.api.repository;
 import mac.prograde.api.entity.Assessment;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -19,5 +22,9 @@ public interface AssessmentRepository extends JpaRepository<Assessment, Long> {
     
     // Find Specific Exam by ID (For the Private Educator Search)
     java.util.Optional<Assessment> findByExamId(String examId);
+    
+ // In AssessmentRepository.java
+    @Query("SELECT a FROM Assessment a JOIN a.assignedBatches b WHERE b.id = :batchId AND a.status = 'PUBLISHED'")
+    List<Assessment> findActiveByStudentBatchId(@Param("batchId") UUID batchId);
 	
 }

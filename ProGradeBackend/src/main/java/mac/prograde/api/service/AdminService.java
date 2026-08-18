@@ -2,34 +2,28 @@ package mac.prograde.api.service;
 
 import mac.prograde.api.dto.AdminDto;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public interface AdminService {
-
-    /**
-     * Fetch the 4 main KPI metrics for the top dashboard cards.
-     */
     AdminDto.DashboardMetrics getKpiMetrics();
-
-    /**
-     * Fetch the queue of educators waiting for approval.
-     */
     List<AdminDto.PendingEducator> getPendingEducators();
-
-    /**
-     * Approve an educator account.
-     * @param userId The UUID of the educator to approve
-     */
     void approveEducator(UUID userId);
-
-    /**
-     * Reject (delete) an educator account request.
-     * @param userId The UUID of the educator to reject
-     */
     void rejectEducator(UUID userId);
-
-    /**
-     * Generate data for all the Recharts components on the frontend.
-     */
     AdminDto.DashboardCharts getChartData();
+    List<AdminDto.StudentDTO> getAllStudents();
+    void toggleStudentStatus(UUID id);
+    void deleteStudent(UUID id);
+    List<AdminDto.BatchInfoDTO> getBatchDetails();
+    void deleteBatch(UUID batchId);
+    AdminDto.OverallAnalytics getOverallAnalytics();
+    AdminDto.StudentWiseAnalytics getStudentAnalytics(UUID studentId);
+    AdminDto.ExamWiseAnalytics getExamAnalytics(Long examId);
+    void removeStudentFromBatch(UUID id);
+    List<AdminDto.GlobalFraudLogDTO> getGlobalFraudLogs();
+ // Add this with your other method definitions
+    Map<String, Object> getAdvancedAssessmentReport(Long assessmentId);
+    List<Map<String, Object>> getQuestionAvailability(String technology);
+    List<AdminDto.EducatorDTO> getAllEducators();
+    void toggleEducatorStatus(UUID id);
 }

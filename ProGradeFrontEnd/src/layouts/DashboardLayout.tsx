@@ -4,12 +4,13 @@ import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.svg';
 import ProfileDrawer from '../components/ProfileDrawer';
 import { useGlobalLoader } from '../context/GlobalLoaderContext';
+import NotificationBell from '../components/NotificationBell'; 
 
 import {
     LayoutDashboard, FileText, Users, Settings, LogOut, Menu, X, Sun, Moon,
-    Bell, CheckSquare, Search, BookOpen, BarChart3, ShieldCheck,
+    CheckSquare, Search, BookOpen, BarChart3, ShieldCheck,
     GraduationCap, ShieldAlert, Database, ChevronDown, ChevronRight, Activity, 
-    TerminalSquare, Rocket, Code, Trophy, HelpCircle // 🌟 ADDED MISSING ICONS HERE
+    TerminalSquare, Rocket, Code, Trophy, HelpCircle, MessageSquare, Bell // 🌟 ADDED Bell HERE
 } from 'lucide-react';
 
 export type UserRole = 'STUDENT' | 'EDUCATOR' | 'ADMIN';
@@ -24,27 +25,20 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     const navigate = useNavigate();
     const location = useLocation();
 
-    // State for toggles
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
-
-    // State to track which accordions are open in the sidebar
     const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({});
 
-    // URL-Aware Accordion Memory (Auto-expand active folder)
+    // URL-Aware Accordion Memory
     useEffect(() => {
         const currentPathWithQuery = location.pathname + location.search;
         const navLinksToRender = getNavLinks();
-
         const newAccordionsState = { ...openAccordions };
 
         navLinksToRender.forEach((link: any) => {
             if (link.subItems) {
-                // If any sub-item matches the current URL, force this accordion open
                 const isParentActive = link.subItems.some((sub: any) => currentPathWithQuery === sub.path);
-                if (isParentActive) {
-                    newAccordionsState[link.name] = true;
-                }
+                if (isParentActive) newAccordionsState[link.name] = true;
             }
         });
 
@@ -55,7 +49,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         setOpenAccordions(prev => ({ ...prev, [name]: !prev[name] }));
     };
 
-    // Initialize dark mode state from localStorage
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const savedTheme = localStorage.getItem('theme');
         return savedTheme ? savedTheme === 'dark' : true;
@@ -76,7 +69,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
 
     const { withLoader } = useGlobalLoader();
 
-    // Secure Logout with the 3D Effect Overlay
     const handleLogout = async () => {
         await withLoader(async () => {
             try {
@@ -97,7 +89,16 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
 
     const userName = user?.fullName || 'User';
 
-    // 🌟 Dynamic Navigation with Nested Sub-Items for Admin
+    // 🌟 FIX: Dynamic Logo URL based on User Role
+    const getLogoRedirectPath = () => {
+        switch (role) {
+            case 'ADMIN': return '/admin/dashboard';
+            case 'EDUCATOR': return '/educator/dashboard?view=overview';
+            case 'STUDENT': return '/student/dashboard?view=overview';
+            default: return '/';
+        }
+    };
+
     const getNavLinks = () => {
         switch (role) {
             case 'ADMIN':
@@ -127,6 +128,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                     { name: 'Question Bank', path: '/admin/dashboard?view=question-bank', icon: Database },
                     { name: 'System Logs', path: '/admin/dashboard?view=logs', icon: TerminalSquare },
                     { name: 'System Health', path: '/admin/dashboard?view=health', icon: Activity },
+                    { name: 'Messages', path: '/admin/messages', icon: MessageSquare }, 
+                    { name: 'Notifications', path: '/admin/notifications', icon: Bell }, // 🌟 ADDED
                     { name: 'Settings', path: '/admin/dashboard?view=settings', icon: Settings },
                 ];
             case 'EDUCATOR':
@@ -136,6 +139,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                     { name: 'Assessment Builder', path: '/educator/dashboard?view=assessments', icon: FileText },
                     { name: 'Grading & Evaluation', path: '/educator/dashboard?view=grading', icon: CheckSquare },
                     { name: 'Student Analytics', path: '/educator/dashboard?view=analytics', icon: BarChart3 },
+                    { name: 'Messages', path: '/educator/messages', icon: MessageSquare }, 
+                    { name: 'Notifications', path: '/educator/notifications', icon: Bell }, // 🌟 ADDED
                     { name: 'Settings', path: '/educator/dashboard?view=settings', icon: Settings },
                 ];
             case 'STUDENT':
@@ -145,15 +150,12 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                     { name: 'Self-Practice Arena', path: '/student/dashboard?view=practice', icon: Code },
                     { name: 'Performance Transcripts', path: '/student/dashboard?view=transcripts', icon: FileText },
                     { name: 'Leaderboard & Ranks', path: '/student/dashboard?view=leaderboard', icon: Trophy },
+                    { name: 'Messages', path: '/student/messages', icon: MessageSquare }, 
+                    { name: 'Notifications', path: '/student/notifications', icon: Bell }, // 🌟 ADDED
                     { name: 'Support & Appeals', path: '/student/dashboard?view=support', icon: HelpCircle },
                 ];
             default:
-                return [
-                    { name: 'Overview', path: '/student/dashboard', icon: LayoutDashboard },
-                    { name: 'Join Exam', path: '/student/join', icon: Search },
-                    { name: 'My Results', path: '/student/results', icon: CheckSquare },
-                    { name: 'Settings', path: '/student/settings', icon: Settings },
-                ];
+                return [];
         }
     };
 
@@ -174,7 +176,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                 <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-[#0f0a1c] border-r border-gray-200 dark:border-purple-900/50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
 
                     <div className="h-20 flex items-center justify-between px-6 border-b border-gray-200 dark:border-purple-900/50 shrink-0">
-                        <Link to="/" className="flex items-center gap-3">
+                        {/* 🌟 FIX: Updated Link to use getLogoRedirectPath() */}
+                        <Link to={getLogoRedirectPath()} className="flex items-center gap-3">
                             <img src={logo} alt="Pro Grade" className="w-8 h-8" />
                             <span className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-fuchsia-500">
                                 Pro Grade
@@ -193,10 +196,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                         {/* Accordion Rendering Logic */}
                         {navLinks.map((link: any) => {
                             const Icon = link.icon;
-                            // Rebuild exact path with query for accurate active state matching
                             const currentPathWithQuery = location.pathname + location.search;
 
-                            // 1. Render Accordion if subItems exist
                             if (link.subItems) {
                                 const isOpen = openAccordions[link.name];
                                 const isParentActive = link.subItems.some((sub: any) => currentPathWithQuery === sub.path);
@@ -217,7 +218,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                                             {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                                         </button>
 
-                                        {/* Nested Links */}
                                         {isOpen && (
                                             <div className="pl-11 pr-2 space-y-1 mt-1 animate-in slide-in-from-top-2">
                                                 {link.subItems.map((sub: any) => {
@@ -242,7 +242,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                                 );
                             }
 
-                            // 2. Render Standard Flat Link
                             const isDirectlyActive = currentPathWithQuery === link.path || (link.path === '/admin/dashboard' && currentPathWithQuery === '/admin/dashboard');
 
                             return (
@@ -262,7 +261,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                         })}
                     </div>
 
-                    {/* Logout Button */}
                     <div className="p-4 border-t border-gray-200 dark:border-purple-900/50 shrink-0">
                         <button
                             onClick={handleLogout}
@@ -274,7 +272,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                     </div>
                 </aside>
 
-                {/* ---------------- MAIN CONTENT AREA ---------------- */}
                 <div className="flex-1 flex flex-col h-screen overflow-hidden">
 
                     <header className="h-20 bg-white/80 dark:bg-[#0f0a1c]/80 backdrop-blur-md border-b border-gray-200 dark:border-purple-900/50 flex items-center justify-between px-4 sm:px-8 z-30 sticky top-0 shrink-0">
@@ -288,27 +285,24 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                         </div>
 
                         <div className="flex items-center gap-3 sm:gap-5">
-                            <button onClick={toggleTheme} className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-purple-900/30 rounded-full transition-colors cursor-pointer">
+                            <button onClick={toggleTheme} className="p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-purple-900/30 rounded-xl transition-colors cursor-pointer border-2 border-transparent hover:border-gray-200 dark:hover:border-purple-900/50">
                                 {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                             </button>
 
-                            <button className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-purple-900/30 rounded-full transition-colors relative cursor-pointer">
-                                <Bell className="w-5 h-5" />
-                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-[#0f0a1c]"></span>
-                            </button>
+                            <NotificationBell />
 
-                            <div className="w-px h-6 bg-gray-200 dark:bg-purple-900/50 hidden sm:block"></div>
+                            <div className="w-px h-8 bg-gray-200 dark:bg-purple-900/50 hidden sm:block mx-1"></div>
 
-                            <div onClick={() => setIsProfileDrawerOpen(true)} className="flex items-center gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-purple-900/20 p-1.5 rounded-full sm:rounded-xl transition-colors">
-                                <div className="hidden sm:block text-right pr-2">
-                                    <p className="text-sm font-semibold text-gray-900 dark:text-white leading-none">{userName}</p>
-                                    <p className="text-xs text-purple-600 dark:text-purple-400 font-medium mt-1 uppercase">{role}</p>
+                            <div onClick={() => setIsProfileDrawerOpen(true)} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-purple-900/20 p-2 sm:pr-4 rounded-full sm:rounded-2xl border-2 border-transparent hover:border-gray-200 dark:hover:border-purple-900/50 transition-all">
+                                <div className="hidden sm:block text-right">
+                                    <p className="text-sm font-black text-gray-900 dark:text-white leading-none tracking-wide">{userName}</p>
+                                    <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold mt-1 uppercase tracking-widest">{role}</p>
                                 </div>
 
                                 {user?.profilePictureUrl ? (
-                                    <img src={user.profilePictureUrl} alt={userName} className="w-10 h-10 rounded-full object-cover border-2 border-purple-500 shadow-sm" />
+                                    <img src={user.profilePictureUrl} alt={userName} className="w-10 h-10 rounded-full object-cover border-2 border-purple-500 shadow-md" />
                                 ) : (
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-white font-bold shadow-md tracking-wider">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-white font-black shadow-md tracking-wider border-2 border-purple-400/30">
                                         {getInitials(userName)}
                                     </div>
                                 )}

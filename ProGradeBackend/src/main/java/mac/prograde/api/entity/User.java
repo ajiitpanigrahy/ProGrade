@@ -7,7 +7,6 @@ import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -36,36 +35,50 @@ import mac.prograde.api.enums.Role;
 @Builder
 public class User implements UserDetails {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.UUID)
-	private UUID id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-	@Column(nullable = false)
-	private String fullName;
+    // 🌟 ADDED: The rollNumber field with manual getters/setters just in case Lombok fails
+    @Column(nullable = true)
+    private String rollNumber;
 
-	@Column(unique = true, nullable = false)
-	private String email;
+    public String getRollNumber() {
+        return rollNumber;
+    }
 
-	@Column(nullable = false)
-	private String password;
+    public void setRollNumber(String rollNumber) {
+        this.rollNumber = rollNumber;
+    }
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
-	private Role role;
+    @Column(nullable = false)
+    private String fullName;
 
-	// Educator accounts require manual verification by an Admin
-	@Column(nullable = false)
-	private boolean isApproved;
+    @Column(unique = true, nullable = false)
+    private String email;
 
-	@CreationTimestamp
-	private LocalDateTime createdAt;
+    @Column(nullable = false)
+    private String password;
 
-	@UpdateTimestamp
-	private LocalDateTime updatedAt;
-	
-	// Add this field to your User entity
-	@Column(nullable = true)
-	private String profilePictureUrl;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
+
+    @Column(nullable = false)
+    private boolean isApproved;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private String status = "ACTIVE"; 
+
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+    
+    @Column(nullable = true)
+    private String profilePictureUrl;
 
     @Column
     private String phoneNumber;
@@ -73,44 +86,44 @@ public class User implements UserDetails {
     @Column
     private String gender;
 
-    // Primarily for STUDENTS, but can be null for others
     @Column
     private String highestQualification;
 
-	// --- UserDetails Interface Implementation ---
-	// We implement UserDetails here to tie seamlessly into Spring Security
+    // --- UserDetails Interface Implementation ---
 
-	@Override
-	public Collection<? extends GrantedAuthority> getAuthorities() {
-		return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
-	}
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+    }
 
-	@Override
-	public String getUsername() {
-		return email; // We use email as the authentication identifier
-	}
+    @Override
+    public String getUsername() {
+        return email; 
+    }
 
-	@Override
-	public boolean isAccountNonExpired() {
-		return true;
-	}
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
 
-	@Override
-	public boolean isAccountNonLocked() {
-		return true;
-	}
+    @Override
+    public boolean isAccountNonLocked() {
+        if ("BLOCKED".equals(status) || "DELETED".equals(status)) {
+            return false;
+        }
+        return true;
+    }
 
-	@Override
-	public boolean isCredentialsNonExpired() {
-		return true;
-	}
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
 
-	@Override
-	public boolean isEnabled() {
-		// If they are an educator and NOT approved, their account acts as "disabled"
-		if (role == Role.EDUCATOR) {
-			return isApproved;
-		}
-		return true;
-	}
+    @Override
+    public boolean isEnabled() {
+        if (role == Role.EDUCATOR) {
+            return isApproved;
+        }
+        return true;
+    }
 }

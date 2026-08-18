@@ -21,11 +21,15 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     // Count how many educators are pending
     long countByRoleAndIsApprovedFalse(Role role);
 
+    // 🌟 FIXED: Added the missing finder method signature
+    List<User> findByRole(Role role);
+
+    // 🚀 PERFORMANCE UPGRADE: High-efficiency counting engine
+    long countByRole(Role role);
+
     // Group users by role for the Pie Chart
     @Query("SELECT u.role, COUNT(u) FROM User u GROUP BY u.role")
     List<Object[]> countUsersByRole();
     
     boolean existsByEmail(String email); 
-    
-    
 }

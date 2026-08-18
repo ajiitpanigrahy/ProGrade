@@ -16,5 +16,9 @@ export const educatorService = {
     getTopicMastery: async () => {
         const response = await axiosClient.get('/educator/analytics/mastery');
         return response.data;
+    },
+    getAssessmentReports: async (assessmentId: string) => {
+        const response = await axiosClient.get(`/educator/assessments/${assessmentId}/reports`);
+        return response.data;
     }
 };

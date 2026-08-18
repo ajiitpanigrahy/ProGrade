@@ -5,6 +5,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,7 +27,7 @@ public class GeminiAiService {
         }
 
         try {
-            // 🌟 FIXED: Google officially sunset the 1.5 series. Using the current, active 'gemini-3.5-flash' model!
+            // Using the model that successfully connected for your account
             String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + geminiApiKey;
 
             ObjectMapper mapper = new ObjectMapper();
@@ -52,10 +53,27 @@ public class GeminiAiService {
             aiText = aiText.replace("```json", "").replace("```", "").trim();
 
             return mapper.readValue(aiText, Map.class);
+
+        } catch (HttpClientErrorException e) {
+            // 🌟 GRACEFUL ERROR HANDLING: Catch the 429 Rate Limit Error
+            if (e.getStatusCode().value() == 429) {
+                System.out.println("⚠️ Gemini API Rate Limit Hit!");
+                return Map.of(
+                    "overallAnalysis", "⏳ Gemini AI free tier daily quota exceeded. The AI Engine is currently resting! Please try again later.",
+                    "explanations", Map.of()
+                );
+            }
+            
+            e.printStackTrace();
+            return Map.of(
+                "overallAnalysis", "⚠️ AI Analysis temporarily unavailable due to a model access issue.",
+                "explanations", Map.of()
+            );
+            
         } catch (Exception e) {
             e.printStackTrace();
             return Map.of(
-                "overallAnalysis", "AI Analysis temporarily unavailable. Check API Key permissions or network connection.",
+                "overallAnalysis", "⚠️ An unexpected error occurred while communicating with the AI Engine.",
                 "explanations", Map.of()
             );
         }

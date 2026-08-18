@@ -33,7 +33,7 @@ export default function AdminDashboard() {
             try {
                 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-                // Fetch from backend (with safe fallback to mock data if backend isn't ready)
+                // Fetch from backend 
                 const [metricsData, chartsData, educatorsData] = await Promise.all([
                     adminService.getMetrics().catch(() => null),
                     adminService.getCharts().catch(() => null),
@@ -41,12 +41,8 @@ export default function AdminDashboard() {
                     sleep(1500)
                 ]);
 
-                // Set Data (Using Mock Data if Backend fails during development)
-                setMetrics(metricsData || { totalUsers: 1250, pendingApprovals: 5, activeExams: 42, monthlyRevenue: 15400 });
-                setCharts(chartsData || {
-                    userGrowth: [{ name: 'Mon', students: 400, educators: 10 }, { name: 'Tue', students: 600, educators: 15 }],
-                    roleDistribution: [{ name: 'STUDENT', value: 850 }, { name: 'INSTRUCTOR', value: 120 }, { name: 'ADMIN', value: 5 }]
-                });
+                setMetrics(metricsData);
+                setCharts(chartsData);
                 setPendingEducators(educatorsData || []);
 
             } catch (err) {
@@ -68,6 +64,27 @@ export default function AdminDashboard() {
         }
     }, [activeView, isInitialLoad]);
 
+    // 🌟 3. EDUCATOR APPROVAL HANDLERS
+    const handleApproveEducator = async (id: string) => {
+        try {
+            await adminService.approveEducator(id);
+            setPendingEducators(prev => prev.filter(e => e.id !== id));
+            // Optional: You could add a Toast notification here
+        } catch (err) {
+            alert("Failed to approve educator.");
+        }
+    };
+
+    const handleRejectEducator = async (id: string) => {
+        if (!window.confirm("Are you sure you want to reject this educator?")) return;
+        try {
+            await adminService.rejectEducator(id);
+            setPendingEducators(prev => prev.filter(e => e.id !== id));
+        } catch (err) {
+            alert("Failed to reject educator.");
+        }
+    };
+
     // Render Full Screen Loader
     if (isInitialLoad || isSwitching) {
         return (
@@ -81,7 +98,16 @@ export default function AdminDashboard() {
     const renderContent = () => {
         switch (activeView) {
             case 'overview':
-                return <OverviewTab metrics={metrics} charts={charts} />;
+                // 🌟 PASSING PROPS TO OVERVIEW TAB
+                return (
+                    <OverviewTab 
+                        metrics={metrics} 
+                        charts={charts} 
+                        pendingEducators={pendingEducators}
+                        onApprove={handleApproveEducator}
+                        onReject={handleRejectEducator}
+                    />
+                );
             case 'question-bank':
                 return <QuestionBankTab />;
             case 'educator-management':
@@ -90,7 +116,7 @@ export default function AdminDashboard() {
                 return <EducatorHubTab activeSubTab="ANALYTICS" pendingEducators={pendingEducators} />;
 
             case 'student-management':
-                return <StudentHubTab />; // We handled subtabs internally here earlier
+                return <StudentHubTab />; 
             case 'student-analytics':
                 return <StudentHubTab />;
 
@@ -102,7 +128,7 @@ export default function AdminDashboard() {
             case 'logs':
                 return <SystemLogsTab />;
 
-            case 'health':                   // 🌟 NEW ROUTE
+            case 'health': 
                 return <SystemHealthTab />;
 
             case 'settings':
