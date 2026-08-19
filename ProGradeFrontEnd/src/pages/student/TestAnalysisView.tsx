@@ -1,7 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Trophy, ArrowLeft, CheckCircle2, XCircle, BrainCircuit, Loader2, MinusCircle, Clock, Calendar, BarChart3, Download, Sparkles, ShieldCheck } from 'lucide-react';
+import { Trophy, ArrowLeft, CheckCircle2, XCircle, BrainCircuit, Loader2, MinusCircle, Clock, Calendar, BarChart3, Download, Sparkles, ShieldCheck, Terminal, Code2, BookOpen } from 'lucide-react';
 import { studentService } from '../../features/student/studentService';
+
+// 🌟 ADDED RENDER HELPER FOR CODE FORMATTING
+const renderQuestionContent = (text: string) => {
+    if (!text) return null;
+    const parts = text.split(/(```[\s\S]*?```)/g);
+    return parts.map((part, index) => {
+        if (part.startsWith('```') && part.endsWith('```')) {
+            const code = part.replace(/```[a-z]*\n?/i, '').replace(/```$/, '');
+            return (
+                <div key={index} className="my-4 bg-[#0d0714] border border-purple-900/50 rounded-xl overflow-hidden shadow-inner w-full">
+                    <div className="bg-[#150a29] px-4 py-2.5 flex items-center gap-2 border-b border-purple-900/50">
+                        <Terminal className="w-4 h-4 text-purple-400" />
+                        <span className="text-xs uppercase font-black text-purple-400 tracking-wider">Code Snippet</span>
+                    </div>
+                    <pre className="p-5 text-sm sm:text-base text-emerald-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar whitespace-pre">
+                        <code>{code}</code>
+                    </pre>
+                </div>
+            );
+        }
+        return <span key={index} className="whitespace-pre-wrap leading-relaxed">{part}</span>;
+    });
+};
 
 export default function TestAnalysisView() {
     const { submissionId } = useParams();
@@ -149,11 +172,11 @@ export default function TestAnalysisView() {
                 </div>
 
                 <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 text-white shadow-lg print-shadow-none print-break-inside">
-                    <h2 className="font-black text-lg sm:text-xl flex items-center gap-2 mb-3"><Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300"/> Gemini AI Overall Assessment</h2>
+                    <h2 className="font-black text-lg sm:text-xl flex items-center gap-2 mb-3"><Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300"/> AI Overall Assessment Analysis</h2>
                     {aiData ? (
-                        <p className="text-purple-50 font-medium leading-relaxed text-xs sm:text-base">{aiData.overallAnalysis}</p>
+                        <p className="text-purple-50 font-medium leading-relaxed text-xs sm:text-base whitespace-pre-wrap">{aiData.overallAnalysis}</p>
                     ) : (
-                        <p className="flex items-center gap-2 font-bold animate-pulse text-purple-200 text-sm"><Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> Gemini AI is analyzing your performance...</p>
+                        <p className="flex items-center gap-2 font-bold animate-pulse text-purple-200 text-sm"><Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> AI is analyzing your performance...</p>
                     )}
                 </div>
 
@@ -196,17 +219,44 @@ export default function TestAnalysisView() {
                     {analysis.details.map((q: any, i: number) => {
                         const isCorrect = q.isCorrect;
                         const isUnattempted = q.studentOption === "UNATTEMPTED";
+                        const isCoding = q.questionType === 'CODING' || q.codeSnippet;
 
                         return (
                             <div key={i} className={`bg-[#1a0d36] rounded-2xl p-4 sm:p-6 shadow-sm border-2 print-shadow-none print-break-inside ${isCorrect ? 'border-emerald-500/50' : isUnattempted ? 'border-purple-900/30' : 'border-red-500/50'}`}>
                                 <div className="flex items-start justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-                                    <div className="flex gap-2.5 sm:gap-4 items-start">
+                                    <div className="flex gap-2.5 sm:gap-4 items-start w-full">
                                         <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isCorrect ? 'bg-emerald-900/50 text-emerald-400' : isUnattempted ? 'bg-gray-800 text-gray-400' : 'bg-red-900/50 text-red-400'}`}>
                                             {isCorrect ? <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5"/> : isUnattempted ? <MinusCircle className="w-4 h-4 sm:w-5 sm:h-5"/> : <XCircle className="w-4 h-4 sm:w-5 sm:h-5"/>}
                                         </div>
-                                        <div>
-                                            <p className="text-[10px] sm:text-xs text-gray-400 font-bold mb-1">Question {i + 1}</p>
-                                            <p className="text-white font-semibold text-sm sm:text-lg leading-relaxed">{q.questionText}</p>
+                                        <div className="w-full">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <p className="text-[10px] sm:text-xs text-gray-400 font-bold">Question {i + 1}</p>
+                                                {isCoding ? (
+                                                    <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/30"><Code2 className="w-2.5 h-2.5"/> Coding</span>
+                                                ) : (
+                                                    <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-blue-400 bg-blue-900/20 px-1.5 py-0.5 rounded border border-blue-500/30"><BookOpen className="w-2.5 h-2.5"/> Theory</span>
+                                                )}
+                                            </div>
+
+                                            <div className="text-white font-semibold text-sm sm:text-lg leading-relaxed w-full">
+                                                {/* 🌟 1. Render the main text and handle legacy markdown */}
+                                                {renderQuestionContent(q.questionText)}
+                                                
+                                                {/* 🌟 2. Explicitly render the dedicated Code Snippet */}
+                                                {q.codeSnippet && (
+                                                    <div className="mt-4 bg-[#0c0618] border border-purple-900/50 rounded-xl overflow-hidden shadow-xl w-full text-left">
+                                                        <div className="bg-[#150a29] px-4 py-2 flex items-center gap-2 border-b border-purple-900/50">
+                                                            <Terminal className="w-4 h-4 text-emerald-400"/>
+                                                            <span className="text-xs uppercase font-black text-emerald-400 tracking-wider">
+                                                                Developer Code Snippet ({q.codeLanguage || 'Code'})
+                                                            </span>
+                                                        </div>
+                                                        <pre className="p-4 sm:p-5 text-sm sm:text-base text-emerald-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar whitespace-pre">
+                                                            <code>{q.codeSnippet}</code>
+                                                        </pre>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-bold text-gray-500 bg-[#0f0a1c] border border-purple-900/50 px-2 sm:px-2.5 py-1 rounded-lg shrink-0">

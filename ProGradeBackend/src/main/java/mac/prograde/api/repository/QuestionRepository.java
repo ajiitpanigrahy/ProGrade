@@ -54,7 +54,50 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
 	        org.springframework.data.domain.Pageable pageable
 	    );
 	    
-	 // 🌟 ADDED: Fetches available topics and counts grouped by difficulty
-	    @Query("SELECT q.topic, q.difficultyLevel, COUNT(q) FROM Question q WHERE UPPER(q.technology) = UPPER(:tech) GROUP BY q.topic, q.difficultyLevel")
-	    List<Object[]> getTopicDifficultyCountsByTech(@Param("tech") String tech);
+	 // 🌟 1. JPQL INVENTORY CHECKER (Bulletproof Mapping & Trimming)
+	    @Query("SELECT q.topic, q.difficultyLevel, " +
+	           "SUM(CASE WHEN TRIM(UPPER(q.questionType)) = 'THEORY' OR q.questionType IS NULL THEN 1L ELSE 0L END), " + 
+	           "SUM(CASE WHEN TRIM(UPPER(q.questionType)) = 'CODING' THEN 1L ELSE 0L END) " + 
+	           "FROM Question q WHERE UPPER(q.technology) = UPPER(:tech) " +
+	           "GROUP BY q.topic, q.difficultyLevel")
+	    List<Object[]> getDetailedTopicInventoryByTech(@Param("tech") String tech);
+
+	    // 🌟 2A. JPQL RANDOM FETCHER FOR THEORY MCQs
+	    @Query("SELECT q FROM Question q WHERE UPPER(q.technology) = UPPER(:tech) " +
+	           "AND (:topic = 'ALL' OR UPPER(q.topic) = UPPER(:topic)) " +
+	           "AND UPPER(q.difficultyLevel) = UPPER(:diff) " +
+	           "AND (TRIM(UPPER(q.questionType)) = 'THEORY' OR q.questionType IS NULL) " +
+	           "ORDER BY RAND()")
+	    List<Question> findRandomTheoryQuestions(
+	            @Param("tech") String tech, 
+	            @Param("topic") String topic, 
+	            @Param("diff") String diff, 
+	            org.springframework.data.domain.Pageable pageable
+	    );
+
+	    // 🌟 2B. JPQL RANDOM FETCHER FOR CODING MCQs
+	    @Query("SELECT q FROM Question q WHERE UPPER(q.technology) = UPPER(:tech) " +
+	           "AND (:topic = 'ALL' OR UPPER(q.topic) = UPPER(:topic)) " +
+	           "AND UPPER(q.difficultyLevel) = UPPER(:diff) " +
+	           "AND TRIM(UPPER(q.questionType)) = 'CODING' " +
+	           "ORDER BY RAND()")
+	    List<Question> findRandomCodingQuestions(
+	            @Param("tech") String tech, 
+	            @Param("topic") String topic, 
+	            @Param("diff") String diff, 
+	            org.springframework.data.domain.Pageable pageable
+	    );
+
+	    // 🌟 3. JPQL FILTERED GRID FETCHER FOR MANUAL MODE
+	    @Query("SELECT q FROM Question q WHERE UPPER(q.technology) = UPPER(:technology) " +
+	           "AND (:search IS NULL OR :search = '' OR LOWER(q.topic) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(q.questionText) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+	           "AND (:typeFilter = 'ALL' " +
+	           "  OR (:typeFilter = 'CODING' AND TRIM(UPPER(q.questionType)) = 'CODING') " +
+	           "  OR (:typeFilter = 'THEORY' AND (TRIM(UPPER(q.questionType)) = 'THEORY' OR q.questionType IS NULL)))")
+	    Page<Question> findQuestionsByTechnologySearchAndType(
+	            @Param("technology") String technology,
+	            @Param("search") String search,
+	            @Param("typeFilter") String typeFilter, 
+	            org.springframework.data.domain.Pageable pageable
+	    );
 }

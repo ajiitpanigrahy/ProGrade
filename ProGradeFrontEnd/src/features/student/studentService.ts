@@ -64,5 +64,11 @@ export const studentService = {
     getAiInsights: async (submissionId: string) => {
         const response = await axiosClient.get(`/student/live-exam/analysis/${submissionId}/ai-insights`);
         return response.data;
-    }
+    },
+
+    // Inside studentService.ts
+    getSecureExamPayload: async (examId: string) => {
+        const response = await axiosClient.get(`/student/assessments/${examId}/secure-payload`);
+        return response.data; // 🌟 Returns the raw JSON exactly as Java sends it
+    },
 };

@@ -75,4 +75,14 @@ public class StudentAssessmentController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
         }
     }
+    
+    @GetMapping("/{examId}/secure-payload")
+    public ResponseEntity<?> getSecurePayload(@PathVariable String examId) {
+        try {
+            Map<String, Object> payload = studentService.getSecureExamPayload(examId);
+            return ResponseEntity.ok(payload);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }

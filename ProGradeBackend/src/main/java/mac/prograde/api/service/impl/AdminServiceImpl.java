@@ -249,16 +249,33 @@ public class AdminServiceImpl implements AdminService {
 	}
 
 	@Override
-	public List<Map<String, Object>> getQuestionAvailability(String tech) {
-		List<Object[]> results = questionRepository.getTopicDifficultyCountsByTech(tech);
-		return results.stream().map(row -> {
-			Map<String, Object> map = new HashMap<>();
-			map.put("topic", row[0] != null && !row[0].toString().trim().isEmpty() ? row[0].toString() : "General");
-			map.put("difficulty", row[1] != null ? row[1].toString().toUpperCase() : "MEDIUM");
-			map.put("count", row[2] != null ? ((Number) row[2]).longValue() : 0L);
-			return map;
-		}).collect(Collectors.toList());
-	}
+    public List<Map<String, Object>> getQuestionAvailability(String tech) {
+        // 🌟 1. Call the updated repository method
+        List<Object[]> results = questionRepository.getDetailedTopicInventoryByTech(tech);
+        
+        return results.stream().map(row -> {
+            Map<String, Object> map = new HashMap<>();
+            
+            // row[0] = Topic
+            map.put("topic", row[0] != null && !row[0].toString().trim().isEmpty() ? row[0].toString() : "Uncategorized");
+            
+            // row[1] = Difficulty
+            map.put("difficulty", row[1] != null ? row[1].toString().toUpperCase() : "MEDIUM");
+            
+            // row[2] = Theory Count
+            long theoryCount = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+            map.put("theoryCount", theoryCount);
+            
+            // row[3] = Coding Count
+            long codingCount = row[3] != null ? ((Number) row[3]).longValue() : 0L;
+            map.put("codingCount", codingCount);
+            
+            // 🌟 Fallback for backward compatibility just in case
+            map.put("count", theoryCount + codingCount);
+            
+            return map;
+        }).collect(Collectors.toList());
+    }
     
  // 🌟 1. UPDATE THE MAIN EDUCATOR FETCHER
     @Override

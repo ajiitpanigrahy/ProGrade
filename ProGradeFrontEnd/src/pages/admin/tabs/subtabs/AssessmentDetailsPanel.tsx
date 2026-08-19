@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Settings, Users, ShieldAlert, CheckCircle2, AlertTriangle, Filter, Lock, Download, Search, Clock, Trophy, Frown, X, FileText, Trash2, PauseCircle, PlayCircle, CalendarClock, Loader2 } from 'lucide-react';
+import { ArrowLeft, Settings, Users, ShieldAlert, CheckCircle2, AlertTriangle, Filter, Lock, Download, Search, Clock, Trophy, Frown, X, FileText, Trash2, PauseCircle, PlayCircle, CalendarClock, Loader2, Database, Code2, BookOpen, Terminal } from 'lucide-react';
 import { axiosClient } from '../../../../api/axiosClient';
-import { useAuth } from '../../../../context/AuthContext'; 
+import { useAuth } from '../../../../context/AuthContext';
 import { adminService } from '../../../../features/admin/adminService';
 
 interface Props {
@@ -9,47 +9,81 @@ interface Props {
     onBack: () => void;
 }
 
+// 🌟 ADDED RENDER HELPER FOR CODE SNIPPETS
+const renderQuestionContent = (text: string) => {
+    if (!text) return null;
+    const parts = text.split(/(```[\s\S]*?```)/g);
+    return parts.map((part, index) => {
+        if (part.startsWith('```') && part.endsWith('```')) {
+            const code = part.replace(/```[a-z]*\n?/i, '').replace(/```$/, '');
+            return (
+                <div key={index} className="my-3 bg-[#0d0714] border border-purple-900/50 rounded-xl overflow-hidden shadow-inner w-full">
+                    <div className="bg-[#150a29] px-3 py-1.5 flex items-center gap-2 border-b border-purple-900/50">
+                        <Terminal className="w-3 h-3 text-purple-400" />
+                        <span className="text-[10px] uppercase font-bold text-purple-400 tracking-wider">Code Snippet</span>
+                    </div>
+                    <pre className="p-4 text-[13px] text-emerald-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar">
+                        <code>{code}</code>
+                    </pre>
+                </div>
+            );
+        }
+        return <span key={index} className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed text-sm">{part}</span>;
+    });
+};
+
 export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
-    const { user } = useAuth(); 
-    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'LEADERBOARD' | 'FRAUD'>('OVERVIEW');
+    const { user } = useAuth();
+    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'QUESTIONS' | 'LEADERBOARD' | 'FRAUD'>('OVERVIEW');
     const [reportData, setReportData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    
-    // 🌟 LOCAL ASSESSMENT STATE (to reflect live changes without reloading)
+
     const [localAssessment, setLocalAssessment] = useState(assessment);
 
-    // Leaderboard & Filter States
+    // 🌟 1. NEW STATE TO HOLD ACTUAL QUESTIONS
+    const [assessmentQuestions, setAssessmentQuestions] = useState<any[]>([]);
+
     const [fraudFilter, setFraudFilter] = useState('ALL');
     const [lbSearch, setLbSearch] = useState('');
     const [lbSort, setLbSort] = useState<'RANK' | 'NAME' | 'SCORE' | 'TIME'>('RANK');
     const [lbLimit, setLbLimit] = useState<'ALL' | 'TOP5' | 'TOP10'>('ALL');
 
-    // Access Control States
     const [newEducatorEmail, setNewEducatorEmail] = useState('');
     const [allowedEducators, setAllowedEducators] = useState<string[]>(
-        localAssessment.allowedEducators 
-            ? localAssessment.allowedEducators.split(',').map((e:string) => e.trim()).filter(Boolean) 
+        localAssessment.allowedEducators
+            ? localAssessment.allowedEducators.split(',').map((e: string) => e.trim()).filter(Boolean)
             : []
     );
 
-    // 🌟 ACTION MODAL STATES
     const [activeModal, setActiveModal] = useState<'NONE' | 'DELETE' | 'TOGGLE' | 'POSTPONE'>('NONE');
     const [postponeDate, setPostponeDate] = useState<string>('');
     const [actionLoading, setActionLoading] = useState(false);
 
+    // 🌟 2. FETCH THE QUESTIONS SIMULTANEOUSLY WITH THE REPORT
     useEffect(() => {
+        setLoading(true);
+
+        // Fetch Analytics
         adminService.getAdvancedAssessmentReport(localAssessment.id)
             .then(res => setReportData(res))
-            .catch(err => console.error("Could not fetch details", err))
+            .catch(err => console.error("Could not fetch details", err));
+
+        // Fetch Blueprint Questions
+        adminService.getAssessmentQuestions(localAssessment.id)
+            .then(res => setAssessmentQuestions(res))
+            .catch(err => console.error("Could not fetch questions", err))
             .finally(() => setLoading(false));
+
     }, [localAssessment.id]);
+
+    // ... (Keep updateEducatorAccess and all other handlers exactly the same)
 
     const updateEducatorAccess = async (updatedList: string[]) => {
         try {
             const csvList = updatedList.join(',');
             await axiosClient.put(`/assessments/${localAssessment.id}/allow-educators`, { allowedEducators: csvList });
             setAllowedEducators(updatedList);
-            setNewEducatorEmail(''); 
+            setNewEducatorEmail('');
         } catch (e) {
             alert("Failed to update educator access.");
         }
@@ -64,12 +98,11 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
 
     const handleRemoveEducator = (emailToRemove: string) => updateEducatorAccess(allowedEducators.filter(e => e !== emailToRemove));
 
-    // 🌟 EXAM ACTION HANDLERS
     const handleDelete = async () => {
         setActionLoading(true);
         try {
             await adminService.deleteAssessment(localAssessment.id);
-            onBack(); // Go back to hub
+            onBack();
         } catch (err) {
             alert("Failed to delete assessment.");
         } finally { setActionLoading(false); }
@@ -101,7 +134,7 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
     const formatTime = (seconds: number | undefined | null) => {
         if (seconds === undefined || seconds === null || isNaN(seconds)) return '--';
         const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
+        const s = Math.floor(seconds % 60);
         return `${m}m ${s}s`;
     };
 
@@ -116,10 +149,10 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
     const rankedSubmissions = [...rawSubmissions].map(s => ({
         ...s,
         studentName: s.studentName || formatFullName(s.studentEmail),
-        timeTaken: s.timeTaken || 0 
+        timeTaken: s.timeTaken || 0
     })).sort((a, b) => {
         if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-        return a.timeTaken - b.timeTaken; 
+        return a.timeTaken - b.timeTaken;
     }).map((s, idx) => ({ ...s, rank: idx + 1 }));
 
     const highestScorer = rankedSubmissions.length > 0 ? rankedSubmissions[0] : null;
@@ -132,12 +165,12 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
     }
     if (lbLimit === 'TOP5') displayLeaderboard = displayLeaderboard.slice(0, 5);
     if (lbLimit === 'TOP10') displayLeaderboard = displayLeaderboard.slice(0, 10);
-    
+
     displayLeaderboard.sort((a, b) => {
         if (lbSort === 'NAME') return a.studentName.localeCompare(b.studentName);
         if (lbSort === 'TIME') return a.timeTaken - b.timeTaken;
         if (lbSort === 'SCORE') return b.totalScore - a.totalScore;
-        return a.rank - b.rank; 
+        return a.rank - b.rank;
     });
 
     const fraudLogs = reportData?.fraudLogs || [];
@@ -147,7 +180,7 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
     const handleExport = (format: 'CSV' | 'PDF') => {
         if (format === 'PDF') { window.print(); return; }
         const headers = ["Rank", "Name", "Email", "Score", "Time Taken (Seconds)"];
-        const rows = displayLeaderboard.map(s => [ `#${s.rank}`, `"${s.studentName}"`, `"${s.studentEmail}"`, s.totalScore, s.timeTaken ]);
+        const rows = displayLeaderboard.map(s => [`#${s.rank}`, `"${s.studentName}"`, `"${s.studentEmail}"`, s.totalScore, s.timeTaken]);
         const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -160,89 +193,68 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
         document.body.removeChild(link);
     };
 
-    // 🌟 CUSTOM ACTION MODALS
     const ActionModals = () => {
         if (activeModal === 'NONE') return null;
-
         return (
             <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={() => setActiveModal('NONE')}>
                 <div className="bg-white dark:bg-[#150a29] max-w-md w-full rounded-[2rem] p-8 text-center shadow-2xl border-2 border-gray-100 dark:border-purple-900/50 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
-                    
                     {activeModal === 'DELETE' && (
                         <>
-                            <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-5 border-4 border-red-100 dark:border-red-800">
-                                <Trash2 className="w-10 h-10 text-red-500" />
-                            </div>
+                            <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-5 border-4 border-red-100 dark:border-red-800"><Trash2 className="w-10 h-10 text-red-500" /></div>
                             <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Obliterate Assessment?</h2>
                             <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">This action is irreversible. All student submissions, malpractice logs, and analytics tied to <strong className="text-gray-900 dark:text-white">{localAssessment.title}</strong> will be permanently erased.</p>
                             <div className="flex gap-3">
                                 <button onClick={() => setActiveModal('NONE')} className="flex-1 py-3 rounded-xl font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Cancel</button>
                                 <button onClick={handleDelete} disabled={actionLoading} className="flex-1 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 transition-colors flex justify-center items-center gap-2">
-                                    {actionLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : 'Yes, Delete'}
+                                    {actionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Yes, Delete'}
                                 </button>
                             </div>
                         </>
                     )}
-
                     {activeModal === 'TOGGLE' && (
                         <>
                             <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 border-4 ${localAssessment.status === 'PUBLISHED' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800 text-amber-500' : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800 text-emerald-500'}`}>
                                 {localAssessment.status === 'PUBLISHED' ? <PauseCircle className="w-10 h-10" /> : <PlayCircle className="w-10 h-10" />}
                             </div>
-                            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">
-                                {localAssessment.status === 'PUBLISHED' ? 'Pause Assessment?' : 'Publish Assessment?'}
-                            </h2>
-                            <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">
-                                {localAssessment.status === 'PUBLISHED' 
-                                    ? 'Pausing will immediately stop new students from starting this exam. Existing active sessions will not be interrupted.' 
-                                    : 'Publishing will make this exam instantly live and accessible to the assigned operational batches.'}
-                            </p>
+                            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">{localAssessment.status === 'PUBLISHED' ? 'Pause Assessment?' : 'Publish Assessment?'}</h2>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">{localAssessment.status === 'PUBLISHED' ? 'Pausing will immediately stop new students from starting this exam. Existing active sessions will not be interrupted.' : 'Publishing will make this exam instantly live and accessible to the assigned operational batches.'}</p>
                             <div className="flex gap-3">
                                 <button onClick={() => setActiveModal('NONE')} className="flex-1 py-3 rounded-xl font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Cancel</button>
                                 <button onClick={handleToggleStatus} disabled={actionLoading} className={`flex-1 py-3 rounded-xl font-bold text-white transition-colors flex justify-center items-center gap-2 ${localAssessment.status === 'PUBLISHED' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
-                                    {actionLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : localAssessment.status === 'PUBLISHED' ? 'Pause Exam' : 'Go Live'}
+                                    {actionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : localAssessment.status === 'PUBLISHED' ? 'Pause Exam' : 'Go Live'}
                                 </button>
                             </div>
                         </>
                     )}
-
                     {activeModal === 'POSTPONE' && (
                         <>
-                            <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-5 border-4 border-blue-100 dark:border-blue-800">
-                                <CalendarClock className="w-10 h-10 text-blue-500" />
-                            </div>
+                            <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-5 border-4 border-blue-100 dark:border-blue-800"><CalendarClock className="w-10 h-10 text-blue-500" /></div>
                             <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Reschedule Exam</h2>
                             <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">Select a new future date and time for this assessment to unlock.</p>
-                            
                             <div className="text-left mb-8">
                                 <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider mb-2 block">New Launch Date</label>
-                                <input 
-                                    type="datetime-local" 
-                                    value={postponeDate} 
-                                    onChange={(e) => setPostponeDate(e.target.value)} 
-                                    className="w-full bg-gray-50 dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:border-blue-500 [color-scheme:light] dark:[color-scheme:dark]" 
-                                />
+                                <input type="datetime-local" value={postponeDate} onChange={(e) => setPostponeDate(e.target.value)} className="w-full bg-gray-50 dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:border-blue-500 [color-scheme:light] dark:[color-scheme:dark]" />
                             </div>
-
                             <div className="flex gap-3">
                                 <button onClick={() => setActiveModal('NONE')} className="flex-1 py-3 rounded-xl font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Cancel</button>
                                 <button onClick={handlePostpone} disabled={!postponeDate || actionLoading} className="flex-1 py-3 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors flex justify-center items-center gap-2">
-                                    {actionLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : 'Confirm Reschedule'}
+                                    {actionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Reschedule'}
                                 </button>
                             </div>
                         </>
                     )}
-
                 </div>
             </div>
         );
     };
 
+    // Derived variables for Questions Tab
+    const codingQCount = assessmentQuestions.filter((q: any) => q.questionType === 'CODING' || q.codeSnippet).length;
+    const theoryQCount = assessmentQuestions.length - codingQCount;
+
     return (
         <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-right-4 relative">
-            
             <ActionModals />
-
             <style>
                 {`
                     @media print {
@@ -268,13 +280,20 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
 
             <div className="flex gap-2 sm:gap-3 overflow-x-auto custom-scrollbar pb-2 sm:pb-4 w-full no-print">
                 <button onClick={() => setActiveTab('OVERVIEW')} className={`px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'OVERVIEW' ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20' : 'bg-white dark:bg-[#150a29] text-gray-600 border border-gray-200 hover:bg-gray-50 dark:border-purple-900/30 dark:text-gray-400'}`}>
-                    <Settings className="w-4 h-4"/> Overview & Config
+                    <Settings className="w-4 h-4" /> Overview & Config
                 </button>
+
+                {/* 🌟 NEW: QUESTIONS TAB BUTTON */}
+                <button onClick={() => setActiveTab('QUESTIONS')} className={`px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'QUESTIONS' ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20' : 'bg-white dark:bg-[#150a29] text-gray-600 border border-gray-200 hover:bg-gray-50 dark:border-purple-900/30 dark:text-gray-400'}`}>
+                    <Database className="w-4 h-4" /> Blueprint Questions
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${activeTab === 'QUESTIONS' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400'}`}>{assessmentQuestions.length}</span>
+                </button>
+
                 <button onClick={() => setActiveTab('LEADERBOARD')} className={`px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'LEADERBOARD' ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20' : 'bg-white dark:bg-[#150a29] text-gray-600 border border-gray-200 hover:bg-gray-50 dark:border-purple-900/30 dark:text-gray-400'}`}>
-                    <Users className="w-4 h-4"/> Submissions & Leaderboard
+                    <Users className="w-4 h-4" /> Submissions & Leaderboard
                 </button>
                 <button onClick={() => setActiveTab('FRAUD')} className={`px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'FRAUD' ? 'bg-red-600 text-white shadow-md shadow-red-600/20' : 'bg-white dark:bg-[#150a29] text-gray-600 border border-gray-200 hover:bg-gray-50 dark:border-purple-900/30 dark:text-gray-400'}`}>
-                    <ShieldAlert className="w-4 h-4"/> Malpractice Logs 
+                    <ShieldAlert className="w-4 h-4" /> Malpractice Logs
                     {fraudLogs.length > 0 && <span className={`px-1.5 py-0.5 rounded text-[10px] ${activeTab === 'FRAUD' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400'}`}>{fraudLogs.length}</span>}
                 </button>
             </div>
@@ -283,7 +302,7 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                 <div className="h-40 flex items-center justify-center text-purple-600 animate-pulse font-bold text-sm tracking-widest uppercase no-print">Fetching Diagnostics...</div>
             ) : (
                 <div className={`bg-white dark:bg-[#1a0d36] rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 p-4 sm:p-6 overflow-hidden ${activeTab === 'LEADERBOARD' ? 'print-container' : 'no-print'}`}>
-                    
+
                     {activeTab === 'OVERVIEW' && (
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
                             <div>
@@ -300,8 +319,8 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                     <div className="flex justify-between border-b border-gray-200 dark:border-purple-900/30 pb-2">
                                         <span className="font-semibold">Assigned Batches</span>
                                         <span className="font-black text-emerald-600 dark:text-emerald-400 text-right">
-                                            {localAssessment.assignedBatches && localAssessment.assignedBatches.length > 0 
-                                                ? localAssessment.assignedBatches.map((b:any) => b.name).join(', ') 
+                                            {localAssessment.assignedBatches && localAssessment.assignedBatches.length > 0
+                                                ? localAssessment.assignedBatches.map((b: any) => b.name).join(', ')
                                                 : 'All Batches (Public)'}
                                         </span>
                                     </div>
@@ -316,19 +335,18 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                         </span>
                                     </div>
 
-                                    {/* 🌟 NEW: ASSESSMENT ACTIONS */}
                                     <div className="mt-6 pt-6 border-t border-gray-200 dark:border-purple-900/30">
                                         <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-wider mb-3">Lifecycle Controls</h4>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                             <button onClick={() => setActiveModal('TOGGLE')} className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold border-2 transition-all active:scale-95 cursor-pointer ${localAssessment.status === 'PUBLISHED' ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/40' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900/40'}`}>
-                                                {localAssessment.status === 'PUBLISHED' ? <PauseCircle className="w-4 h-4"/> : <PlayCircle className="w-4 h-4"/>} 
+                                                {localAssessment.status === 'PUBLISHED' ? <PauseCircle className="w-4 h-4" /> : <PlayCircle className="w-4 h-4" />}
                                                 {localAssessment.status === 'PUBLISHED' ? 'Pause Exam' : 'Publish Live'}
                                             </button>
                                             <button onClick={() => setActiveModal('POSTPONE')} className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold border-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-all active:scale-95 cursor-pointer">
-                                                <CalendarClock className="w-4 h-4"/> Reschedule
+                                                <CalendarClock className="w-4 h-4" /> Reschedule
                                             </button>
                                             <button onClick={() => setActiveModal('DELETE')} className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold border-2 bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40 transition-all active:scale-95 cursor-pointer">
-                                                <Trash2 className="w-4 h-4"/> Delete Exam
+                                                <Trash2 className="w-4 h-4" /> Delete Exam
                                             </button>
                                         </div>
                                         {localAssessment.startTime && (
@@ -344,8 +362,8 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                                 <Lock className="w-3.5 h-3.5 text-amber-500" /> Security Delegation
                                             </h4>
                                             <div className="flex flex-col sm:flex-row gap-2 mb-3">
-                                                <input 
-                                                    type="email" 
+                                                <input
+                                                    type="email"
                                                     value={newEducatorEmail}
                                                     onChange={(e) => setNewEducatorEmail(e.target.value)}
                                                     onKeyDown={(e) => e.key === 'Enter' && handleAddEducator()}
@@ -362,7 +380,7 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                                     {allowedEducators.map(email => (
                                                         <div key={email} className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 px-2.5 py-1.5 rounded-md text-[10px] font-bold">
                                                             <span>{email}</span>
-                                                            <button onClick={() => handleRemoveEducator(email)} className="hover:bg-amber-200 dark:hover:bg-amber-900/50 rounded-full p-0.5 text-amber-500 transition-colors cursor-pointer"><X className="w-3.5 h-3.5"/></button>
+                                                            <button onClick={() => handleRemoveEducator(email)} className="hover:bg-amber-200 dark:hover:bg-amber-900/50 rounded-full p-0.5 text-amber-500 transition-colors cursor-pointer"><X className="w-3.5 h-3.5" /></button>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -384,17 +402,103 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                         <p className="text-[10px] font-bold text-gray-500 uppercase mt-2">Platform Average</p>
                                     </div>
                                     <div className="bg-emerald-50 dark:bg-emerald-900/10 p-5 rounded-xl border border-emerald-100 dark:border-emerald-900/30 text-center flex flex-col justify-center">
-                                        <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1"><Trophy className="w-5 h-5"/> {highestScorer ? highestScorer.totalScore : 0}</p>
+                                        <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1"><Trophy className="w-5 h-5" /> {highestScorer ? highestScorer.totalScore : 0}</p>
                                         <p className="text-[10px] font-bold text-gray-500 uppercase mt-2">Highest Score</p>
                                         <p className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 mt-1 truncate px-2">{highestScorer ? highestScorer.studentName : '--'}</p>
                                     </div>
                                     <div className="bg-red-50 dark:bg-red-900/10 p-5 rounded-xl border border-red-100 dark:border-red-900/30 text-center flex flex-col justify-center">
-                                        <p className="text-3xl font-black text-red-600 dark:text-red-400 flex items-center justify-center gap-1"><Frown className="w-5 h-5"/> {lowestScorer ? lowestScorer.totalScore : 0}</p>
+                                        <p className="text-3xl font-black text-red-600 dark:text-red-400 flex items-center justify-center gap-1"><Frown className="w-5 h-5" /> {lowestScorer ? lowestScorer.totalScore : 0}</p>
                                         <p className="text-[10px] font-bold text-gray-500 uppercase mt-2">Lowest Score</p>
                                         <p className="text-[10px] font-black text-red-700 dark:text-red-300 mt-1 truncate px-2">{lowestScorer ? lowestScorer.studentName : '--'}</p>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* 🌟 NEW: QUESTIONS TAB RENDER */}
+                    {activeTab === 'QUESTIONS' && (
+                        <div className="flex flex-col h-full max-h-[80vh]">
+                            <div className="flex items-center justify-between mb-4 bg-gray-50 dark:bg-[#0f0a1c] p-4 rounded-xl border border-gray-100 dark:border-purple-900/50 shrink-0">
+                                <div>
+                                    <h3 className="font-black text-gray-900 dark:text-white flex items-center gap-2">
+                                        <Database className="w-5 h-5 text-purple-600" /> Embedded Assessment Blueprint
+                                    </h3>
+                                    <p className="text-xs text-gray-500 font-bold mt-1">Reviewing the exact question pool compiled for this exam.</p>
+                                </div>
+                                <div className="flex gap-3">
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg text-[10px] font-black uppercase border border-blue-200 dark:border-blue-900/50">
+                                        <BookOpen className="w-3.5 h-3.5" /> Theory: {theoryQCount}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-[10px] font-black uppercase border border-emerald-200 dark:border-emerald-900/50">
+                                        <Code2 className="w-3.5 h-3.5" /> Coding: {codingQCount}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {assessmentQuestions.length === 0 ? (
+                                <div className="text-center text-gray-500 py-10 font-medium border border-dashed border-gray-200 rounded-xl">No questions found for this assessment.</div>
+                            ) : (
+                                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2">
+                                    {assessmentQuestions.map((q: any, index: number) => (
+                                        <div key={q.id} className="p-5 sm:p-6 rounded-[1.5rem] border-2 border-gray-100 dark:border-purple-900/30 bg-white dark:bg-[#150a29] shadow-sm">
+                                            <div className="flex flex-wrap items-center justify-between gap-2 mb-4 border-b border-gray-100 dark:border-purple-900/30 pb-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500">Q{index + 1}</span>
+                                                    <span className={`text-[9px] font-black px-2.5 py-1 rounded uppercase tracking-wider ${q.difficultyLevel === 'EASY' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400' : q.difficultyLevel === 'MEDIUM' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-400'}`}>
+                                                        {q.difficultyLevel}
+                                                    </span>
+                                                    <span className="text-[9px] font-black text-purple-700 bg-purple-100 dark:bg-purple-900/40 dark:text-purple-300 px-2.5 py-1 rounded uppercase tracking-wider">
+                                                        {q.technology}
+                                                    </span>
+                                                    <span className="text-[9px] font-black text-gray-600 bg-gray-200 dark:bg-gray-800 dark:text-gray-300 px-2.5 py-1 rounded uppercase tracking-wider truncate max-w-full">
+                                                        {q.topic || 'Uncategorized'}
+                                                    </span>
+                                                </div>
+
+                                                {q.questionType === 'CODING' || q.codeSnippet ? (
+                                                    <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/50 shadow-sm"><Code2 className="w-3 h-3" /> Coding</span>
+                                                ) : (
+                                                    <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800/50 shadow-sm"><BookOpen className="w-3 h-3" /> Theory</span>
+                                                )}
+                                            </div>
+
+                                            <div className="text-sm font-semibold text-gray-900 dark:text-white mb-5 leading-relaxed">
+                                                {/* Renders the prompt text (and handles legacy markdown if it exists) */}
+                                                {renderQuestionContent(q.questionText)}
+
+                                                {/* 🌟 FIX: Explicitly render the dedicated codeSnippet from the database */}
+                                                {q.codeSnippet && (
+                                                    <div className="mt-4 bg-[#0c0618] border border-purple-900/50 rounded-xl overflow-hidden shadow-inner w-full">
+                                                        <div className="bg-[#150a29] px-3 py-2 flex items-center gap-2 border-b border-purple-900/50">
+                                                            <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                                                            <span className="text-[10px] uppercase font-black text-emerald-400 tracking-wider">
+                                                                Developer Code Snippet ({q.codeLanguage || q.technology})
+                                                            </span>
+                                                        </div>
+                                                        <pre className="p-4 text-[13px] text-emerald-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar whitespace-pre">
+                                                            <code>{q.codeSnippet}</code>
+                                                        </pre>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {['A', 'B', 'C', 'D'].map((opt) => {
+                                                    const isCorrect = q.correctOption === opt;
+                                                    const optionText = q[`option${opt}` as keyof typeof q];
+                                                    return (
+                                                        <div key={opt} className={`flex items-start gap-3 p-3 rounded-xl border-2 text-xs transition-colors ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500/50 text-emerald-900 dark:text-emerald-100 shadow-[inset_0_2px_10px_rgba(16,185,129,0.1)]' : 'bg-gray-50 dark:bg-[#0f0a1c] border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-400 shadow-inner'}`}>
+                                                            <span className={`font-black shrink-0 ${isCorrect ? 'text-emerald-500' : 'text-gray-400'}`}>{opt}.</span>
+                                                            <span className={isCorrect ? 'font-bold' : 'font-medium'}>{optionText as string}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -415,10 +519,10 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                 </div>
                                 <div className="flex gap-2">
                                     <button onClick={() => handleExport('CSV')} className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100 px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer">
-                                        <Download className="w-3.5 h-3.5"/> Export CSV
+                                        <Download className="w-3.5 h-3.5" /> Export CSV
                                     </button>
                                     <button onClick={() => handleExport('PDF')} className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-900/50 hover:bg-red-100 px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer">
-                                        <FileText className="w-3.5 h-3.5"/> Print PDF
+                                        <FileText className="w-3.5 h-3.5" /> Print PDF
                                     </button>
                                 </div>
                             </div>
@@ -444,7 +548,7 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                                     </td>
                                                     <td className="py-3 px-4 text-center">
                                                         <span className="flex items-center justify-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded w-max mx-auto border border-blue-100 dark:border-blue-900/50">
-                                                            <Clock className="w-3 h-3"/> {formatTime(sub.timeTaken)}
+                                                            <Clock className="w-3 h-3" /> {formatTime(sub.timeTaken)}
                                                         </span>
                                                     </td>
                                                     <td className="py-3 px-4 text-center">
@@ -471,11 +575,11 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                         <div className="flex flex-col h-full max-h-[80vh]">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3 shrink-0 no-print">
                                 <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base flex items-center gap-2">
-                                    <ShieldAlert className="w-5 h-5 text-red-500"/> Detected Malpractice Incidents
+                                    <ShieldAlert className="w-5 h-5 text-red-500" /> Detected Malpractice Incidents
                                 </h3>
                                 {uniqueFraudTypes.length > 0 && (
                                     <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#0f0a1c] border border-gray-200 dark:border-purple-900/50 rounded-lg px-2 sm:px-3 py-1.5">
-                                        <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 shrink-0"/>
+                                        <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 shrink-0" />
                                         <select value={fraudFilter} onChange={(e) => setFraudFilter(e.target.value)} className="bg-transparent text-[10px] sm:text-xs font-bold text-gray-700 dark:text-gray-300 outline-none cursor-pointer w-full">
                                             <option value="ALL">All Violations</option>
                                             {(uniqueFraudTypes as string[]).map(type => <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>)}
@@ -486,7 +590,7 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
 
                             {filteredFraud.length === 0 ? (
                                 <div className="text-center py-10 sm:py-16 text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-200 dark:border-emerald-900/30">
-                                    <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-2 sm:mb-3 opacity-50"/>
+                                    <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-2 sm:mb-3 opacity-50" />
                                     No malpractice incidents detected for this assessment!
                                 </div>
                             ) : (
@@ -508,7 +612,7 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                                     </td>
                                                     <td className="px-4 py-3 font-black text-red-600 dark:text-red-500">
                                                         <span className="bg-red-100 dark:bg-red-900/30 px-2.5 py-1 rounded border border-red-200 dark:border-red-900/50 text-[10px] uppercase">
-                                                            <AlertTriangle className="w-3 h-3 inline mr-1 -mt-0.5"/> {log.infractionType.replace(/_/g, ' ')}
+                                                            <AlertTriangle className="w-3 h-3 inline mr-1 -mt-0.5" /> {log.infractionType.replace(/_/g, ' ')}
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3 text-xs text-red-800/80 dark:text-red-300/80 whitespace-normal min-w-[250px]">{log.details}</td>

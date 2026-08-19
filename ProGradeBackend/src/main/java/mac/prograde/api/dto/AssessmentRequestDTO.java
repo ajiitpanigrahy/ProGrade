@@ -22,11 +22,14 @@ public class AssessmentRequestDTO {
     private List<UUID> assignedBatchIds; 
 
  // Inside AssessmentRequestDTO.java
+ // Inside AssessmentRequestDTO.java
     @Data
     public static class AutoRuleDTO {
         private String technology;
-        private String topic; // 🌟 NEW: Added Topic support
+        private String topic; 
         private String difficulty;
         private int count;
+        private int theoryCount; // 🌟 YOU MUST ADD THIS
+        private int codingCount; // 🌟 YOU MUST ADD THIS
     }
 }

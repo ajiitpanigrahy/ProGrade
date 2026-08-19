@@ -120,10 +120,10 @@ export const adminService = {
         const response = await axiosClient.get('/admin/questions/summary');
         return response.data;
     },
-    getQuestionsByTech: async (technology: string, page: number, search: string, size: number = 10) => {
-        const response = await axiosClient.get(`/admin/questions?technology=${technology}&page=${page}&size=${size}&search=${search}`);
-        return response.data;
-    },
+    // getQuestionsByTech: async (technology: string, page: number, search: string, size: number = 10) => {
+    //     const response = await axiosClient.get(`/admin/questions?technology=${technology}&page=${page}&size=${size}&search=${search}`);
+    //     return response.data;
+    // },
     deleteQuestion: async (id: number) => {
         const response = await axiosClient.delete(`/admin/questions/${id}`);
         return response.data;
@@ -207,6 +207,34 @@ export const adminService = {
 
     toggleEducatorStatus: async (id: string) => {
         const response = await axiosClient.patch(`/admin/educators/${id}/toggle-status`);
+        return response.data;
+    },
+
+    createQuestion: async (questionData: any) => {
+        const response = await axiosClient.post('/admin/questions/create', questionData);
+        return response.data;
+    },
+
+    updateQuestion: async (id: number, questionData: any) => {
+        const response = await axiosClient.put(`/admin/questions/${id}`, questionData);
+        return response.data;
+    },
+
+    // 🌟 1. NEW: Fetches exact inventory of Theory vs Coding questions
+    getInventory: async (technology: string) => {
+        const res = await axiosClient.get(`/admin/questions/inventory/${technology}`);
+        return res.data;
+    },
+
+    // 🌟 2. UPDATED: Now accepts typeFilter for the Manual grid
+    getQuestionsByTech: async (technology: string, page: number, search: string, size: number = 10, typeFilter: string = 'ALL') => {
+        const response = await axiosClient.get(`/admin/questions?technology=${technology}&page=${page}&size=${size}&search=${search}&typeFilter=${typeFilter}`);
+        return response.data;
+    },
+
+    // 🌟 FETCH BLUEPRINT QUESTIONS
+    getAssessmentQuestions: async (id: number) => {
+        const response = await axiosClient.get(`/assessments/${id}/questions`);
         return response.data;
     },
 };

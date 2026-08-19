@@ -14,6 +14,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import mac.prograde.api.dto.StudentQuestionDTO;
+import mac.prograde.api.entity.Question;
+import java.util.HashMap;
+import java.util.ArrayList;
+
 @Service
 public class StudentAssessmentServiceImpl implements StudentAssessmentService {
 
@@ -100,5 +105,54 @@ public class StudentAssessmentServiceImpl implements StudentAssessmentService {
             );
         }
         return null; 
+    }
+
+
+    @Override
+    public Map<String, Object> getSecureExamPayload(String idString) {
+        
+        // 🌟 FIX: Parse the URL parameter (e.g., "28") into a Long Database ID
+        Long dbId = Long.parseLong(idString);
+        
+        // 🌟 FIX: Use findById instead of searchAssessmentByExamId
+        Assessment assessment = assessmentRepository.findById(dbId)
+                .orElseThrow(() -> new RuntimeException("Assessment not found with ID: " + dbId));
+        
+        List<StudentQuestionDTO> secureQuestions = new ArrayList<>();
+        
+        for (Question q : assessment.getQuestions()) {
+            StudentQuestionDTO dto = new StudentQuestionDTO();
+            dto.setId(q.getId());
+            dto.setQuestionText(q.getQuestionText());
+            dto.setOptionA(q.getOptionA());
+            dto.setOptionB(q.getOptionB());
+            dto.setOptionC(q.getOptionC());
+            dto.setOptionD(q.getOptionD());
+            
+            dto.setTechnology(q.getTechnology());
+            dto.setTopic(q.getTopic());
+            
+            // Safe Enum mapping
+            dto.setDifficultyLevel(q.getDifficultyLevel() != null ? q.getDifficultyLevel().name() : null);
+            
+            // 🌟 EXPLICITLY MAP THE CODE SNIPPET DATA
+            dto.setQuestionType(q.getQuestionType());
+            dto.setCodeSnippet(q.getCodeSnippet());
+            dto.setCodeLanguage(q.getCodeLanguage());
+            
+            secureQuestions.add(dto);
+        }
+
+        // Package the exact structure expected by LiveExamPortal.tsx
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("id", assessment.getId());
+        payload.put("examId", assessment.getExamId());
+        payload.put("title", assessment.getTitle());
+        payload.put("description", assessment.getDescription());
+        payload.put("durationMinutes", assessment.getDurationMinutes());
+        payload.put("totalQuestions", assessment.getTotalQuestions());
+        payload.put("questions", secureQuestions); // Secure array with NO answers!
+        
+        return payload;
     }
 }

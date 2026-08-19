@@ -11,4 +11,6 @@ public interface StudentAssessmentService {
     List<Assessment> getPermittedPublicAssessments(String studentEmail);
     Assessment getPermittedPrivateAssessment(String examId, String studentEmail);
     Map<String, Object> checkMaxAttemptsStatus(String examId, String studentEmail);
+ // 🌟 ADD THIS METHOD
+    java.util.Map<String, Object> getSecureExamPayload(String examId);
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, ShieldAlert, Flag, RotateCcw, ChevronRight, ChevronLeft, Menu, Loader2, CheckSquare, X, AlertTriangle, FileText, Monitor } from 'lucide-react';
+import { Clock, ShieldAlert, Flag, RotateCcw, ChevronRight, ChevronLeft, Menu, Loader2, CheckSquare, X, AlertTriangle, FileText, Monitor, Terminal } from 'lucide-react';
 import { studentService } from '../../features/student/studentService';
 
 type ExamPhase = 'INSTRUCTIONS' | 'TEST' | 'RESULT';
@@ -8,6 +8,29 @@ type ExamPhase = 'INSTRUCTIONS' | 'TEST' | 'RESULT';
 export default function LiveExamPortal() {
     const { id } = useParams();
     const navigate = useNavigate();
+
+    // 🌟 ADD THIS HELPER FUNCTION AT THE TOP
+const renderQuestionContent = (text: string) => {
+    if (!text) return null;
+    const parts = text.split(/(```[\s\S]*?```)/g);
+    return parts.map((part, index) => {
+        if (part.startsWith('```') && part.endsWith('```')) {
+            const code = part.replace(/```[a-z]*\n?/i, '').replace(/```$/, '');
+            return (
+                <div key={index} className="my-4 bg-[#0d0714] border border-purple-900/50 rounded-xl overflow-hidden shadow-inner w-full">
+                    <div className="bg-[#150a29] px-4 py-2.5 flex items-center gap-2 border-b border-purple-900/50">
+                        <Terminal className="w-4 h-4 text-purple-400" />
+                        <span className="text-xs uppercase font-black text-purple-400 tracking-wider">Code Snippet</span>
+                    </div>
+                    <pre className="p-5 text-sm sm:text-base text-emerald-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar whitespace-pre">
+                        <code>{code}</code>
+                    </pre>
+                </div>
+            );
+        }
+        return <span key={index} className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed">{part}</span>;
+    });
+};
 
     const [examData, setExamData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -197,6 +220,9 @@ export default function LiveExamPortal() {
     }
 
     const currentQuestion = examData?.questions[currentQuestionIndex];
+    
+    // 🌟 ADD THIS TEMPORARY DEBUG LOG
+    console.log("CURRENT QUESTION DATA:", currentQuestion);
 
     return (
         <div className="h-screen w-screen flex flex-col bg-gray-50 dark:bg-[#05020a] font-sans overflow-hidden">
@@ -273,7 +299,23 @@ export default function LiveExamPortal() {
                         </div>
 
                         <div className="text-sm sm:text-base lg:text-lg text-gray-800 dark:text-gray-200 leading-relaxed mb-6 sm:mb-8 font-medium">
-                            {currentQuestion?.questionText}
+                            {/* 🌟 1. Render the main text and handle legacy markdown */}
+                            {renderQuestionContent(currentQuestion?.questionText)}
+
+                            {/* 🌟 2. Explicitly render the dedicated Code Snippet from the Secure Payload */}
+                            {currentQuestion?.codeSnippet && (
+                                <div className="mt-5 bg-[#0c0618] border-2 border-purple-900/50 rounded-xl overflow-hidden shadow-2xl w-full text-left">
+                                    <div className="bg-[#150a29] px-4 py-2.5 flex items-center gap-2 border-b-2 border-purple-900/50">
+                                        <Terminal className="w-4 h-4 text-emerald-400"/>
+                                        <span className="text-xs uppercase font-black text-emerald-400 tracking-wider">
+                                            Developer Code Snippet ({currentQuestion.codeLanguage || currentQuestion.technology || 'Code'})
+                                        </span>
+                                    </div>
+                                    <pre className="p-5 text-sm sm:text-base text-emerald-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar whitespace-pre">
+                                        <code>{currentQuestion.codeSnippet}</code>
+                                    </pre>
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid gap-2.5 sm:gap-3 lg:gap-4 mb-auto">

@@ -166,4 +166,16 @@ public class AssessmentController {
         Assessment updated = assessmentService.postponeAssessment(id, newStartTime);
         return ResponseEntity.ok(updated);
     }
+    
+ // 🌟 FETCH QUESTIONS FOR BLUEPRINT TAB
+    @GetMapping("/{id}/questions")
+    public ResponseEntity<?> getAssessmentBlueprintQuestions(@PathVariable Long id) {
+        try {
+            // Adjust the service call to match your actual service method
+            Assessment assessment = assessmentService.findByAssessmentId(id);
+            return ResponseEntity.ok(assessment.getQuestions());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }

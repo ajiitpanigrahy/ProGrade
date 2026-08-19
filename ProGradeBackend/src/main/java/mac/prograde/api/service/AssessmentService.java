@@ -28,157 +28,181 @@ import java.util.UUID;
 @Service
 public class AssessmentService {
 
-    @Autowired private AssessmentRepository assessmentRepository;
-    @Autowired private QuestionRepository questionRepository;
-    @Autowired private BatchRepository batchRepository;
-    
-    // 🌟 ADDED: Dependencies for triggering notifications
-    @Autowired private BatchStudentRepository batchStudentRepository;
-    @Autowired private NotificationService notificationService;
+	@Autowired
+	private AssessmentRepository assessmentRepository;
+	@Autowired
+	private QuestionRepository questionRepository;
+	@Autowired
+	private BatchRepository batchRepository;
 
-    @Transactional
-    public Assessment createAssessment(AssessmentRequestDTO dto) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+	// 🌟 ADDED: Dependencies for triggering notifications
+	@Autowired
+	private BatchStudentRepository batchStudentRepository;
+	@Autowired
+	private NotificationService notificationService;
 
-        Assessment assessment = new Assessment();
-        assessment.setTitle(dto.getTitle());
-        assessment.setDescription(dto.getDescription());
-        assessment.setDurationMinutes(dto.getDurationMinutes());
-        assessment.setTotalQuestions(dto.getTotalQuestions());
-        assessment.setPositiveMarks(dto.getPositiveMarks());
-        assessment.setNegativeMarks(dto.getNegativeMarks());
-        assessment.setCreationMode(Assessment.CreationMode.valueOf(dto.getCreationMode().toUpperCase()));
-        
-        assessment.setStartTime(dto.getStartTime());
-        assessment.setMaxAttempts(dto.getMaxAttempts() > 0 ? dto.getMaxAttempts() : 1);
-        
-        assessment.setExamId("EXM-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase());
-        assessment.setPassword(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
-        
-        assessment.setCreatorEmail(auth.getName()); 
-        assessment.setCreatorRole(isAdmin ? "ADMIN" : "EDUCATOR"); 
-        assessment.setTags(dto.getTags() != null ? dto.getTags() : "General Tech");
+	@Transactional
+	public Assessment createAssessment(AssessmentRequestDTO dto) {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
-        List<Question> finalQuestions = new ArrayList<>();
+		Assessment assessment = new Assessment();
+		assessment.setTitle(dto.getTitle());
+		assessment.setDescription(dto.getDescription());
+		assessment.setDurationMinutes(dto.getDurationMinutes());
+		assessment.setTotalQuestions(dto.getTotalQuestions());
+		assessment.setPositiveMarks(dto.getPositiveMarks());
+		assessment.setNegativeMarks(dto.getNegativeMarks());
+		assessment.setCreationMode(Assessment.CreationMode.valueOf(dto.getCreationMode().toUpperCase()));
 
-        if (assessment.getCreationMode() == Assessment.CreationMode.MANUAL) {
-            finalQuestions = questionRepository.findAllById(dto.getQuestionIds());
-            if (finalQuestions.size() != assessment.getTotalQuestions()) {
-                throw new RuntimeException("Selected questions (" + finalQuestions.size() + ") do not match configured total (" + assessment.getTotalQuestions() + ").");
-            }
-        } else {
+		assessment.setStartTime(dto.getStartTime());
+		assessment.setMaxAttempts(dto.getMaxAttempts() > 0 ? dto.getMaxAttempts() : 1);
+
+		assessment.setExamId("EXM-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase());
+		assessment.setPassword(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+
+		assessment.setCreatorEmail(auth.getName());
+		assessment.setCreatorRole(isAdmin ? "ADMIN" : "EDUCATOR");
+		assessment.setTags(dto.getTags() != null ? dto.getTags() : "General Tech");
+
+		List<Question> finalQuestions = new ArrayList<>();
+
+		if (assessment.getCreationMode() == Assessment.CreationMode.MANUAL) {
+			finalQuestions = questionRepository.findAllById(dto.getQuestionIds());
+			if (finalQuestions.size() != assessment.getTotalQuestions()) {
+				throw new RuntimeException("Selected questions (" + finalQuestions.size()
+						+ ") do not match configured total (" + assessment.getTotalQuestions() + ").");
+			}
+		} else {
             int collectedCount = 0;
             for (AssessmentRequestDTO.AutoRuleDTO rule : dto.getAutoRules()) {
-                List<Question> randomQuestions;
+                String topic = (rule.getTopic() == null || rule.getTopic().trim().equalsIgnoreCase("ALL")) ? "ALL" : rule.getTopic().trim();
                 
-                if (rule.getTopic() == null || rule.getTopic().equalsIgnoreCase("ALL")) {
-                    randomQuestions = questionRepository.findRandomQuestions(
-                        rule.getTechnology().toUpperCase(), rule.getDifficulty().toUpperCase(), PageRequest.of(0, rule.getCount())
-                    );
-                } else {
-                    randomQuestions = questionRepository.findRandomQuestionsWithTopic(
-                        rule.getTechnology().toUpperCase(), rule.getTopic(), rule.getDifficulty().toUpperCase(), PageRequest.of(0, rule.getCount())
-                    );
+                int theory = rule.getTheoryCount();
+                int coding = rule.getCodingCount();
+                
+                // Fallback mapping if frontend only sends legacy 'count'
+                if (theory == 0 && coding == 0 && rule.getCount() > 0) {
+                    theory = rule.getCount();
                 }
 
-                if (randomQuestions.size() < rule.getCount()) {
-                    String topicStr = rule.getTopic() != null ? " -> " + rule.getTopic() : "";
-                    throw new RuntimeException("Not enough bank questions for " + rule.getTechnology() + topicStr + " (" + rule.getDifficulty() + "). Found: " + randomQuestions.size());
+             // 🌟 1. FETCH THEORY MCQs
+                if (theory > 0) {
+                    List<Question> theoryQs = questionRepository.findRandomTheoryQuestions(
+                        rule.getTechnology().toUpperCase(), topic, rule.getDifficulty().toUpperCase(), PageRequest.of(0, theory)
+                    );
+                    if (theoryQs.size() < theory) {
+                        throw new RuntimeException("Not enough Theory questions for " + rule.getTechnology() + " -> " + topic + " (" + rule.getDifficulty() + "). Found: " + theoryQs.size());
+                    }
+                    finalQuestions.addAll(theoryQs);
+                    collectedCount += theory;
                 }
-                finalQuestions.addAll(randomQuestions);
-                collectedCount += rule.getCount();
+
+                // 🌟 2. FETCH CODING MCQs
+                if (coding > 0) {
+                    List<Question> codingQs = questionRepository.findRandomCodingQuestions(
+                        rule.getTechnology().toUpperCase(), topic, rule.getDifficulty().toUpperCase(), PageRequest.of(0, coding)
+                    );
+                    if (codingQs.size() < coding) {
+                        throw new RuntimeException("Not enough Coding questions for " + rule.getTechnology() + " -> " + topic + " (" + rule.getDifficulty() + "). Found: " + codingQs.size());
+                    }
+                    finalQuestions.addAll(codingQs);
+                    collectedCount += coding;
+                }
             }
+            
             if (collectedCount != assessment.getTotalQuestions()) {
                 throw new RuntimeException("Rule sum (" + collectedCount + ") does not match configured total (" + assessment.getTotalQuestions() + ").");
             }
         }
 
-        assessment.setQuestions(finalQuestions);
-        
-        if (dto.getAssignedBatchIds() != null && !dto.getAssignedBatchIds().isEmpty()) {
-            java.util.List<Batch> selectedBatches = batchRepository.findAllById(dto.getAssignedBatchIds());
-            assessment.setAssignedBatches(new java.util.HashSet<>(selectedBatches));
-        }
-        
-        Assessment savedAssessment = assessmentRepository.save(assessment);
+		assessment.setQuestions(finalQuestions);
 
-        // 🌟 TRIGGER REAL-TIME NOTIFICATIONS TO STUDENTS 🌟
-        if (savedAssessment.getAssignedBatches() != null && !savedAssessment.getAssignedBatches().isEmpty()) {
-            Set<String> uniqueStudentEmails = new HashSet<>();
-            
-            // 1. Gather all unique student emails from assigned batches
-            for (Batch batch : savedAssessment.getAssignedBatches()) {
-                List<BatchStudent> studentsInBatch = batchStudentRepository.findAll().stream()
-                        .filter(bs -> bs.getBatch().getId().equals(batch.getId()))
-                        .toList();
-                
-                for (BatchStudent student : studentsInBatch) {
-                    uniqueStudentEmails.add(student.getEmail());
-                }
-            }
+		if (dto.getAssignedBatchIds() != null && !dto.getAssignedBatchIds().isEmpty()) {
+			java.util.List<Batch> selectedBatches = batchRepository.findAllById(dto.getAssignedBatchIds());
+			assessment.setAssignedBatches(new java.util.HashSet<>(selectedBatches));
+		}
 
-            // 2. Broadcast a notification to every student
-            for (String email : uniqueStudentEmails) {
-                Notification notif = new Notification();
-                notif.setRecipientEmail(email);
-                notif.setSender(isAdmin ? "System Admin" : "Your Educator");
-                notif.setTitle("New Assessment Assigned: " + savedAssessment.getTitle());
-                
-                String timeMsg = savedAssessment.getStartTime() != null 
-                    ? "Scheduled for: " + savedAssessment.getStartTime().toString().replace("T", " ") 
-                    : "Available immediately.";
-                    
-                notif.setMessage("You have been assigned a new assessment (" + savedAssessment.getDurationMinutes() + " mins). " + timeMsg);
-                notif.setType(NotificationType.INFO);
-                notif.setTargetUrl("/student/dashboard?view=active-exams"); // Redirects them to the exam tab
-                
-                // Pushes to SSE and saves to DB
-                notificationService.sendNotification(notif);
-            }
-        }
+		Assessment savedAssessment = assessmentRepository.save(assessment);
 
-        return savedAssessment;
-    }
+		// 🌟 TRIGGER REAL-TIME NOTIFICATIONS TO STUDENTS 🌟
+		if (savedAssessment.getAssignedBatches() != null && !savedAssessment.getAssignedBatches().isEmpty()) {
+			Set<String> uniqueStudentEmails = new HashSet<>();
 
-    public List<Assessment> getAssessmentsForCurrentUser() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+			// 1. Gather all unique student emails from assigned batches
+			for (Batch batch : savedAssessment.getAssignedBatches()) {
+				List<BatchStudent> studentsInBatch = batchStudentRepository.findAll().stream()
+						.filter(bs -> bs.getBatch().getId().equals(batch.getId())).toList();
 
-        if (isAdmin) {
-            return assessmentRepository.findAllByOrderByCreatedAtDesc(); 
-        } else {
-            return assessmentRepository.findByCreatorEmailOrCreatorRoleOrderByCreatedAtDesc(auth.getName(), "ADMIN"); 
-        }
-    }
+				for (BatchStudent student : studentsInBatch) {
+					uniqueStudentEmails.add(student.getEmail());
+				}
+			}
 
-    public List<Assessment> getAllAssessments() {
-        return assessmentRepository.findAll();
-    }
+			// 2. Broadcast a notification to every student
+			for (String email : uniqueStudentEmails) {
+				Notification notif = new Notification();
+				notif.setRecipientEmail(email);
+				notif.setSender(isAdmin ? "System Admin" : "Your Educator");
+				notif.setTitle("New Assessment Assigned: " + savedAssessment.getTitle());
 
-    @Transactional
-    public Assessment saveAssessment(Assessment assessment) {
-        return assessmentRepository.save(assessment);
-    }
+				String timeMsg = savedAssessment.getStartTime() != null
+						? "Scheduled for: " + savedAssessment.getStartTime().toString().replace("T", " ")
+						: "Available immediately.";
 
-    @Transactional
-    public void deleteAssessment(Long id) {
-        assessmentRepository.deleteById(id);
-    }
+				notif.setMessage("You have been assigned a new assessment (" + savedAssessment.getDurationMinutes()
+						+ " mins). " + timeMsg);
+				notif.setType(NotificationType.INFO);
+				notif.setTargetUrl("/student/dashboard?view=active-exams"); // Redirects them to the exam tab
 
-    @Transactional
-    public Assessment toggleStatus(Long id) {
-        Assessment assessment = assessmentRepository.findById(id).orElseThrow(() -> new RuntimeException("Assessment not found"));
-        assessment.setStatus(assessment.getStatus().equals("PUBLISHED") ? "PAUSED" : "PUBLISHED");
-        return assessmentRepository.save(assessment);
-    }
+				// Pushes to SSE and saves to DB
+				notificationService.sendNotification(notif);
+			}
+		}
 
-    @Transactional
-    public Assessment postponeAssessment(Long id, java.time.LocalDateTime newStartTime) {
-        Assessment assessment = assessmentRepository.findById(id).orElseThrow(() -> new RuntimeException("Assessment not found"));
-        assessment.setStartTime(newStartTime);
-        return assessmentRepository.save(assessment);
-    }
+		return savedAssessment;
+	}
+
+	public List<Assessment> getAssessmentsForCurrentUser() {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+		if (isAdmin) {
+			return assessmentRepository.findAllByOrderByCreatedAtDesc();
+		} else {
+			return assessmentRepository.findByCreatorEmailOrCreatorRoleOrderByCreatedAtDesc(auth.getName(), "ADMIN");
+		}
+	}
+
+	public List<Assessment> getAllAssessments() {
+		return assessmentRepository.findAll();
+	}
+
+	@Transactional
+	public Assessment saveAssessment(Assessment assessment) {
+		return assessmentRepository.save(assessment);
+	}
+
+	@Transactional
+	public void deleteAssessment(Long id) {
+		assessmentRepository.deleteById(id);
+	}
+
+	@Transactional
+	public Assessment toggleStatus(Long id) {
+		Assessment assessment = assessmentRepository.findById(id)
+				.orElseThrow(() -> new RuntimeException("Assessment not found"));
+		assessment.setStatus(assessment.getStatus().equals("PUBLISHED") ? "PAUSED" : "PUBLISHED");
+		return assessmentRepository.save(assessment);
+	}
+
+	@Transactional
+	public Assessment postponeAssessment(Long id, java.time.LocalDateTime newStartTime) {
+		Assessment assessment = assessmentRepository.findById(id)
+				.orElseThrow(() -> new RuntimeException("Assessment not found"));
+		assessment.setStartTime(newStartTime);
+		return assessmentRepository.save(assessment);
+	}
 
 	public Assessment findByAssessmentId(Long assessmentId) {
 		// TODO Auto-generated method stub

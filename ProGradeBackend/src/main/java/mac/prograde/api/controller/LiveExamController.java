@@ -53,13 +53,23 @@ public class LiveExamController {
 				.orElseThrow(() -> new RuntimeException("Assessment not found."));
 
 		List<Map<String, Object>> secureQuestions = exam.getQuestions().stream()
-				.map(q -> Map.<String, Object>of("id", q.getId(), "questionText", q.getQuestionText(), "optionA",
-						q.getOptionA(), "optionB", q.getOptionB(), "optionC", q.getOptionC(), "optionD",
-						q.getOptionD()))
+				.map(q -> Map.<String, Object>of(
+                        "id", q.getId(), 
+                        "questionText", q.getQuestionText(), 
+                        "optionA", q.getOptionA(), 
+                        "optionB", q.getOptionB(), 
+                        "optionC", q.getOptionC(), 
+                        "optionD", q.getOptionD()
+                ))
 				.collect(Collectors.toList());
 
-		return ResponseEntity.ok(Map.of("id", exam.getId(), "title", exam.getTitle(), "durationMinutes",
-				exam.getDurationMinutes(), "totalQuestions", exam.getTotalQuestions(), "questions", secureQuestions));
+		return ResponseEntity.ok(Map.of(
+                "id", exam.getId(), 
+                "title", exam.getTitle(), 
+                "durationMinutes", exam.getDurationMinutes(), 
+                "totalQuestions", exam.getTotalQuestions(), 
+                "questions", secureQuestions
+        ));
 	}
 
 	@PostMapping("/{assessmentId}/submit")
@@ -123,9 +133,6 @@ public class LiveExamController {
 			submission.setUnattemptedCount(unattemptedCount);
 			submission.setFlaggedCount(flaggedCount);
 
-			// 🌟 FLAWLESS TIMEZONE PARSING
-			// Converts browser UTC string to server's exact Local Timezone (e.g., IST)
-			// safely.
 			if (startedAtStr != null && !startedAtStr.isEmpty()) {
 				try {
 					ZonedDateTime zdt = ZonedDateTime.parse(startedAtStr);
@@ -209,6 +216,12 @@ public class LiveExamController {
 
 			Map<String, Object> detailMap = new java.util.HashMap<>();
 			detailMap.put("questionText", q.getQuestionText());
+            
+            // 🌟 FIX: Include Developer Code Snippet Data in Analysis!
+            detailMap.put("codeSnippet", q.getCodeSnippet());
+            detailMap.put("codeLanguage", q.getCodeLanguage());
+            detailMap.put("questionType", q.getQuestionType());
+            
 			detailMap.put("optionA", q.getOptionA());
 			detailMap.put("optionB", q.getOptionB());
 			detailMap.put("optionC", q.getOptionC());
@@ -223,7 +236,6 @@ public class LiveExamController {
 			analysisDetails.add(detailMap);
 		}
 
-		// 🌟 ABSOLUTE TOTAL DURATION CALCULATION
 		int calculatedTotalSeconds = 0;
 		if (sub.getStartedAt() != null && sub.getSubmittedAt() != null) {
 			calculatedTotalSeconds = (int) Duration.between(sub.getStartedAt(), sub.getSubmittedAt()).getSeconds();
@@ -264,19 +276,15 @@ public class LiveExamController {
         AssessmentSubmission sub = submissionRepository.findById(submissionId).orElseThrow();
         Assessment exam = assessmentRepository.findById(sub.getAssessmentId()).orElseThrow();
 
-        // 🌟 OPTIMIZED PROMPT: Saves massive amounts of tokens by only asking for overall analysis
+        // 🌟 FIX: We no longer ask for JSON formatting here because GeminiAiService handles it securely!
+        // We just pass the raw data so the AI "Mentor" can analyze it.
         StringBuilder prompt = new StringBuilder();
-        prompt.append("You are an expert AI Tutor. Provide a short, encouraging 3-sentence overall analysis of this student's exam performance.\n");
-        prompt.append("Exam Title: ").append(exam.getTitle()).append("\n");
-        prompt.append("Score: ").append(sub.getTotalScore()).append(" out of ").append(sub.getMaxScore()).append("\n");
-        prompt.append("Correct Answers: ").append(sub.getCorrectCount()).append("\n");
-        prompt.append("Incorrect Answers: ").append(sub.getIncorrectCount()).append("\n");
-        prompt.append("Skipped: ").append(sub.getUnattemptedCount()).append("\n\n");
-        
-        prompt.append("Provide a JSON response EXACTLY in this format, with no markdown fences:\n");
-        prompt.append("{\n");
-        prompt.append("  \"overallAnalysis\": \"Your 3-sentence paragraph here.\"\n");
-        prompt.append("}");
+        prompt.append("STUDENT EXAM PERFORMANCE DATA:\n");
+        prompt.append("- Exam Title: ").append(exam.getTitle()).append("\n");
+        prompt.append("- Total Score: ").append(sub.getTotalScore()).append(" out of ").append(sub.getMaxScore()).append("\n");
+        prompt.append("- Correct Answers: ").append(sub.getCorrectCount()).append("\n");
+        prompt.append("- Incorrect Answers: ").append(sub.getIncorrectCount()).append("\n");
+        prompt.append("- Skipped Questions: ").append(sub.getUnattemptedCount()).append("\n");
 
         Map<String, Object> aiResponse = geminiAiService.generateTestAnalysis(prompt.toString());
         return ResponseEntity.ok(aiResponse);
