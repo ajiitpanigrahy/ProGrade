@@ -237,4 +237,9 @@ export const adminService = {
         const response = await axiosClient.get(`/assessments/${id}/questions`);
         return response.data;
     },
+    // Add this new function to your adminService
+    getQuestionContributionHistory: async () => {
+        const response = await axiosClient.get('/admin/questions/history');
+        return response.data;
+    },
 };

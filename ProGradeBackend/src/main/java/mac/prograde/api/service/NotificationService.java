@@ -17,10 +17,8 @@ public class NotificationService {
     @Autowired
     private NotificationRepository notificationRepository;
 
-    // Thread-safe map to hold live connections
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
 
-    // 🌟 1. Establish Live Connection
     public SseEmitter subscribe(String email) {
         SseEmitter emitter = new SseEmitter(60 * 60 * 1000L); // 1 hour timeout
         emitters.put(email, emitter);
@@ -30,7 +28,6 @@ public class NotificationService {
         emitter.onError((e) -> emitters.remove(email));
 
         try {
-            // Send initial connection payload
             emitter.send(SseEmitter.event().name("INIT").data("Connected Successfully"));
         } catch (Exception e) {
             emitters.remove(email);
@@ -39,12 +36,9 @@ public class NotificationService {
         return emitter;
     }
 
-    // 🌟 2. Broadcast Real-Time Notification
     public void sendNotification(Notification notification) {
-        // Save to Database
         Notification saved = notificationRepository.save(notification);
 
-        // Push to client if they are currently online
         SseEmitter emitter = emitters.get(saved.getRecipientEmail());
         if (emitter != null) {
             try {
@@ -55,20 +49,23 @@ public class NotificationService {
         }
     }
 
-    // 🌟 3. Standard DB Actions
     public List<Notification> getUserNotifications(String email) {
         return notificationRepository.findByRecipientEmailOrderByCreatedAtDesc(email);
     }
 
+    // 🌟 FIX: Added @Transactional and case-insensitive email matching
+    @Transactional
     public void markAsRead(Long id, String email) {
         notificationRepository.findById(id).ifPresent(notif -> {
-            if (notif.getRecipientEmail().equals(email)) {
+            if (notif.getRecipientEmail().equalsIgnoreCase(email)) {
                 notif.setRead(true);
                 notificationRepository.save(notif);
             }
         });
     }
 
+    // 🌟 FIX: Added @Transactional
+    @Transactional
     public void markAllAsRead(String email) {
         List<Notification> unread = notificationRepository.findByRecipientEmailOrderByCreatedAtDesc(email)
                 .stream().filter(n -> !n.isRead()).toList();
@@ -76,18 +73,19 @@ public class NotificationService {
         notificationRepository.saveAll(unread);
     }
 
+    @Transactional
     public void deleteNotification(Long id, String email) {
         notificationRepository.findById(id).ifPresent(notif -> {
-            if (notif.getRecipientEmail().equals(email)) notificationRepository.delete(notif);
+            if (notif.getRecipientEmail().equalsIgnoreCase(email)) {
+                notificationRepository.delete(notif);
+            }
         });
     }
     
- // 🌟 ADD THIS: Check if a user is currently online
     public boolean isUserOnline(String email) {
         return emitters.containsKey(email);
     }
 
-    // 🌟 ADD THIS: Push raw custom events (Chat Messages, Typing, Presence)
     public void sendEvent(String email, String eventName, Object data) {
         SseEmitter emitter = emitters.get(email);
         if (emitter != null) {
@@ -99,14 +97,13 @@ public class NotificationService {
         }
     }
     
- // 🌟 FIX: Actively pings connections every 10 seconds. Destroys "Ghost" online statuses instantly.
     @org.springframework.scheduling.annotation.Scheduled(fixedRate = 10000)
     public void keepConnectionsAliveAndClean() {
         emitters.forEach((email, emitter) -> {
             try {
                 emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("ping").data("alive"));
             } catch (Exception e) {
-                emitters.remove(email); // User logged out or closed tab -> instantly marked offline!
+                emitters.remove(email); 
             }
         });
     }

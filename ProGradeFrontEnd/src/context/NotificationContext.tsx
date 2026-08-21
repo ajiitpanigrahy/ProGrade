@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import { axiosClient } from '../api/axiosClient';
 import { ShieldAlert, CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
-import { useAuth } from './AuthContext'; // 🌟 1. IMPORT USEAUTH
+import { useAuth } from './AuthContext';
 
 interface Notification {
     id: number;
@@ -19,8 +19,8 @@ interface NotificationContextType {
     unreadCount: number;
     markAsRead?: (id: number) => void;
     markAllAsRead?: () => void;
-    markAsUnread?: (id: number) => void; // 🌟 NEW
-    markAllAsUnread?: () => void; // 🌟 NEW
+    markAsUnread?: (id: number) => void;
+    markAllAsUnread?: () => void;
     deleteNotification?: (id: number) => void;
 }
 
@@ -32,11 +32,10 @@ const NotificationContext = createContext<NotificationContextType>({
 export const useNotifications = () => useContext(NotificationContext);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user } = useAuth(); // 🌟 2. GET CURRENT USER
+    const { user } = useAuth();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [liveToast, setLiveToast] = useState<Notification | null>(null);
 
-    // Initial Fetch
     const fetchNotifications = async () => {
         try {
             const res = await axiosClient.get('/notifications');
@@ -47,9 +46,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
     };
 
-    // Global SSE Subscription
     useEffect(() => {
-        // 🌟 3. LOGOUT DESTROYER: If there is no user, destroy connection instantly!
         if (!user) {
             setNotifications([]);
             return;
@@ -85,16 +82,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 return Promise.resolve();
             },
             onmessage(ev) {
-                // 🌟 CHAT EVENTS INTERCEPTOR
                 if (['CHAT_MESSAGE', 'ROOM_UPDATE', 'MESSAGES_SEEN', 'TYPING'].includes(ev.event)) {
                     const customEvent = new CustomEvent('onChatEngineEvent', {
                         detail: { type: ev.event, payload: JSON.parse(ev.data) }
                     });
                     document.dispatchEvent(customEvent);
-                    return; // Don't show a toast for every single typed letter!
+                    return; 
                 }
 
-                // Normal notification toast logic
                 if (ev.event === 'notification') {
                     const newNotif = JSON.parse(ev.data);
                     setNotifications(prev => [newNotif, ...prev]);
@@ -108,61 +103,86 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             }
         });
 
-        // Cleanup runs automatically when component unmounts OR when `user` becomes null
         return () => {
             console.log("SSE: Disconnecting...");
             ctrl.abort();
         };
-    }, [user]); // 🌟 4. THIS ARRAY MUST INCLUDE `user` SO IT RE-RUNS ON LOGOUT
+    }, [user]);
+
+    // =========================================================
+    // 🌟 OPTIMISTIC UI UPDATES: Instant Vanish!
+    // =========================================================
 
     const markAsRead = async (id: number) => {
+        // 1. Instantly update the UI so it vanishes from the unread Bell count
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        
         try {
+            // 2. Tell the backend to update the database
             await axiosClient.patch(`/notifications/${id}/read`);
-            setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-        } catch (e) { console.error(e); }
+        } catch (e) { 
+            console.error("Failed to mark as read", e); 
+            fetchNotifications(); // If it fails, restore the UI to the actual DB state
+        }
     };
 
     const markAllAsRead = async () => {
+        // 1. Instantly update the UI
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        
         try {
+            // 2. Tell the backend
             await axiosClient.patch(`/notifications/read-all`);
-            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-        } catch (e) { console.error(e); }
+        } catch (e) { 
+            console.error("Failed to mark all as read", e); 
+            fetchNotifications();
+        }
     };
 
     const deleteNotification = async (id: number) => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
         try {
             await axiosClient.delete(`/notifications/${id}`);
-            setNotifications(prev => prev.filter(n => n.id !== id));
-        } catch (e) { console.error(e); }
+        } catch (e) { 
+            console.error(e); 
+            fetchNotifications();
+        }
     };
 
     const markAsUnread = async (id: number) => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
         try {
             await axiosClient.patch(`/notifications/${id}/unread`);
-            setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
-        } catch (e) { console.error(e); }
+        } catch (e) { 
+            console.error(e); 
+            fetchNotifications();
+        }
     };
 
     const markAllAsUnread = async () => {
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: false })));
         try {
             await axiosClient.patch(`/notifications/unread-all`);
-            setNotifications(prev => prev.map(n => ({ ...n, isRead: false })));
-        } catch (e) { console.error(e); }
+        } catch (e) { 
+            console.error(e); 
+            fetchNotifications();
+        }
     };
 
     const unreadCount = notifications.filter(n => !n.isRead).length;
 
     const getToastColors = (type: string) => {
-        if (type === 'CRITICAL') return { bg: 'bg-red-600', icon: <AlertTriangle className="w-5 h-5 text-white" /> };
-        if (type === 'WARNING') return { bg: 'bg-amber-500', icon: <ShieldAlert className="w-5 h-5 text-white" /> };
+        if (type === 'CRITICAL' || type === 'FRAUD_ALERT') return { bg: 'bg-red-600', icon: <AlertTriangle className="w-5 h-5 text-white" /> };
+        if (type === 'WARNING' || type === 'ADMIN_ALERT') return { bg: 'bg-amber-500', icon: <ShieldAlert className="w-5 h-5 text-white" /> };
         if (type === 'SUCCESS') return { bg: 'bg-emerald-500', icon: <CheckCircle2 className="w-5 h-5 text-white" /> };
         return { bg: 'bg-purple-600', icon: <Info className="w-5 h-5 text-white" /> };
     };
 
     return (
-        <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, markAsUnread, markAllAsUnread, deleteNotification }}>            {children}
+        <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, markAsUnread, markAllAsUnread, deleteNotification }}>            
+            {children}
 
-            {/* 🌟 GLOBAL LIVE TOAST POPUP */}
+            {/* GLOBAL LIVE TOAST POPUP */}
             {liveToast && (
                 <div className="fixed bottom-6 right-6 z-[9999] animate-in slide-in-from-bottom-10 fade-in duration-300">
                     <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-xl border-2 border-gray-100 dark:border-purple-900/50 p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] flex gap-4 max-w-sm relative overflow-hidden">

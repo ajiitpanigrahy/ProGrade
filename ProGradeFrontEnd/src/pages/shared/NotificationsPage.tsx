@@ -43,8 +43,8 @@ export default function NotificationsPage() {
     };
 
     const getTypeStyles = (type: string) => {
-        if (type === 'CRITICAL') return { icon: <AlertTriangle className="w-4 h-4 text-red-500" />, dot: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30' };
-        if (type === 'WARNING') return { icon: <ShieldAlert className="w-4 h-4 text-amber-500" />, dot: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-900/30' };
+        if (type === 'CRITICAL' || type === 'FRAUD_ALERT') return { icon: <AlertTriangle className="w-4 h-4 text-red-500" />, dot: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30' };
+        if (type === 'WARNING' || type === 'ADMIN_ALERT') return { icon: <ShieldAlert className="w-4 h-4 text-amber-500" />, dot: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-900/30' };
         if (type === 'SUCCESS') return { icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" />, dot: 'bg-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-900/30' };
         return { icon: <Info className="w-4 h-4 text-purple-500" />, dot: 'bg-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-900/30' };
     };

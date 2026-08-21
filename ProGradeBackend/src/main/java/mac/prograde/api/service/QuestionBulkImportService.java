@@ -2,11 +2,14 @@ package mac.prograde.api.service;
 
 import mac.prograde.api.entity.Notification;
 import mac.prograde.api.entity.Question;
+import mac.prograde.api.entity.User;
 import mac.prograde.api.enums.NotificationType;
 import mac.prograde.api.repository.QuestionRepository;
+import mac.prograde.api.repository.UserRepository;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,10 +24,21 @@ public class QuestionBulkImportService {
 
     @Autowired private QuestionRepository questionRepository;
     @Autowired private NotificationService notificationService;
+    
+    // 🌟 ADDED: To fetch the uploader's Full Name
+    @Autowired private UserRepository userRepository; 
 
     @Transactional(rollbackFor = Exception.class)
     public int importExcelData(MultipartFile file) throws Exception {
         List<Question> questions = new ArrayList<>();
+        
+        // 🌟 1. EXTRACT UPLOADER IDENTITY FROM SECURITY CONTEXT
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String uploaderEmail = auth.getName();
+        String uploaderRole = auth.getAuthorities().stream().findFirst().get().getAuthority().replace("ROLE_", "");
+        
+        User user = userRepository.findByEmail(uploaderEmail);
+        String uploaderName = (user != null) ? user.getFullName() : uploaderEmail.split("@")[0];
 
         try (InputStream is = file.getInputStream(); Workbook workbook = new XSSFWorkbook(is)) {
             Sheet sheet = workbook.getSheetAt(0);
@@ -40,18 +54,24 @@ public class QuestionBulkImportService {
                 }
 
                 Question q = new Question();
+                
+                // 🌟 2. TAG EVERY QUESTION WITH THE CREATOR'S IDENTITY
+                q.setCreatedByEmail(uploaderEmail);
+                q.setCreatedByName(uploaderName);
+                q.setCreatorRole(uploaderRole);
+
                 try {
                     String tech = formatter.formatCellValue(row.getCell(0)).trim().toUpperCase();
                     q.setTechnology(tech);
                     q.setDifficultyLevel(Question.DifficultyLevel.valueOf(formatter.formatCellValue(row.getCell(1)).trim().toUpperCase()));
                     
-                    int totalCells = row.getLastCellNum(); // Checks how many columns are in this specific row
+                    int totalCells = row.getLastCellNum();
 
-                    // 🌟 IF ROW HAS 10 OR MORE COLUMNS (NEW CODING TEMPLATE)
+                    // IF ROW HAS 10 OR MORE COLUMNS (NEW CODING TEMPLATE)
                     if (totalCells >= 10) {
-                        q.setQuestionType("CODING"); // 🌟 FORCE CODING TYPE
+                        q.setQuestionType("CODING"); 
                         q.setQuestionText(formatter.formatCellValue(row.getCell(2)).trim());                        
-                        // Grab raw code without destroying internal indentation (stripTrailing instead of trim)
+                        
                         String rawSnippet = formatter.formatCellValue(row.getCell(3));
                         if (!rawSnippet.trim().isEmpty()) {
                             q.setCodeSnippet(rawSnippet.stripTrailing()); 
@@ -72,11 +92,10 @@ public class QuestionBulkImportService {
                         String topic = row.getCell(10) != null ? formatter.formatCellValue(row.getCell(10)).trim() : "";
                         if (!topic.isEmpty()) q.setTopic(topic);
                     } 
-                    // 🌟 IF ROW HAS 9 COLUMNS (LEGACY TEMPLATE)
+                    // IF ROW HAS 9 COLUMNS (LEGACY TEMPLATE)
                     else {
                         String rawQuestionText = formatter.formatCellValue(row.getCell(2));
                         
-                        // SMART FALLBACK: Auto-extract markdown code fences (```) if an educator pasted them!
                         if (rawQuestionText.contains("```")) {
                             q.setQuestionType("CODING");
                             int startFence = rawQuestionText.indexOf("```");
@@ -86,7 +105,6 @@ public class QuestionBulkImportService {
                                 String textPart = rawQuestionText.substring(0, startFence).trim();
                                 String codePart = rawQuestionText.substring(startFence + 3, endFence).trim();
                                 
-                                // Detect language tag like ```java
                                 String[] codeLines = codePart.split("\n", 2);
                                 String firstLine = codeLines[0].trim();
                                 if (firstLine.matches("^[a-zA-Z0-9#+]+$")) {
@@ -128,7 +146,6 @@ public class QuestionBulkImportService {
             questionRepository.saveAll(questions);
 
             // 🌟 NOTIFY UPLOADER
-            String uploaderEmail = SecurityContextHolder.getContext().getAuthentication().getName();
             Notification notif = new Notification();
             notif.setRecipientEmail(uploaderEmail);
             notif.setSender("System Importer");

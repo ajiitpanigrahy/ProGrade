@@ -4,7 +4,6 @@ import { adminService } from '../../../../features/admin/adminService';
 import { Search, Edit, Trash2, ChevronLeft, ChevronRight, Terminal, AlertTriangle, X } from 'lucide-react';
 import CodeSnippetBox from '../../../../components/CodeSnippetBox';
 
-// (Legacy text rendering kept exactly the same...)
 const renderQuestionContent = (text: string) => {
     if (!text) return null;
     const parts = text.split(/(```[\s\S]*?```)/g);
@@ -29,7 +28,7 @@ interface QuestionGridProps {
     technology: string;
     techData: any;
     refreshTrigger: number;
-    onEdit: (question: any) => void; // 🌟 NEW: Accept Edit Handler
+    onEdit: (question: any) => void;
 }
 
 export default function QuestionGrid({ technology, techData, refreshTrigger, onEdit }: QuestionGridProps) {
@@ -39,7 +38,6 @@ export default function QuestionGrid({ technology, techData, refreshTrigger, onE
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
     
-    // 🌟 CUSTOM DELETE MODAL STATES
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [questionToDelete, setQuestionToDelete] = useState<number | null>(null);
 
@@ -47,11 +45,12 @@ export default function QuestionGrid({ technology, techData, refreshTrigger, onE
         setLoading(true);
         try {
             const res = await adminService.getQuestionsByTech(technology, pageNumber, searchTerm);
-            setQuestions(res.content);
-            setTotalPages(res.totalPages);
-            setPage(res.number);
+            setQuestions(res?.content || (Array.isArray(res) ? res : []));
+            setTotalPages(res?.totalPages || 1);
+            setPage(res?.number || 0);
         } catch (error) {
             console.error("Failed to load questions", error);
+            setQuestions([]); 
         } finally {
             setLoading(false);
         }
@@ -62,7 +61,6 @@ export default function QuestionGrid({ technology, techData, refreshTrigger, onE
         return () => clearTimeout(timer);
     }, [technology, search, refreshTrigger]);
 
-    // 🌟 CUSTOM DELETE HANDLERS
     const triggerDelete = (id: number) => {
         setQuestionToDelete(id);
         setDeleteModalOpen(true);
@@ -74,27 +72,28 @@ export default function QuestionGrid({ technology, techData, refreshTrigger, onE
             await adminService.deleteQuestion(questionToDelete);
             setDeleteModalOpen(false);
             setQuestionToDelete(null);
-            fetchQuestions(page, search); // Refresh
+            fetchQuestions(page, search);
         } catch (err) {
             console.error("Failed to delete", err);
         }
     };
 
+    const safeQuestions = Array.isArray(questions) ? questions : [];
+
     return (
         <div className="space-y-4 animate-in fade-in slide-in-from-right-2 w-full pb-10">
-            {/* Search Control */}
             <div className="flex items-center bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-purple-900/50 rounded-xl px-4 py-2.5 shadow-sm max-w-md focus-within:ring-2 focus-within:ring-purple-600 transition-all">
                 <Search className="w-5 h-5 text-gray-400" />
                 <input 
                     type="text" 
-                    placeholder={`Search ${techData.name} topics or keywords...`}
+                    // 🌟 SAFE FALLBACK: Optional Chaining (?.) prevents crashes!
+                    placeholder={`Search ${techData?.name || technology} topics or keywords...`}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="w-full bg-transparent border-none outline-none pl-3 text-sm text-gray-900 dark:text-white"
                 />
             </div>
 
-            {/* Data Grid Table */}
             <div className="bg-white dark:bg-[#1a0d36] border border-gray-100 dark:border-purple-900/40 rounded-2xl shadow-sm overflow-hidden w-full">
                 <div className="overflow-x-auto custom-scrollbar w-full">
                     <table className="w-full text-left text-sm table-fixed min-w-[800px]">
@@ -110,10 +109,10 @@ export default function QuestionGrid({ technology, techData, refreshTrigger, onE
                         <tbody className="divide-y divide-gray-100 dark:divide-purple-900/20">
                             {loading ? (
                                 <tr><td colSpan={5} className="py-12 text-center text-gray-500 font-bold animate-pulse">Loading records...</td></tr>
-                            ) : questions.length === 0 ? (
+                            ) : safeQuestions.length === 0 ? (
                                 <tr><td colSpan={5} className="py-12 text-center text-gray-500 font-bold">No matching questions found in database.</td></tr>
                             ) : (
-                                questions.map((q) => (
+                                safeQuestions.map((q) => (
                                     <tr key={q.id} className="hover:bg-gray-50 dark:hover:bg-[#150a29]/50 transition-colors">
                                         <td className="py-4 px-6 font-mono text-gray-400 font-bold">#{q.id}</td>
                                         <td className="py-4 px-6">
@@ -151,7 +150,6 @@ export default function QuestionGrid({ technology, techData, refreshTrigger, onE
                                         </td>
                                         <td className="py-4 px-6 text-right align-top">
                                             <div className="flex justify-end gap-2">
-                                                {/* 🌟 WIRE UP EDIT AND DELETE */}
                                                 <button title="Edit" onClick={() => onEdit(q)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors cursor-pointer"><Edit className="w-4 h-4" /></button>
                                                 <button title="Delete" onClick={() => triggerDelete(q.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer"><Trash2 className="w-4 h-4" /></button>
                                             </div>
@@ -177,7 +175,6 @@ export default function QuestionGrid({ technology, techData, refreshTrigger, onE
                 )}
             </div>
 
-            {/* 🌟 CUSTOM DELETE CONFIRMATION MODAL (PORTAL) */}
             {deleteModalOpen && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/80 dark:bg-black/80 backdrop-blur-sm p-4 animate-in fade-in zoom-in duration-200">
                     <div className="bg-white dark:bg-[#150a29] rounded-3xl shadow-2xl border border-gray-200 dark:border-purple-900/50 w-full max-w-sm overflow-hidden flex flex-col items-center text-center p-8 relative">

@@ -14,6 +14,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -112,4 +113,18 @@ public class AuthController {
 		otpService.clearOtp(email); // Clean up
 		return ResponseEntity.ok("Password reset successfully.");
 	}
+	
+	// 🌟 ADD THIS: Used by frontend after OAuth redirect to hydrate UserContext
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(Authentication authentication) {
+        User user = userRepository.findByEmail(authentication.getName());
+        if (user == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        return ResponseEntity.ok(new AuthDto.AuthResponse(
+                null, // Token not needed here
+                user.getFullName(), user.getEmail(), user.getRole(),
+                user.isApproved(), user.getProfilePictureUrl(),
+                user.getPhoneNumber(), user.getGender(), user.getHighestQualification()
+        ));
+    }
 }

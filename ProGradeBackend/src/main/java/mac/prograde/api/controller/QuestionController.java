@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,7 +22,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import mac.prograde.api.entity.Question;
+import mac.prograde.api.entity.User;
 import mac.prograde.api.repository.QuestionRepository;
+import mac.prograde.api.repository.UserRepository;
 import mac.prograde.api.service.QuestionBulkImportService;
 
 @RestController
@@ -29,60 +32,73 @@ import mac.prograde.api.service.QuestionBulkImportService;
 @PreAuthorize("hasAnyRole('ADMIN', 'EDUCATOR')")
 public class QuestionController {
 
-	@Autowired
-	private QuestionBulkImportService bulkImportService;
-	@Autowired
-	private QuestionRepository questionRepository;
+    @Autowired private QuestionBulkImportService bulkImportService;
+    @Autowired private QuestionRepository questionRepository;
+    
+    // 🌟 ADDED: To fetch user data for single creations
+    @Autowired private UserRepository userRepository; 
 
-	@PostMapping("/bulk-upload")
-	public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
-		// Enforce 5MB limit programmatically (optional if set in application.yml)
-		if (file.getSize() > 5 * 1024 * 1024) {
-			return ResponseEntity.badRequest().body(Map.of("error", "File exceeds 5MB size limit."));
-		}
+    @PostMapping("/bulk-upload")
+    public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
+        if (file.getSize() > 5 * 1024 * 1024) {
+            return ResponseEntity.badRequest().body(Map.of("error", "File exceeds 5MB size limit."));
+        }
 
-		try {
-			int count = bulkImportService.importExcelData(file);
-			return ResponseEntity.ok(Map.of("message",
-					"Successfully imported " + count + " questions into the platform database.", "count", count));
-		} catch (Exception e) {
-			return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-		}
-	}
+        try {
+            int count = bulkImportService.importExcelData(file);
+            return ResponseEntity.ok(Map.of("message",
+                    "Successfully imported " + count + " questions into the platform database.", "count", count));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 
-	// --- SUMMARIES FOR OVERVIEW TAB ---
-	@GetMapping("/summary")
-	public ResponseEntity<?> getQuestionSummary() {
-		return ResponseEntity.ok(Map.of("technologies", questionRepository.getGlobalQuestionSummary(), "topics",
-				questionRepository.getGlobalTopicSummary()));
-	}
+    // 🌟 NEW: HISTORY ENDPOINT FOR THE LEADERBOARD
+    @GetMapping("/history")
+    public ResponseEntity<?> getContributionHistory() {
+        return ResponseEntity.ok(questionRepository.getContributionHistory());
+    }
 
-	// --- GRID DATA FETCH FOR SPECIFIC TECHNOLOGY ---
-	@GetMapping("")
-	public ResponseEntity<Page<Question>> getQuestions(@RequestParam String technology,
-			@RequestParam(required = false, defaultValue = "") String search,
-			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+    @GetMapping("/summary")
+    public ResponseEntity<?> getQuestionSummary() {
+        return ResponseEntity.ok(Map.of("technologies", questionRepository.getGlobalQuestionSummary(), "topics",
+                questionRepository.getGlobalTopicSummary()));
+    }
 
-		PageRequest pageRequest = PageRequest.of(page, size, Sort.by("id").descending());
-		Page<Question> result = questionRepository.findQuestionsByTechnologyAndSearch(technology.toUpperCase(), search,
-				pageRequest);
-		return ResponseEntity.ok(result);
-	}
+    @GetMapping("")
+    public ResponseEntity<Page<Question>> getQuestions(@RequestParam String technology,
+            @RequestParam(required = false, defaultValue = "") String search,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
 
-	// --- DELETE ITEM (Action Panel) ---
-	@DeleteMapping("/{id}")
-	public ResponseEntity<?> deleteQuestion(@PathVariable Long id) {
-		questionRepository.deleteById(id);
-		return ResponseEntity.ok(Map.of("message", "Question deleted successfully"));
-	}
-	
-	// 🌟 EXPLICIT PATH: Prevents Spring Security from rejecting the POST request
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by("id").descending());
+        Page<Question> result = questionRepository.findQuestionsByTechnologyAndSearch(technology.toUpperCase(), search,
+                pageRequest);
+        return ResponseEntity.ok(result);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteQuestion(@PathVariable Long id) {
+        questionRepository.deleteById(id);
+        return ResponseEntity.ok(Map.of("message", "Question deleted successfully"));
+    }
+    
     @PostMapping("/create")
-    public ResponseEntity<?> createQuestion(@RequestBody Question question) {
+    public ResponseEntity<?> createQuestion(@RequestBody Question question, Authentication auth) {
         try {
             if (question.getCorrectOption() == null || !question.getCorrectOption().matches("[A-D]")) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Correct option must be A, B, C, or D"));
             }
+
+            // 🌟 EXTRACT AND INJECT UPLOADER IDENTITY FOR SINGLE QUESTIONS
+            String email = auth.getName();
+            String role = auth.getAuthorities().stream().findFirst().get().getAuthority().replace("ROLE_", "");
+            User user = userRepository.findByEmail(email);
+            String name = (user != null) ? user.getFullName() : email.split("@")[0];
+
+            question.setCreatedByEmail(email);
+            question.setCreatedByName(name);
+            question.setCreatorRole(role);
+
             Question savedQuestion = questionRepository.save(question);
             return ResponseEntity.ok(Map.of(
                 "message", "Question added successfully", 
@@ -93,8 +109,6 @@ public class QuestionController {
         }
     }
     
- // --- UPDATE EXISTING QUESTION ---
- // --- UPDATE EXISTING QUESTION ---
     @PutMapping("/{id}")
     public ResponseEntity<?> updateQuestion(@PathVariable Long id, @RequestBody Question questionDetails) {
         try {
@@ -105,10 +119,8 @@ public class QuestionController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Correct option must be A, B, C, or D"));
             }
 
-            // 🌟 ADD THIS LINE: Explicitly save the type when editing!
+            // Notice we DO NOT overwrite createdByEmail or createdByName here, so the original author is preserved!
             existingQuestion.setQuestionType(questionDetails.getQuestionType()); 
-            
-            // Update all other fields
             existingQuestion.setTechnology(questionDetails.getTechnology());
             existingQuestion.setDifficultyLevel(questionDetails.getDifficultyLevel());
             existingQuestion.setTopic(questionDetails.getTopic());
@@ -131,12 +143,10 @@ public class QuestionController {
         }
     }
     
- // 🌟 GET DETAILED INVENTORY FOR AUTO-BUILDER (Null-Proofed)
     @GetMapping("/inventory/{tech}")
     public ResponseEntity<?> getTechInventory(@PathVariable String tech) {
         List<Object[]> rawData = questionRepository.getDetailedTopicInventoryByTech(tech);
         
-        // Map raw Object[] safely using HashMap to prevent NullPointerExceptions
         List<java.util.Map<String, Object>> inventory = rawData.stream().map(row -> {
             java.util.Map<String, Object> map = new java.util.HashMap<>();
             map.put("topic", row[0] != null ? row[0] : "Uncategorized");

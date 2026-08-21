@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  Shield, Code, Cpu, MoreVertical, X, Sun, Moon 
+  Shield, Code, Cpu, MoreVertical, X, Sun, Moon, BarChart3 
 } from 'lucide-react';
 import logo from '../assets/logo.svg';
 
@@ -13,11 +13,29 @@ interface AuthLayoutProps {
 
 export default function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // 🌟 FIX: Initialize from localStorage just like the Dashboard!
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+      const savedTheme = localStorage.getItem('theme');
+      return savedTheme ? savedTheme === 'dark' : true;
+  });
+
+  // 🌟 FIX: Inject the 'dark' class into the global HTML root
+  useEffect(() => {
+      const root = document.documentElement;
+      if (isDarkMode) {
+          root.classList.add('dark');
+          document.body.style.backgroundColor = '#0a0514'; 
+          localStorage.setItem('theme', 'dark');
+      } else {
+          root.classList.remove('dark');
+          document.body.style.backgroundColor = '#ffffff'; 
+          localStorage.setItem('theme', 'light');
+      }
+  }, [isDarkMode]);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
-  // Since we are on the Auth pages, these links will point back to the root '/' path
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'About Us', path: '/#about' },
@@ -28,6 +46,27 @@ export default function AuthLayout({ children, title, subtitle }: AuthLayoutProp
 
   return (
     <div className={`${isDarkMode ? 'dark' : ''}`}>
+      {/* 🌟 INJECTED CUSTOM ANIMATIONS FOR 3D FLOATING EFFECTS */}
+      <style>{`
+        @keyframes orbDrift {
+          0%, 100% { transform: translate(0px, 0px) scale(1); }
+          33% { transform: translate(40px, -50px) scale(1.1); }
+          66% { transform: translate(-30px, 40px) scale(0.9); }
+        }
+        @keyframes floatSlow {
+          0%, 100% { transform: translateY(0px) translateZ(60px); }
+          50% { transform: translateY(-10px) translateZ(60px); }
+        }
+        @keyframes floatMedium {
+          0%, 100% { transform: translateY(0px) translateZ(90px); }
+          50% { transform: translateY(-15px) translateZ(90px); }
+        }
+        @keyframes floatFast {
+          0%, 100% { transform: translateY(0px) translateZ(120px); }
+          50% { transform: translateY(-20px) translateZ(120px); }
+        }
+      `}</style>
+
       <div className="min-h-screen bg-white dark:bg-[#0a0514] font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300 flex flex-col">
         
         {/* ---------------- NAVBAR ---------------- */}
@@ -104,46 +143,69 @@ export default function AuthLayout({ children, title, subtitle }: AuthLayoutProp
         {/* ---------------- SPLIT SCREEN CONTENT ---------------- */}
         <div className="flex-1 flex flex-col lg:flex-row mt-20">
           
-          {/* Left Side: 3D Visual/Branding */}
-          <div className="hidden lg:flex lg:w-1/2 bg-[#0a0514] relative overflow-hidden flex-col justify-center items-center p-12 border-r border-purple-900/30">
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/30 blur-[100px] rounded-full mix-blend-screen pointer-events-none"></div>
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-fuchsia-600/20 blur-[100px] rounded-full mix-blend-screen pointer-events-none"></div>
+          {/* 🌟 UPGRADED LEFT SIDE: Live 3D Visual/Branding Environment */}
+          <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-950 via-[#0a0514] to-black relative overflow-hidden flex-col justify-center items-center p-12 border-r border-purple-900/30 group">
+            
+            {/* 🌟 Ambient Glowing Orbs with Organic Drift Animation */}
+            <div className="absolute top-1/4 left-1/4 w-[450px] h-[450px] bg-purple-600/30 rounded-full blur-[120px] mix-blend-screen pointer-events-none" style={{ animation: 'orbDrift 15s ease-in-out infinite alternate' }}></div>
+            <div className="absolute bottom-1/4 right-1/4 w-[450px] h-[450px] bg-fuchsia-600/20 rounded-full blur-[120px] mix-blend-screen pointer-events-none" style={{ animation: 'orbDrift 20s ease-in-out infinite alternate-reverse' }}></div>
 
-            <div className="relative z-10 w-full max-w-lg">
-              <h1 className="text-4xl font-extrabold text-white mb-6 leading-tight">
-                {title}
-              </h1>
-              <p className="text-lg text-purple-200 mb-12 leading-relaxed">
-                {subtitle}
-              </p>
+            {/* 🌟 3D Glassmorphism Master Container */}
+            {/* Starts with an extreme tilt, flattens out beautifully when the user's mouse hovers over the left panel */}
+            <div className="relative z-10 w-full max-w-xl bg-white/5 dark:bg-black/20 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-10 flex flex-col shadow-[0_30px_60px_rgba(0,0,0,0.6)] transition-transform duration-1000 ease-out group-hover:[transform:perspective(2000px)_rotateY(-5deg)_rotateX(2deg)] [transform:perspective(2000px)_rotateY(-20deg)_rotateX(10deg)] [transform-style:preserve-3d]">
+              
+              {/* Background Glow inside the card */}
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent rounded-[3rem] pointer-events-none"></div>
 
-              {/* Glassmorphism Feature Card */}
-              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-8 shadow-2xl relative">
-                <div className="absolute -top-6 -right-6 bg-gradient-to-br from-fuchsia-500 to-purple-600 w-16 h-16 rounded-xl shadow-[0_0_30px_rgba(217,70,239,0.5)] flex items-center justify-center transform rotate-12 hover:rotate-0 transition-all duration-500">
-                   <Shield className="w-8 h-8 text-white" />
+              {/* Master Text Content (Translates Z slightly for depth) */}
+              <div className="[transform:translateZ(40px)] transition-transform duration-1000 ease-out mb-8">
+                <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-fuchsia-500 rounded-3xl mb-8 flex items-center justify-center shadow-[0_0_40px_rgba(217,70,239,0.4)] border border-white/20">
+                  <Shield className="w-10 h-10 text-white drop-shadow-lg" />
                 </div>
-                
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
-                      <Code className="w-6 h-6 text-purple-300" />
+                <h1 className="text-4xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-purple-200 mb-6 leading-[1.15] tracking-tight drop-shadow-sm">
+                  {title}
+                </h1>
+                <p className="text-purple-200/90 text-lg leading-relaxed font-medium">
+                  {subtitle}
+                </p>
+              </div>
+
+              {/* 🌟 Floating Feature Cards (3D Z-Depth & Continuous Hover Animation) */}
+              <div className="space-y-5 [transform-style:preserve-3d] w-full mt-auto relative">
+                  
+                  {/* Feature 1: Slow Float */}
+                  <div className="flex items-center gap-5 bg-white/10 hover:bg-white/20 p-5 rounded-2xl border border-white/10 hover:border-purple-400/50 shadow-xl backdrop-blur-md transition-all duration-300 cursor-default" style={{ animation: 'floatSlow 6s ease-in-out infinite' }}>
+                    <div className="w-14 h-14 rounded-full bg-purple-500/20 flex items-center justify-center border border-purple-400/40 shrink-0 shadow-inner">
+                      <Code className="w-7 h-7 text-purple-300" />
                     </div>
                     <div>
-                      <h4 className="text-white font-semibold">Secure Execution</h4>
-                      <p className="text-sm text-purple-200/70">Isolated environments for every test.</p>
+                      <h4 className="text-white font-black tracking-wide text-sm mb-1">Secure Execution Engine</h4>
+                      <p className="text-xs text-purple-200/80 font-medium">Isolated compile environments preventing plagiarism.</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-fuchsia-500/20 flex items-center justify-center border border-fuchsia-500/30">
-                      <Cpu className="w-6 h-6 text-fuchsia-300" />
+                  {/* Feature 2: Medium Float (Pops out more!) */}
+                  <div className="flex items-center gap-5 bg-white/10 hover:bg-white/20 p-5 rounded-2xl border border-white/10 hover:border-fuchsia-400/50 shadow-2xl backdrop-blur-md transition-all duration-300 cursor-default" style={{ animation: 'floatMedium 7s ease-in-out infinite', animationDelay: '1s' }}>
+                    <div className="w-14 h-14 rounded-full bg-fuchsia-500/20 flex items-center justify-center border border-fuchsia-400/40 shrink-0 shadow-inner">
+                      <Cpu className="w-7 h-7 text-fuchsia-300" />
                     </div>
                     <div>
-                      <h4 className="text-white font-semibold">AI Proctoring</h4>
-                      <p className="text-sm text-purple-200/70">Advanced behavior analysis in real-time.</p>
+                      <h4 className="text-white font-black tracking-wide text-sm mb-1">AI-Powered Proctoring</h4>
+                      <p className="text-xs text-purple-200/80 font-medium">Real-time behavioral analysis and tab-lock security.</p>
                     </div>
                   </div>
-                </div>
+
+                  {/* Feature 3: Fast Float (Pops out the most!) */}
+                  <div className="flex items-center gap-5 bg-white/10 hover:bg-white/20 p-5 rounded-2xl border border-white/10 hover:border-blue-400/50 shadow-2xl backdrop-blur-md transition-all duration-300 cursor-default" style={{ animation: 'floatFast 8s ease-in-out infinite', animationDelay: '2s' }}>
+                    <div className="w-14 h-14 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-400/40 shrink-0 shadow-inner">
+                      <BarChart3 className="w-7 h-7 text-blue-300" />
+                    </div>
+                    <div>
+                      <h4 className="text-white font-black tracking-wide text-sm mb-1">Comprehensive Analytics</h4>
+                      <p className="text-xs text-purple-200/80 font-medium">Deep-dive AI insights on student code performance.</p>
+                    </div>
+                  </div>
+
               </div>
             </div>
           </div>
@@ -157,7 +219,7 @@ export default function AuthLayout({ children, title, subtitle }: AuthLayoutProp
         </div>
 
         {/* ---------------- FOOTER ---------------- */}
-        <footer className="bg-[#0f0a1c] text-gray-400 py-12 sm:py-16 border-t border-purple-900/50">
+        <footer className="bg-[#0f0a1c] text-gray-400 py-12 sm:py-16 border-t border-purple-900/50 mt-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid sm:grid-cols-2 md:grid-cols-4 gap-10 sm:gap-12">
             
             <div className="sm:col-span-2 md:col-span-1">

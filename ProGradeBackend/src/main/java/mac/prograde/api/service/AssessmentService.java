@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -54,7 +55,7 @@ public class AssessmentService {
 		assessment.setPositiveMarks(dto.getPositiveMarks());
 		assessment.setNegativeMarks(dto.getNegativeMarks());
 		assessment.setCreationMode(Assessment.CreationMode.valueOf(dto.getCreationMode().toUpperCase()));
-
+		assessment.setDifficultyLevel(dto.getDifficultyLevel() != null ? dto.getDifficultyLevel().toUpperCase() : "MIXED");
 		assessment.setStartTime(dto.getStartTime());
 		assessment.setMaxAttempts(dto.getMaxAttempts() > 0 ? dto.getMaxAttempts() : 1);
 
@@ -115,7 +116,8 @@ public class AssessmentService {
                 throw new RuntimeException("Rule sum (" + collectedCount + ") does not match configured total (" + assessment.getTotalQuestions() + ").");
             }
         }
-
+		
+		Collections.shuffle(finalQuestions);
 		assessment.setQuestions(finalQuestions);
 
 		if (dto.getAssignedBatchIds() != null && !dto.getAssignedBatchIds().isEmpty()) {

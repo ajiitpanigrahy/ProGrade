@@ -5,8 +5,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import mac.prograde.api.entity.User;
 import mac.prograde.api.repository.TokenBlacklistRepository;
-
+import mac.prograde.api.repository.UserRepository;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,71 +19,76 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/**
- * Intercepts incoming requests to extract and validate the JWT token.
- */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-	private final JwtService jwtService;
-	private final UserDetailsService userDetailsService;
-	private final TokenBlacklistRepository tokenBlacklistRepository;
+    private final JwtService jwtService;
+    private final UserDetailsService userDetailsService;
+    private final TokenBlacklistRepository tokenBlacklistRepository;
+    
+    // 🌟 ADDED: We need the UserRepository to verify the user actually still exists!
+    private final UserRepository userRepository; 
 
-	@Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getServletPath();
-        return path.startsWith("/api/v1/auth/");
+    @Override
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain
+    ) throws ServletException, IOException {
+        final String authHeader = request.getHeader("Authorization");
+        final String jwt;
+        final String userEmail;
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        jwt = authHeader.substring(7);
+
+        // Check if the token was manually logged out
+        if (tokenBlacklistRepository.existsByToken(jwt)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Token has been revoked");
+            return;
+        }
+
+        userEmail = jwtService.extractUsername(jwt);
+
+        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            
+            // 🌟 THE ULTIMATE SECURITY FIX: 
+            // Check the database to ensure this user hasn't been deleted or blocked!
+            User dbUser = userRepository.findByEmail(userEmail);
+            
+            if (dbUser == null) {
+                // The user was deleted from the DB! Reject the token immediately.
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("User account no longer exists in the system.");
+                return;
+            }
+
+            if ("BLOCKED".equalsIgnoreCase(dbUser.getStatus()) || "SUSPENDED".equalsIgnoreCase(dbUser.getStatus())) {
+                // The user was blocked! Reject the token.
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("User account has been restricted.");
+                return;
+            }
+
+            UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+
+            if (jwtService.isTokenValid(jwt, userDetails)) {
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        userDetails,
+                        null,
+                        userDetails.getAuthorities()
+                );
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            }
+        }
+        
+        filterChain.doFilter(request, response);
     }
-
-	@Override
-	protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
-			@NonNull FilterChain filterChain) throws ServletException, IOException {
-
-		final String authHeader = request.getHeader("Authorization");
-		final String jwt;
-		final String userEmail;
-
-		// 1. Check if the Authorization header exists and starts with "Bearer "
-		if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-			filterChain.doFilter(request, response);
-			return;
-		}
-
-		// 2. Extract the token
-		jwt = authHeader.substring(7);
-		userEmail = jwtService.extractUsername(jwt);
-
-		if (tokenBlacklistRepository.existsByToken(jwt)) {
-		    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-		    return; // Token is revoked
-		}
-		
-		// 3. If we have an email and the user is not already authenticated in this
-		// session
-		if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-
-			// Load user from database
-			UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
-
-			// Validate token against the database user
-			if (jwtService.isTokenValid(jwt, userDetails)) {
-
-				// Create an authentication object
-				UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,
-						null, userDetails.getAuthorities());
-
-				// Enforce the authentication details
-				authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-				// Update the Security Context
-				SecurityContextHolder.getContext().setAuthentication(authToken);
-			}
-		}
-
-		// Continue down the filter chain
-		filterChain.doFilter(request, response);
-	}
-	
-	
 }

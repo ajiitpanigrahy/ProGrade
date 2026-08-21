@@ -46,6 +46,10 @@ public class Assessment {
 	@ManyToMany(fetch = FetchType.LAZY)
 	@JoinTable(name = "assessment_questions", joinColumns = @JoinColumn(name = "assessment_id"), inverseJoinColumns = @JoinColumn(name = "question_id"))
 	private List<Question> questions;
+	
+	// Add this to your Assessment entity
+    @Column(length = 20)
+    private String difficultyLevel;
 
 	private String status = "PUBLISHED";
 	private LocalDateTime createdAt = LocalDateTime.now();

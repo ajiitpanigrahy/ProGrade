@@ -4,13 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.svg';
 import ProfileDrawer from '../components/ProfileDrawer';
 import { useGlobalLoader } from '../context/GlobalLoaderContext';
-import NotificationBell from '../components/NotificationBell'; 
+import NotificationBell from '../components/NotificationBell';
 
 import {
     LayoutDashboard, FileText, Users, Settings, LogOut, Menu, X, Sun, Moon,
     CheckSquare, Search, BookOpen, BarChart3, ShieldCheck,
-    GraduationCap, ShieldAlert, Database, ChevronDown, ChevronRight, Activity, 
-    TerminalSquare, Rocket, Code, Trophy, HelpCircle, MessageSquare, Bell // 🌟 ADDED Bell HERE
+    GraduationCap, ShieldAlert, Database, ChevronDown, ChevronRight, Activity,
+    TerminalSquare, Rocket, Code, Trophy, HelpCircle, MessageSquare, Bell,
+    LifeBuoy, RefreshCcw // 🌟 IMPORTED RefreshCcw
 } from 'lucide-react';
 
 export type UserRole = 'STUDENT' | 'EDUCATOR' | 'ADMIN';
@@ -29,7 +30,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
     const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({});
 
-    // URL-Aware Accordion Memory
     useEffect(() => {
         const currentPathWithQuery = location.pathname + location.search;
         const navLinksToRender = getNavLinks();
@@ -58,9 +58,13 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         const root = document.documentElement;
         if (isDarkMode) {
             root.classList.add('dark');
+            root.style.backgroundColor = '#05020a';
+            document.body.style.backgroundColor = '#05020a';
             localStorage.setItem('theme', 'dark');
         } else {
             root.classList.remove('dark');
+            root.style.backgroundColor = '#f9fafb';
+            document.body.style.backgroundColor = '#f9fafb';
             localStorage.setItem('theme', 'light');
         }
     }, [isDarkMode]);
@@ -89,7 +93,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
 
     const userName = user?.fullName || 'User';
 
-    // 🌟 FIX: Dynamic Logo URL based on User Role
     const getLogoRedirectPath = () => {
         switch (role) {
             case 'ADMIN': return '/admin/dashboard';
@@ -126,10 +129,11 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                         ]
                     },
                     { name: 'Question Bank', path: '/admin/dashboard?view=question-bank', icon: Database },
+                    { name: 'Reports & Tickets', path: '/admin/reports', icon: LifeBuoy },
                     { name: 'System Logs', path: '/admin/dashboard?view=logs', icon: TerminalSquare },
                     { name: 'System Health', path: '/admin/dashboard?view=health', icon: Activity },
-                    { name: 'Messages', path: '/admin/messages', icon: MessageSquare }, 
-                    { name: 'Notifications', path: '/admin/notifications', icon: Bell }, // 🌟 ADDED
+                    { name: 'Messages', path: '/admin/messages', icon: MessageSquare },
+                    { name: 'Notifications', path: '/admin/notifications', icon: Bell },
                     { name: 'Settings', path: '/admin/dashboard?view=settings', icon: Settings },
                 ];
             case 'EDUCATOR':
@@ -139,20 +143,21 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                     { name: 'Assessment Builder', path: '/educator/dashboard?view=assessments', icon: FileText },
                     { name: 'Grading & Evaluation', path: '/educator/dashboard?view=grading', icon: CheckSquare },
                     { name: 'Student Analytics', path: '/educator/dashboard?view=analytics', icon: BarChart3 },
-                    { name: 'Messages', path: '/educator/messages', icon: MessageSquare }, 
-                    { name: 'Notifications', path: '/educator/notifications', icon: Bell }, // 🌟 ADDED
+                    { name: 'Messages', path: '/educator/messages', icon: MessageSquare },
+                    { name: 'Notifications', path: '/educator/notifications', icon: Bell },
+                    { name: 'Support & Reports', path: '/educator/reports', icon: LifeBuoy },
                     { name: 'Settings', path: '/educator/dashboard?view=settings', icon: Settings },
                 ];
             case 'STUDENT':
                 return [
                     { name: 'Overview', path: '/student/dashboard?view=overview', icon: LayoutDashboard },
                     { name: 'Active Examinations', path: '/student/dashboard?view=active-exams', icon: Rocket },
-                    { name: 'Self-Practice Arena', path: '/student/dashboard?view=practice', icon: Code },
-                    { name: 'Performance Transcripts', path: '/student/dashboard?view=transcripts', icon: FileText },
+                    { name: 'Self-Practice Arena', path: '/student/practice', icon: Code }, 
+                    { name: 'AI Analysis', path: '/student/dashboard?view=transcripts', icon: FileText },
                     { name: 'Leaderboard & Ranks', path: '/student/dashboard?view=leaderboard', icon: Trophy },
-                    { name: 'Messages', path: '/student/messages', icon: MessageSquare }, 
-                    { name: 'Notifications', path: '/student/notifications', icon: Bell }, // 🌟 ADDED
-                    { name: 'Support & Appeals', path: '/student/dashboard?view=support', icon: HelpCircle },
+                    { name: 'Messages', path: '/student/messages', icon: MessageSquare },
+                    { name: 'Notifications', path: '/student/notifications', icon: Bell },
+                    { name: 'Support & Reports', path: '/student/reports', icon: LifeBuoy },
                 ];
             default:
                 return [];
@@ -165,7 +170,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         <div>
             <div className="min-h-screen bg-gray-50 dark:bg-[#05020a] text-gray-900 dark:text-gray-100 flex transition-colors duration-300">
 
-                {/* SIDEBAR OVERLAY FOR MOBILE */}
                 {isSidebarOpen && (
                     <div
                         className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
@@ -176,7 +180,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                 <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-[#0f0a1c] border-r border-gray-200 dark:border-purple-900/50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
 
                     <div className="h-20 flex items-center justify-between px-6 border-b border-gray-200 dark:border-purple-900/50 shrink-0">
-                        {/* 🌟 FIX: Updated Link to use getLogoRedirectPath() */}
                         <Link to={getLogoRedirectPath()} className="flex items-center gap-3">
                             <img src={logo} alt="Pro Grade" className="w-8 h-8" />
                             <span className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-fuchsia-500">
@@ -193,7 +196,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                             {role} PANEL
                         </div>
 
-                        {/* Accordion Rendering Logic */}
                         {navLinks.map((link: any) => {
                             const Icon = link.icon;
                             const currentPathWithQuery = location.pathname + location.search;
@@ -272,7 +274,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                     </div>
                 </aside>
 
-                <div className="flex-1 flex flex-col h-screen overflow-hidden">
+                <div className="flex-1 flex flex-col h-screen overflow-hidden bg-gray-50 dark:bg-[#05020a]">
 
                     <header className="h-20 bg-white/80 dark:bg-[#0f0a1c]/80 backdrop-blur-md border-b border-gray-200 dark:border-purple-900/50 flex items-center justify-between px-4 sm:px-8 z-30 sticky top-0 shrink-0">
                         <div className="flex items-center gap-4">
@@ -284,8 +286,21 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                             </h1>
                         </div>
 
-                        <div className="flex items-center gap-3 sm:gap-5">
-                            <button onClick={toggleTheme} className="p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-purple-900/30 rounded-xl transition-colors cursor-pointer border-2 border-transparent hover:border-gray-200 dark:hover:border-purple-900/50">
+                        <div className="flex items-center gap-2 sm:gap-4">
+                            {/* 🌟 NATIVE REFRESH BUTTON */}
+                            <button 
+                                onClick={() => window.location.reload()} 
+                                title="Refresh Dashboard"
+                                className="p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-purple-900/30 rounded-xl transition-all cursor-pointer border-2 border-transparent hover:border-gray-200 dark:hover:border-purple-900/50 group"
+                            >
+                                <RefreshCcw className="w-5 h-5 group-hover:animate-[spin_0.5s_linear]" />
+                            </button>
+
+                            <button 
+                                onClick={toggleTheme} 
+                                title="Toggle Theme"
+                                className="p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-purple-900/30 rounded-xl transition-colors cursor-pointer border-2 border-transparent hover:border-gray-200 dark:hover:border-purple-900/50"
+                            >
                                 {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                             </button>
 
@@ -300,7 +315,12 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                                 </div>
 
                                 {user?.profilePictureUrl ? (
-                                    <img src={user.profilePictureUrl} alt={userName} className="w-10 h-10 rounded-full object-cover border-2 border-purple-500 shadow-md" />
+                                    <img
+                                        src={user.profilePictureUrl}
+                                        alt={userName}
+                                        referrerPolicy="no-referrer"
+                                        className="w-10 h-10 rounded-full object-cover border-2 border-purple-500 shadow-md"
+                                    />
                                 ) : (
                                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-white font-black shadow-md tracking-wider border-2 border-purple-400/30">
                                         {getInitials(userName)}
@@ -310,10 +330,10 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                         </div>
                     </header>
 
-                    <main className="flex-1 overflow-y-auto p-4 sm:p-8 relative custom-scrollbar">
+                    <main className="flex-1 overflow-y-auto overscroll-none p-4 sm:p-8 relative custom-scrollbar bg-gray-50 dark:bg-[#05020a]">
                         <div className="hidden dark:block absolute top-0 right-0 w-[500px] h-[500px] bg-purple-900/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
 
-                        <div className="max-w-7xl mx-auto h-full">
+                        <div className="max-w-7xl mx-auto min-h-full pb-8">
                             {children}
                         </div>
                     </main>

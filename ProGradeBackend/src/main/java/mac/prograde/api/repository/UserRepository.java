@@ -16,7 +16,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     User findByEmail(String email);
 
     // Get all educators who are NOT yet approved
-    List<User> findByRoleAndIsApprovedFalse(Role role);
+    List<User> findByRoleAndIsApprovedFalse(Role role); 
 
     // Count how many educators are pending
     long countByRoleAndIsApprovedFalse(Role role);

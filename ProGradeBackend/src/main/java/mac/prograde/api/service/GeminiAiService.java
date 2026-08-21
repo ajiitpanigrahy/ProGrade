@@ -30,7 +30,7 @@ public class GeminiAiService {
 			String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + geminiApiKey;
 			ObjectMapper mapper = new ObjectMapper();
 
-			// 🌟 1. DEFINE THE MENTOR PERSONA (System Instruction)
+			// 🌟 1. DEFIN	E THE MENTOR PERSONA (System Instruction)
 			Map<String, Object> systemInstruction = Map.of("parts", new Object[] { Map.of("text",
 					"You are a Senior Tech Lead and coding mentor. You are reviewing a junior developer's technical assessment. "
 							+ "Your tone should be highly encouraging, analytical, and professional. "

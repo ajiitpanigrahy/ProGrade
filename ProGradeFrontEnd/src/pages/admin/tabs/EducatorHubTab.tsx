@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, ShieldCheck, Ban, Edit, GraduationCap, CheckCircle2, XCircle, Clock, BookOpen, BarChart3, Users, Star, Activity, Terminal, ArrowUpDown, Loader2, PlayCircle, ShieldAlert } from 'lucide-react';
-import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Line } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Line, ZAxis } from 'recharts';
 import { adminService } from '../../../features/admin/adminService';
 
 export default function EducatorHubTab() {
@@ -13,27 +13,42 @@ export default function EducatorHubTab() {
     
     // Data State
     const [educators, setEducators] = useState<any[]>([]);
+    const [contributionLog, setContributionLog] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedEducator, setSelectedEducator] = useState<any | null>(null);
 
-    // 🌟 3D MODAL STATE
+    // Modal State
     const [modalConfig, setModalConfig] = useState<{ isOpen: boolean, type: 'APPROVE' | 'REJECT' | 'SUSPEND' | 'ACTIVATE' | '', educator: any | null }>({
         isOpen: false, type: '', educator: null
     });
     const [actionLoading, setActionLoading] = useState(false);
 
+    // FETCH REAL DATA
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const data = await adminService.getAllEducators();
-            setEducators(data);
-        } catch (e) { console.error("Failed to fetch educators", e); }
-        finally { setIsLoading(false); }
+            const [eduData, logData] = await Promise.all([
+                adminService.getAllEducators(),
+                adminService.getQuestionContributionHistory() 
+            ]);
+            setEducators(eduData);
+            setContributionLog(logData || []);
+        } catch (e) { 
+            console.error("Failed to fetch educator data", e); 
+        } finally { 
+            setIsLoading(false); 
+        }
     };
 
     useEffect(() => { fetchData(); }, []);
 
-    // 🌟 MODAL ACTION EXECUTOR
+    // HELPER: Map Educator Email to their actual contribution count
+    const getEducatorContributions = (email: string) => {
+        const log = contributionLog.find((l: any) => l.email === email);
+        return log ? log.totalQuestions : 0;
+    };
+
+    // Modal Action Executor
     const executeAction = async () => {
         if (!modalConfig.educator) return;
         setActionLoading(true);
@@ -43,7 +58,7 @@ export default function EducatorHubTab() {
             if (modalConfig.type === 'SUSPEND' || modalConfig.type === 'ACTIVATE') await adminService.toggleEducatorStatus(modalConfig.educator.id);
             
             setModalConfig({ isOpen: false, type: '', educator: null });
-            fetchData(); // Refresh the grid to show new status!
+            fetchData(); 
         } catch (e) {
             alert("Action failed to execute. Check server logs.");
         } finally {
@@ -51,7 +66,7 @@ export default function EducatorHubTab() {
         }
     };
 
-    // 🌟 PROCESS DATA (Filter & Sort)
+    // Process Data (Filter & Sort)
     let processedEducators = [...educators].filter(edu => {
         const matchesSearch = edu.name.toLowerCase().includes(searchTerm.toLowerCase()) || edu.email.toLowerCase().includes(searchTerm.toLowerCase());
         const rawStatus = edu.status || 'PENDING';
@@ -70,27 +85,60 @@ export default function EducatorHubTab() {
     const getStatusStyle = (status: string) => {
         const s = (status || 'PENDING').toUpperCase();
         if (s === 'ACTIVE') return 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400';
-        if (s === 'PENDING') return 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-400';
+        if (s === 'PENDING') return 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-200 dark:bg-fuchsia-900/20 dark:border-fuchsia-800 dark:text-fuchsia-400';
         if (s === 'REJECTED') return 'bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400';
         return 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400';
     };
 
+    // DYNAMIC KPI CALCULATIONS
     const pendingCount = educators.filter(e => (e.status || 'PENDING').toUpperCase() === 'PENDING').length;
     const activeCount = educators.filter(e => e.status?.toUpperCase() === 'ACTIVE').length;
-    const totalQuestions = educators.reduce((acc, curr) => acc + (curr.questionsContributed || 0), 0);
+    const suspendedCount = educators.length - activeCount - pendingCount;
+    const totalQuestionsAddedByEducators = educators.reduce((acc, curr) => acc + getEducatorContributions(curr.email), 0);
 
-    // 🌟 RESTORED ANALYTICS DATA ARRAYS
-    const activityData = [{ day: 'Mon', questions: 120, evaluations: 45 }, { day: 'Tue', questions: 150, evaluations: 80 }, { day: 'Wed', questions: 180, evaluations: 120 }, { day: 'Thu', questions: 90, evaluations: 150 }, { day: 'Fri', questions: 210, evaluations: 190 }, { day: 'Sat', questions: 60, evaluations: 40 }, { day: 'Sun', questions: 40, evaluations: 20 }];
-    const gradingLatencyData = [{ dept: 'Computer Sci', hours: 4 }, { dept: 'Mathematics', hours: 12 }, { dept: 'Physics', hours: 18 }, { dept: 'Literature', hours: 36 }, { dept: 'History', hours: 48 }];
-    const contentFormatData = [{ name: 'MCQs', value: 65, color: '#8b5cf6' }, { name: 'Coding', value: 25, color: '#0ea5e9' }, { name: 'Descriptive', value: 10, color: '#f59e0b' }];
-    const workloadData = [{ time: 'Week 1', pendingSubs: 400, gradingThroughput: 350 }, { time: 'Week 2', pendingSubs: 800, gradingThroughput: 600 }, { time: 'Week 3', pendingSubs: 1200, gradingThroughput: 900 }, { time: 'Week 4', pendingSubs: 1500, gradingThroughput: 1400 }];
-    const scatterData = [{ exam: 'Java Basics', avgGrade: 75, passRate: 80 }, { exam: 'Advanced Spring', avgGrade: 45, passRate: 40 }, { exam: 'SQL Joins', avgGrade: 85, passRate: 90 }, { exam: 'React Hooks', avgGrade: 60, passRate: 65 }, { exam: 'Microservices', avgGrade: 55, passRate: 50 }];
+    // ============================================================================
+    // 🌟 DYNAMIC ANALYTICS GENERATION (PURPLE THEME)
+    // ============================================================================
+
+    // 1. Top Contributors (Bar Chart)
+    const topContributorsData = educators
+        .map(edu => ({ name: edu.name.split(' ')[0], questions: getEducatorContributions(edu.email) }))
+        .filter(edu => edu.questions > 0)
+        .sort((a, b) => b.questions - a.questions)
+        .slice(0, 5); 
+
+    // 2. Status Distribution (Pie Chart) - Purple Spectrum
+    const statusData = [
+        { name: 'Active', value: activeCount, color: '#8b5cf6' }, // Purple
+        { name: 'Pending', value: pendingCount, color: '#d946ef' }, // Fuchsia
+        { name: 'Restricted', value: suspendedCount, color: '#6366f1' } // Indigo
+    ].filter(d => d.value > 0);
+
+    // 3. Onboarding Timeline (Area Chart)
+    const onboardingMap: Record<string, number> = {};
+    const sortedByDate = [...educators].sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime());
+    let cumulative = 0;
+    sortedByDate.forEach(edu => {
+        const d = new Date(edu.joinedAt);
+        const label = `${d.getDate()} ${d.toLocaleString('default', { month: 'short' })}`;
+        cumulative += 1;
+        onboardingMap[label] = cumulative; 
+    });
+    const onboardingData = Object.keys(onboardingMap).map(date => ({ date, totalEducators: onboardingMap[date] }));
+
+    // 4. Contribution vs Tenure (Scatter Chart)
+    const activityScatterData = educators.map(edu => ({
+        name: edu.name.split(' ')[0],
+        daysActive: Math.max(1, Math.floor((new Date().getTime() - new Date(edu.joinedAt).getTime()) / (1000 * 3600 * 24))),
+        questions: getEducatorContributions(edu.email)
+    })).filter(edu => edu.questions > 0);
+
 
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             return (
                 <div className="bg-white/90 dark:bg-[#150a29]/90 backdrop-blur-md border-2 border-gray-200 dark:border-purple-900/50 p-3 rounded-xl shadow-xl z-50">
-                    <p className="text-xs font-black text-gray-500 mb-1 uppercase tracking-wider">{label}</p>
+                    <p className="text-xs font-black text-gray-500 mb-1 uppercase tracking-wider">{label || payload[0]?.payload?.name}</p>
                     {payload.map((p: any, idx: number) => (
                         <p key={idx} className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
                             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color || p.fill }}></span>
@@ -106,13 +154,12 @@ export default function EducatorHubTab() {
     return (
         <div className="space-y-6 animate-in fade-in duration-500 relative min-h-screen pb-10">
             
-            {/* Background Atmosphere */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0 opacity-40">
-                <div className="absolute top-10 left-10 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] mix-blend-screen"></div>
-                <div className="absolute bottom-10 right-10 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] mix-blend-screen"></div>
+                <div className="absolute top-10 left-10 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] mix-blend-screen"></div>
+                <div className="absolute bottom-10 right-10 w-[500px] h-[500px] bg-fuchsia-500/10 rounded-full blur-[120px] mix-blend-screen"></div>
             </div>
 
-            {/* 🌟 ACTION CONFIRMATION MODAL */}
+            {/* ACTION CONFIRMATION MODAL */}
             {modalConfig.isOpen && modalConfig.educator && (
                 <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={() => !actionLoading && setModalConfig({ isOpen: false, type: '', educator: null })}>
                     <div className="bg-white dark:bg-[#150a29] max-w-md w-full rounded-[2rem] p-8 text-center shadow-2xl border-2 border-gray-100 dark:border-purple-900/50 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
@@ -128,8 +175,8 @@ export default function EducatorHubTab() {
                             </div>
                         )}
                         {(modalConfig.type === 'SUSPEND' || modalConfig.type === 'ACTIVATE') && (
-                            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 border-4 ${modalConfig.type === 'SUSPEND' ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800'}`}>
-                                {modalConfig.type === 'SUSPEND' ? <Ban className="w-10 h-10 text-red-500" /> : <PlayCircle className="w-10 h-10 text-blue-500" />}
+                            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 border-4 ${modalConfig.type === 'SUSPEND' ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800' : 'bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-800'}`}>
+                                {modalConfig.type === 'SUSPEND' ? <Ban className="w-10 h-10 text-red-500" /> : <PlayCircle className="w-10 h-10 text-purple-500" />}
                             </div>
                         )}
 
@@ -151,7 +198,7 @@ export default function EducatorHubTab() {
                             <button onClick={() => setModalConfig({ isOpen: false, type: '', educator: null })} disabled={actionLoading} className="flex-1 py-3.5 rounded-xl font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 cursor-pointer">
                                 Cancel
                             </button>
-                            <button onClick={executeAction} disabled={actionLoading} className={`flex-1 py-3.5 rounded-xl font-bold text-white transition-all shadow-md active:translate-y-0.5 flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 ${modalConfig.type === 'APPROVE' || modalConfig.type === 'ACTIVATE' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-600 hover:bg-red-700'}`}>
+                            <button onClick={executeAction} disabled={actionLoading} className={`flex-1 py-3.5 rounded-xl font-bold text-white transition-all shadow-md active:translate-y-0.5 flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 ${modalConfig.type === 'APPROVE' || modalConfig.type === 'ACTIVATE' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-red-600 hover:bg-red-700'}`}>
                                 {actionLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : 'Confirm Action'}
                             </button>
                         </div>
@@ -162,17 +209,17 @@ export default function EducatorHubTab() {
             {/* HEADER & TABS */}
             <div className="bg-white/80 dark:bg-[#150a29]/80 backdrop-blur-xl border-b-2 border-gray-200 dark:border-purple-900/50 p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6 shrink-0 z-10 shadow-sm relative">
                 <div>
-                    <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 flex items-center gap-2 drop-shadow-sm">
-                        <GraduationCap className="w-7 h-7 text-blue-600 dark:text-blue-400" /> Educator Hub
+                    <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-fuchsia-600 dark:from-purple-400 dark:to-fuchsia-400 flex items-center gap-2 drop-shadow-sm">
+                        <GraduationCap className="w-7 h-7 text-purple-600 dark:text-purple-400" /> Educator Hub
                     </h2>
                     <p className="text-xs sm:text-sm text-gray-500 font-bold mt-1 tracking-wide">Manage approvals, review workloads, and track academic contributions.</p>
                 </div>
                 <div className="flex bg-gray-100 dark:bg-[#0f0a1c] p-1.5 rounded-xl border-2 border-gray-200 dark:border-purple-900/50 shadow-inner w-full md:w-auto">
-                    <button onClick={() => setActiveTab('MANAGEMENT')} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-lg text-xs font-black transition-all cursor-pointer tracking-wider uppercase ${activeTab === 'MANAGEMENT' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-md' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>
+                    <button onClick={() => setActiveTab('MANAGEMENT')} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-lg text-xs font-black transition-all cursor-pointer tracking-wider uppercase ${activeTab === 'MANAGEMENT' ? 'bg-white dark:bg-purple-600 text-purple-700 dark:text-white shadow-md' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>
                         <Users className="w-4 h-4" /> Team Roster
                     </button>
-                    <button onClick={() => setActiveTab('ANALYTICS')} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-lg text-xs font-black transition-all cursor-pointer tracking-wider uppercase ${activeTab === 'ANALYTICS' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-md' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>
-                        <BarChart3 className="w-4 h-4" /> Global Analytics
+                    <button onClick={() => setActiveTab('ANALYTICS')} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-lg text-xs font-black transition-all cursor-pointer tracking-wider uppercase ${activeTab === 'ANALYTICS' ? 'bg-white dark:bg-purple-600 text-purple-700 dark:text-white shadow-md' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>
+                        <BarChart3 className="w-4 h-4" /> Actual Analytics
                     </button>
                 </div>
             </div>
@@ -181,23 +228,23 @@ export default function EducatorHubTab() {
             {activeTab === 'MANAGEMENT' && (
                 <div className="space-y-6 animate-in slide-in-from-bottom-4 relative z-10">
                     
-                    {/* KPI CARDS */}
+                    {/* DYNAMIC KPI CARDS (PURPLE THEMATIC) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-purple-900/30">
-                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-blue-500"/> Total Educators</p>
+                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-purple-500"/> Total Educators</p>
                             <h3 className="text-3xl font-black text-gray-900 dark:text-white">{educators.length}</h3>
                         </div>
-                        <div className="bg-orange-50/80 dark:bg-orange-900/20 backdrop-blur-md p-6 rounded-3xl shadow-sm border-2 border-orange-200 dark:border-orange-800">
-                            <p className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Clock className="w-4 h-4"/> Pending Verification</p>
-                            <h3 className="text-3xl font-black text-orange-700 dark:text-orange-300">{pendingCount} <span className="text-xs bg-orange-200 dark:bg-orange-800 px-2 py-1 rounded-md ml-2">Action Req</span></h3>
+                        <div className="bg-fuchsia-50/80 dark:bg-fuchsia-900/20 backdrop-blur-md p-6 rounded-3xl shadow-sm border-2 border-fuchsia-200 dark:border-fuchsia-800/50">
+                            <p className="text-[10px] font-black text-fuchsia-600 dark:text-fuchsia-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Clock className="w-4 h-4"/> Pending Verification</p>
+                            <h3 className="text-3xl font-black text-fuchsia-700 dark:text-fuchsia-300">{pendingCount} <span className="text-xs bg-fuchsia-200 dark:bg-fuchsia-800 px-2 py-1 rounded-md ml-2 text-fuchsia-800 dark:text-fuchsia-100">Action Req</span></h3>
                         </div>
                         <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-purple-900/30">
-                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-emerald-500"/> Active Status</p>
+                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-indigo-500"/> Active Status</p>
                             <h3 className="text-3xl font-black text-gray-900 dark:text-white">{activeCount}</h3>
                         </div>
                         <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-purple-900/30">
-                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4 text-purple-500"/> Content Created</p>
-                            <h3 className="text-3xl font-black text-gray-900 dark:text-white">{totalQuestions} <span className="text-xs text-gray-500 font-bold">Qs</span></h3>
+                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4 text-violet-500"/> Content Created</p>
+                            <h3 className="text-3xl font-black text-gray-900 dark:text-white">{totalQuestionsAddedByEducators} <span className="text-xs text-gray-500 font-bold">Qs</span></h3>
                         </div>
                     </div>
 
@@ -205,18 +252,18 @@ export default function EducatorHubTab() {
                     <div className="flex flex-col lg:flex-row gap-4 justify-between bg-white/60 dark:bg-[#150a29]/60 backdrop-blur-md p-4 rounded-3xl border-2 border-gray-200 dark:border-purple-900/40 shadow-sm">
                         <div className="relative w-full lg:w-96 shrink-0">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input type="text" placeholder="Search by Name or Email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl text-sm font-bold focus:outline-none focus:border-blue-500 dark:text-white shadow-inner" />
+                            <input type="text" placeholder="Search by Name or Email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl text-sm font-bold focus:outline-none focus:border-purple-500 dark:text-white shadow-inner" />
                         </div>
                         
                         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-                            <div className="flex items-center w-full sm:w-auto bg-white dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl px-3 py-1 shadow-inner focus-within:border-blue-500">
+                            <div className="flex items-center w-full sm:w-auto bg-white dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl px-3 py-1 shadow-inner focus-within:border-purple-500">
                                 <Filter className="w-4 h-4 text-gray-400 shrink-0 mx-2" />
                                 <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full bg-transparent py-2 text-sm font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 outline-none cursor-pointer">
                                     <option value="ALL">All Statuses</option><option value="ACTIVE">Active</option><option value="PENDING">Pending</option><option value="SUSPENDED">Suspended</option>
                                 </select>
                             </div>
                             
-                            <div className="flex items-center w-full sm:w-auto bg-white dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl px-3 py-1 shadow-inner focus-within:border-blue-500">
+                            <div className="flex items-center w-full sm:w-auto bg-white dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl px-3 py-1 shadow-inner focus-within:border-purple-500">
                                 <ArrowUpDown className="w-4 h-4 text-gray-400 shrink-0 mx-2" />
                                 <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as any)} className="w-full bg-transparent py-2 text-sm font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 outline-none cursor-pointer">
                                     <option value="NEWEST">Newest First</option><option value="OLDEST">Oldest First</option><option value="A-Z">Name (A-Z)</option><option value="Z-A">Name (Z-A)</option>
@@ -240,19 +287,22 @@ export default function EducatorHubTab() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-purple-900/30">
                                     {isLoading ? (
-                                        <tr><td colSpan={5} className="py-16 text-center text-blue-500 font-black animate-pulse flex items-center justify-center gap-2"><Loader2 className="w-5 h-5 animate-spin"/> Loading Directory...</td></tr>
+                                        <tr><td colSpan={5} className="py-16 text-center text-purple-500 font-black animate-pulse flex items-center justify-center gap-2"><Loader2 className="w-5 h-5 animate-spin"/> Loading Directory...</td></tr>
                                     ) : processedEducators.length === 0 ? (
                                         <tr><td colSpan={5} className="py-16 text-center text-gray-500 font-bold bg-gray-50 dark:bg-[#110820]">No educators match your search or filter.</td></tr>
                                     ) : (
                                         processedEducators.map((edu: any) => {
                                             const status = (edu.status || 'PENDING').toUpperCase();
+                                            const actualContributions = getEducatorContributions(edu.email);
+
                                             return (
-                                                <tr key={edu.id} className={`transition-colors ${status === 'PENDING' ? 'bg-orange-50/30 dark:bg-orange-900/10 hover:bg-orange-50 dark:hover:bg-orange-900/20' : 'hover:bg-gray-50 dark:hover:bg-[#110820]'}`}>
+                                                <tr key={edu.id} className={`transition-colors ${status === 'PENDING' ? 'bg-fuchsia-50/30 dark:bg-fuchsia-900/10 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-900/20' : 'hover:bg-gray-50 dark:hover:bg-[#110820]'}`}>
                                                     <td className="py-4 px-6">
                                                         <div className="flex items-center gap-4">
-                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-black shadow-md">{edu.name.charAt(0)}</div>
+                                                            {/* 🌟 PURPLE/FUCHSIA PROFILE ICONS */}
+                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-white font-black shadow-md">{edu.name.charAt(0)}</div>
                                                             <div>
-                                                                <div className="font-black text-gray-900 dark:text-white text-sm">{edu.name}</div>
+                                                                <div className="font-black text-gray-900 dark:text-white text-sm group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">{edu.name}</div>
                                                                 <div className="text-[10px] font-mono text-gray-500">{edu.email}</div>
                                                             </div>
                                                         </div>
@@ -261,7 +311,7 @@ export default function EducatorHubTab() {
                                                         {new Date(edu.joinedAt).toLocaleDateString()}
                                                     </td>
                                                     <td className="py-4 px-6 text-center">
-                                                        <span className="text-base font-black text-purple-600 dark:text-purple-400">{edu.questionsContributed}</span> <span className="text-[10px] font-bold text-gray-400">Qs</span>
+                                                        <span className="text-base font-black text-purple-600 dark:text-purple-400">{actualContributions}</span> <span className="text-[10px] font-bold text-gray-400">Qs</span>
                                                     </td>
                                                     <td className="py-4 px-6 text-center">
                                                         <span className={`px-3 py-1.5 rounded-lg border-2 text-[10px] font-black tracking-wider uppercase ${getStatusStyle(status)}`}>
@@ -283,7 +333,8 @@ export default function EducatorHubTab() {
                                                             
                                                             {status === 'ACTIVE' && (
                                                                 <>
-                                                                    <button title="View Analytics" onClick={() => setSelectedEducator(edu)} className="hidden sm:flex w-9 h-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-500 hover:text-white dark:bg-blue-900/20 dark:border-blue-800 transition-all shadow-sm active:scale-95 cursor-pointer">
+                                                                    {/* 🌟 PURPLE VIEW ANALYTICS BUTTON */}
+                                                                    <button title="View Analytics" onClick={() => setSelectedEducator(edu)} className="hidden sm:flex w-9 h-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-500 hover:text-white dark:bg-purple-900/20 dark:border-purple-800 transition-all shadow-sm active:scale-95 cursor-pointer">
                                                                         <BarChart3 className="w-4 h-4"/>
                                                                     </button>
                                                                     <button onClick={() => setModalConfig({isOpen: true, type: 'SUSPEND', educator: edu})} title="Suspend Account" className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-600 border border-red-200 hover:bg-red-500 hover:text-white dark:bg-red-900/20 dark:border-red-800 transition-all shadow-sm active:scale-95 cursor-pointer">
@@ -293,7 +344,7 @@ export default function EducatorHubTab() {
                                                             )}
 
                                                             {(status === 'SUSPENDED' || status === 'BLOCKED') && (
-                                                                <button onClick={() => setModalConfig({isOpen: true, type: 'ACTIVATE', educator: edu})} title="Restore Access" className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 border border-gray-300 hover:bg-blue-500 hover:text-white hover:border-blue-500 dark:bg-gray-800 dark:border-gray-700 transition-all shadow-sm active:scale-95 cursor-pointer">
+                                                                <button onClick={() => setModalConfig({isOpen: true, type: 'ACTIVATE', educator: edu})} title="Restore Access" className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 border border-gray-300 hover:bg-purple-500 hover:text-white hover:border-purple-500 dark:bg-gray-800 dark:border-gray-700 transition-all shadow-sm active:scale-95 cursor-pointer">
                                                                     <PlayCircle className="w-4 h-4"/>
                                                                 </button>
                                                             )}
@@ -314,79 +365,93 @@ export default function EducatorHubTab() {
             {activeTab === 'ANALYTICS' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in slide-in-from-bottom-4 relative z-10">
                     
-                    {/* Chart 1: Activity Timeline */}
+                    {/* Chart 1: Onboarding Timeline */}
                     <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30 lg:col-span-2">
-                        <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><Activity className="w-5 h-5 text-blue-500"/> Educator Engagement & Output</h3>
+                        <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><Activity className="w-5 h-5 text-purple-500"/> Platform Onboarding Growth</h3>
                         <div className="h-72 w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={activityData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="colorQ" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.6}/><stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/></linearGradient>
-                                        <linearGradient id="colorE" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.6}/><stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/></linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#6b7280" opacity={0.15} vertical={false} />
-                                    <XAxis dataKey="day" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
-                                    <YAxis stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
-                                    <Area type="monotone" dataKey="questions" name="Questions Written" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorQ)" />
-                                    <Area type="monotone" dataKey="evaluations" name="Exams Evaluated" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#colorE)" />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            {onboardingData.length === 0 ? (
+                                <div className="h-full flex items-center justify-center text-gray-500 font-bold">No historical data available.</div>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={onboardingData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="colorO" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.6}/><stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/></linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#6b7280" opacity={0.15} vertical={false} />
+                                        <XAxis dataKey="date" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                        <YAxis stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                        <Tooltip content={<CustomTooltip />} />
+                                        <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
+                                        <Area type="monotone" dataKey="totalEducators" name="Total Educators" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorO)" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            )}
                         </div>
                     </div>
 
-                    {/* Chart 2: Grading Latency */}
+                    {/* Chart 2: Top Contributors */}
                     <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30">
-                        <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><Clock className="w-5 h-5 text-amber-500"/> Grading Latency by Dept (Hours)</h3>
+                        <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><Star className="w-5 h-5 text-indigo-500"/> Top 5 Data Contributors</h3>
                         <div className="h-64 w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={gradingLatencyData} layout="vertical" margin={{ top: 0, right: 0, left: 10, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#6b7280" opacity={0.15} />
-                                    <XAxis type="number" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
-                                    <YAxis dataKey="dept" type="category" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} width={80} />
-                                    <Tooltip cursor={{fill: 'rgba(107, 114, 128, 0.1)'}} content={<CustomTooltip />} />
-                                    <Bar dataKey="hours" name="Avg Turnaround (Hrs)" fill="#f59e0b" radius={[0,8,8,0]} barSize={20} />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            {topContributorsData.length === 0 ? (
+                                <div className="h-full flex items-center justify-center text-gray-500 font-bold text-center px-4">Educators have not added any questions yet.</div>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={topContributorsData} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#6b7280" opacity={0.15} />
+                                        <XAxis type="number" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                        <YAxis dataKey="name" type="category" stroke="#6b7280" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} width={80} />
+                                        <Tooltip cursor={{fill: 'rgba(139, 92, 246, 0.1)'}} content={<CustomTooltip />} />
+                                        <Bar dataKey="questions" name="Questions Added" fill="#a855f7" radius={[0,8,8,0]} barSize={20} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            )}
                         </div>
                     </div>
 
-                    {/* Chart 3: Question Formats */}
+                    {/* Chart 3: Account Status Distribution */}
                     <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30 relative">
-                        <h3 className="text-sm font-black text-gray-900 dark:text-white mb-2 uppercase tracking-wider flex items-center gap-2"><BookOpen className="w-5 h-5 text-emerald-500"/> Assessment Composition</h3>
+                        <h3 className="text-sm font-black text-gray-900 dark:text-white mb-2 uppercase tracking-wider flex items-center gap-2"><ShieldAlert className="w-5 h-5 text-violet-500"/> Account Status Distribution</h3>
                         <div className="h-64 w-full relative mt-4">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie data={contentFormatData} cx="50%" cy="50%" innerRadius={70} outerRadius={95} paddingAngle={5} cornerRadius={8} dataKey="value" stroke="none">
-                                        {contentFormatData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                                    </Pie>
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'black' }} />
-                                </PieChart>
-                            </ResponsiveContainer>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none -mt-6">
-                                <span className="text-2xl font-black text-gray-900 dark:text-white">Format</span>
-                            </div>
+                            {statusData.length === 0 ? (
+                                <div className="h-full flex items-center justify-center text-gray-500 font-bold">No accounts registered.</div>
+                            ) : (
+                                <>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie data={statusData} cx="50%" cy="50%" innerRadius={70} outerRadius={95} paddingAngle={5} cornerRadius={8} dataKey="value" stroke="none">
+                                                {statusData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                                            </Pie>
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none -mt-6">
+                                        <span className="text-2xl font-black text-gray-900 dark:text-white">Status</span>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 
-                    {/* Chart 4: System Workload vs Grading Stress */}
+                    {/* Chart 4: Contribution vs Tenure (Scatter Plot) */}
                     <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30 lg:col-span-2">
-                        <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><Activity className="w-5 h-5 text-rose-500"/> System Workload vs Grading Stress</h3>
+                        <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><BookOpen className="w-5 h-5 text-fuchsia-500"/> Contribution Velocity vs Days Active</h3>
                         <div className="h-72 w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <ComposedChart data={workloadData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#6b7280" opacity={0.15} vertical={false} />
-                                    <XAxis dataKey="time" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
-                                    <YAxis yAxisId="left" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
-                                    <YAxis yAxisId="right" orientation="right" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
-                                    <Bar yAxisId="left" dataKey="pendingSubs" name="Pending Submissions" fill="#818cf8" barSize={40} radius={[6,6,0,0]} />
-                                    <Line yAxisId="right" type="monotone" dataKey="gradingThroughput" name="Grading Throughput" stroke="#f43f5e" strokeWidth={3} dot={{ r: 5, fill: '#fff', stroke: '#f43f5e', strokeWidth: 2 }} />
-                                </ComposedChart>
-                            </ResponsiveContainer>
+                            {activityScatterData.length === 0 ? (
+                                <div className="h-full flex items-center justify-center text-gray-500 font-bold">Insufficient contribution data.</div>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <ScatterChart margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#6b7280" opacity={0.15} />
+                                        <XAxis type="number" dataKey="daysActive" name="Days Active" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} unit=" Days" />
+                                        <YAxis type="number" dataKey="questions" name="Questions Added" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                                        <ZAxis type="category" dataKey="name" name="Educator" />
+                                        <Tooltip cursor={{strokeDasharray: '3 3'}} content={<CustomTooltip />} />
+                                        <Scatter name="Educators" data={activityScatterData} fill="#d946ef" shape="circle" />
+                                    </ScatterChart>
+                                </ResponsiveContainer>
+                            )}
                         </div>
                     </div>
                 </div>

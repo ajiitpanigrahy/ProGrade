@@ -137,7 +137,8 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                                 <img
                                     src={user.profilePictureUrl}
                                     alt="Profile"
-                                    className={`w-full h-full object-cover transition-opacity ${isUploadingImage ? 'opacity-50' : 'group-hover:opacity-75'}`}
+                                    referrerPolicy="no-referrer" /* 🌟 Add it here too! */
+                                    className="w-24 h-24 rounded-full object-cover..."
                                 />
                             ) : (
                                 <div className={`w-full h-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-white text-3xl font-bold transition-opacity ${isUploadingImage ? 'opacity-50' : 'group-hover:opacity-75'}`}>

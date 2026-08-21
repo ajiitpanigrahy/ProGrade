@@ -52,7 +52,7 @@ public class ChatService {
 	        // to protect your users from harassment and keep the platform safe.
 	        "nigger", "nigga", "chink", "spic", "faggot", "fag", "dyke", "kike", "retard", "retarded"
 	    ));
-    @Transactional
+	@Transactional
     public ChatMessage sendMessage(String senderEmail, String targetEmail, String content, String fileUrl, String fileName, boolean isViewOnce) {
         
         // 🌟 1. PROFANITY & HARASSMENT FILTER
@@ -107,6 +107,23 @@ public class ChatService {
         
         ChatMessage saved = messageRepository.save(msg);
         notificationService.sendEvent(targetEmail, "CHAT_MESSAGE", saved);
+
+        // =========================================================
+        // 🌟 EXACT PLACEMENT: TRIGGER THE BELL NOTIFICATION HERE!
+        // =========================================================
+        try {
+            Notification chatNotif = new Notification();
+            chatNotif.setRecipientEmail(targetEmail);
+            chatNotif.setSender(senderEmail);
+            chatNotif.setTitle("New Message from " + senderEmail.split("@")[0]);
+            chatNotif.setMessage(flagged ? "They attempted to send flagged content." : content);
+            chatNotif.setType(NotificationType.CHAT_MESSAGE);
+            chatNotif.setTargetUrl("/student/dashboard?view=messages");
+            notificationService.sendNotification(chatNotif);
+        } catch (Exception e) {
+            System.err.println("Failed to send chat notification: " + e.getMessage());
+        }
+
         return saved;
     }
 

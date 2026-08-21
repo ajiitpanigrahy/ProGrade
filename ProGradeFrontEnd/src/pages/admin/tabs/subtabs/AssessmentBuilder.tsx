@@ -1,9 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { adminService } from '../../../../features/admin/adminService';
-import { Layers, CheckCircle2, ChevronRight, FileText, Bot, Plus, Trash2, Search, Terminal, CheckCircle, AlertCircle, Users, Sparkles, Database, Rocket, Code2, BookOpen } from 'lucide-react';
-import { TECH_STACK } from '../QuestionBankTab';
+import { Layers, CheckCircle2, ChevronRight, FileText, Bot, Plus, Trash2, Search, Terminal, CheckCircle, AlertCircle, Users, Sparkles, Database, Code2, BookOpen, Activity } from 'lucide-react';
 
-// ... (KEEP YOUR TOPICS_BY_TECH AND renderQuestionContent EXACTLY AS THEY WERE) ...
+// 🌟 LOCALLY DEFINED TO PREVENT VITE CIRCULAR DEPENDENCY CRASHES
+const TECH_STACK = [
+    { id: 'OVERVIEW', name: 'Global Overview' },
+    { id: 'JAVA', name: 'Java' },
+    { id: 'PYTHON', name: 'Python' },
+    { id: 'CPP', name: 'C++' },
+    { id: 'C', name: 'C Programming' },
+    { id: 'JAVASCRIPT', name: 'JavaScript' },
+    { id: 'SQL', name: 'Advanced SQL' },
+    { id: 'MYSQL', name: 'MySQL' },
+    { id: 'DSA', name: 'Data Structures' },
+    { id: 'SPRING_CORE', name: 'Spring Core' },
+    { id: 'SPRING_BOOT', name: 'Spring Boot' },
+    { id: 'SPRING_MVC', name: 'Spring MVC' },
+    { id: 'SPRING_DATA_JPA', name: 'Spring Data JPA' },
+    { id: 'SPRING_JDBC', name: 'Spring JDBC' },
+    { id: 'SPRING_ORM', name: 'Spring ORM' },
+    { id: 'REST_API', name: 'REST API' },
+    { id: 'HIBERNATE', name: 'Hibernate' },
+    { id: 'MAVEN', name: 'Maven' },
+    { id: 'JUNIT', name: 'JUnit' },
+    { id: 'LOGGING', name: 'Logging' }
+];
+
 const TOPICS_BY_TECH: Record<string, string[]> = {
     'JAVA': ['Core Java', 'OOPs', 'Collections', 'Multithreading', 'Streams', 'Exception Handling', 'Spring Boot Basics'],
     'SPRING_BOOT': ['Spring Core', 'Spring MVC', 'Spring Data JPA', 'Spring Security', 'Microservices', 'REST APIs'],
@@ -93,6 +115,46 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
         }
     }, [manualTechFilter, manualSearch, manualTypeFilter, mode, step]);
 
+    const calculateOverallDifficulty = () => {
+        let easy = 0, medium = 0, hard = 0, total = 0;
+
+        if (mode === 'AUTOMATIC') {
+            autoRules.forEach(rule => {
+                const count = (rule.theoryCount || 0) + (rule.codingCount || 0);
+                total += count;
+                if (rule.difficulty === 'EASY') easy += count;
+                else if (rule.difficulty === 'MEDIUM') medium += count;
+                else if (rule.difficulty === 'HARD') hard += count;
+            });
+        } else {
+            const selectedQs = availableQuestions.filter(q => selectedQuestionIds.includes(q.id));
+            selectedQs.forEach(q => {
+                total++;
+                if (q.difficultyLevel === 'EASY') easy++;
+                else if (q.difficultyLevel === 'MEDIUM') medium++;
+                else if (q.difficultyLevel === 'HARD') hard++;
+            });
+        }
+
+        if (total === 0) return 'MIXED';
+        
+        if (easy / total >= 0.7) return 'EASY';
+        if (hard / total >= 0.7) return 'HARD';
+        if (medium / total >= 0.6) return 'MEDIUM';
+        return 'MIXED';
+    };
+
+    const overallDifficulty = calculateOverallDifficulty();
+
+    const getDifficultyColor = (diff: string) => {
+        switch (diff) {
+            case 'EASY': return 'bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]';
+            case 'MEDIUM': return 'bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]';
+            case 'HARD': return 'bg-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)]';
+            default: return 'bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.4)]';
+        }
+    };
+
     const toggleBatch = (id: string) => setSelectedBatches(prev => prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]);
 
     const handleToggleQuestion = (id: number) => {
@@ -125,8 +187,6 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
             }
         } else if (field === 'theoryCount' || field === 'codingCount') {
             const newValue = Number(value);
-            
-            // 🌟 REAL-TIME DYNAMIC SUBTRACTION LOGIC
             const techStats = techAvailability[updated[index].technology] || [];
             let totalAvailableInDb = 0;
 
@@ -138,17 +198,13 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                 totalAvailableInDb = matchingStat ? Number(matchingStat[field] || 0) : 0;
             }
 
-            // Calculate what has ALREADY been claimed by OTHER rules
             const claimedByOtherRules = autoRules
                 .filter((r, i) => i !== index && r.technology === updated[index].technology && r.topic === updated[index].topic && r.difficulty === updated[index].difficulty)
                 .reduce((acc, r) => acc + (field === 'theoryCount' ? r.theoryCount : r.codingCount), 0);
 
             const effectiveAvailable = Math.max(0, totalAvailableInDb - claimedByOtherRules);
-            
-            // Force the value to stay within DB limits mathematically
             const boundedValue = Math.min(newValue, effectiveAvailable);
 
-            // Finally, verify it doesn't exceed Total Questions
             const sumWithoutCurrent = autoRules.reduce((acc, rule, i) => 
                 i !== index ? acc + rule.theoryCount + rule.codingCount : acc + (field === 'theoryCount' ? rule.codingCount : rule.theoryCount), 0);
             
@@ -190,6 +246,7 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
             const payload = {
                 title, description, durationMinutes, totalQuestions, positiveMarks, negativeMarks,
                 maxAttempts, startTime: startTime ? startTime : null, creationMode: mode,
+                difficultyLevel: overallDifficulty, 
                 questionIds: mode === 'MANUAL' ? selectedQuestionIds : [],
                 autoRules: mode === 'AUTOMATIC' ? autoRules.map(r => ({
                     technology: r.technology,
@@ -342,17 +399,31 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                 {step === 3 && (
                     <div className="animate-in slide-in-from-right-4 h-full flex flex-col min-h-[500px]">
                         
+                        {/* 🌟 DYNAMIC DIFFICULTY & STATUS BAR */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 bg-white/50 dark:bg-[#150a29]/50 backdrop-blur-md p-4 rounded-2xl border border-gray-200 dark:border-purple-900/50 shadow-sm">
+                            <div className="flex items-center gap-4">
+                                <h3 className="font-black text-gray-900 dark:text-white text-lg flex items-center gap-2">
+                                    {mode === 'AUTOMATIC' ? 'Rule Matrices' : 'Question Selection'}
+                                </h3>
+                                <span className="text-xs font-black bg-purple-600 text-white px-3 py-1.5 rounded-lg shadow-sm border border-purple-800 flex items-center gap-1.5">
+                                    <CheckCircle2 className="w-3.5 h-3.5"/> 
+                                    {mode === 'AUTOMATIC' ? autoRules.reduce((a, b) => a + b.theoryCount + b.codingCount, 0) : selectedQuestionIds.length} / {totalQuestions}
+                                </span>
+                            </div>
+
+                            <div className="flex items-center gap-3 bg-gray-100 dark:bg-[#0f0a1c] px-4 py-2 rounded-xl shadow-inner border border-gray-200 dark:border-gray-800">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-1">
+                                    <Activity className="w-3.5 h-3.5"/> Computed Level:
+                                </span>
+                                <span className={`text-xs font-black uppercase tracking-widest px-2.5 py-1 rounded-md ${getDifficultyColor(overallDifficulty)}`}>
+                                    {overallDifficulty}
+                                </span>
+                            </div>
+                        </div>
+
                         {mode === 'AUTOMATIC' && (
                             <div className="space-y-6">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-                                    <div>
-                                        <h3 className="font-black text-gray-900 dark:text-white text-xl sm:text-2xl flex items-center gap-3">
-                                            Rule Matrices 
-                                            <span className="text-sm font-black bg-purple-600 text-white px-4 py-1.5 rounded-xl shadow-md">
-                                                {autoRules.reduce((a, b) => a + b.theoryCount + b.codingCount, 0)} / {totalQuestions} Qs
-                                            </span>
-                                        </h3>
-                                    </div>
+                                <div className="flex justify-end mb-2">
                                     <button onClick={handleAddRule} className="w-full sm:w-auto justify-center flex items-center gap-2 text-sm font-black text-white bg-gray-900 dark:bg-purple-600 hover:bg-gray-800 dark:hover:bg-purple-500 px-6 py-3 rounded-xl transition-all shadow-md active:translate-y-0.5 cursor-pointer border-b-4 border-black dark:border-purple-800 active:border-b-0">
                                         <Plus className="w-5 h-5" /> Append Rule
                                     </button>
@@ -363,7 +434,6 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                                         const techStats = techAvailability[rule.technology] || [];
                                         const availableTopics = Array.from(new Set(techStats.map((item: any) => item.topic)));
 
-                                        // 🌟 CALCULATE EFFECTIVE AVAILABILITY FOR THIS EXACT RULE
                                         let totalAvailableTheoryInDb = 0;
                                         let totalAvailableCodingInDb = 0;
 
@@ -377,19 +447,16 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                                             totalAvailableCodingInDb = matchingStat ? Number(matchingStat.codingCount || 0) : 0;
                                         }
 
-                                        // Deduct what is already selected in OTHER rules
                                         const otherRules = autoRules.filter((r, i) => i !== index && r.technology === rule.technology && r.topic === rule.topic && r.difficulty === rule.difficulty);
                                         const usedTheory = otherRules.reduce((acc, r) => acc + r.theoryCount, 0);
                                         const usedCoding = otherRules.reduce((acc, r) => acc + r.codingCount, 0);
 
-                                        // What is truly left for this specific rule input box
                                         const effectiveTheoryLeft = Math.max(0, totalAvailableTheoryInDb - usedTheory);
                                         const effectiveCodingLeft = Math.max(0, totalAvailableCodingInDb - usedCoding);
 
                                         return (
                                             <div key={index} className="flex flex-col bg-white/80 dark:bg-[#150a29]/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border-2 border-gray-200 dark:border-purple-900/50 shadow-sm hover:shadow-md transition-shadow gap-4">
                                                 
-                                                {/* Selectors Row */}
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                     <select value={rule.technology} onChange={(e) => handleUpdateRule(index, 'technology', e.target.value)} className="w-full bg-gray-50 dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl p-3 outline-none font-black text-xs uppercase tracking-wider text-gray-700 dark:text-gray-200 focus:border-purple-500 transition-colors cursor-pointer shadow-inner">
                                                         {TECH_STACK.filter(t => t.id !== 'OVERVIEW').map(t => (
@@ -407,10 +474,8 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                                                     </select>
                                                 </div>
 
-                                                {/* Split Qty Inputs Row */}
                                                 <div className="flex flex-col sm:flex-row items-center gap-4 justify-between border-t border-gray-200 dark:border-gray-800 pt-4 mt-2">
                                                     <div className="flex w-full sm:w-auto gap-4">
-                                                        {/* Theory Input */}
                                                         <div className="flex-1 sm:flex-none flex items-center justify-between gap-3 bg-blue-50 dark:bg-blue-900/10 border-2 border-blue-200 dark:border-blue-900/50 rounded-xl p-2 focus-within:border-blue-500 transition-colors shadow-inner">
                                                             <div className="flex flex-col pl-2">
                                                                 <span className="text-[10px] uppercase text-blue-600 dark:text-blue-400 font-black flex items-center gap-1"><BookOpen className="w-3 h-3"/> Theory</span>
@@ -419,7 +484,6 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                                                             <input type="number" min="0" max={effectiveTheoryLeft} value={rule.theoryCount} onChange={(e) => handleUpdateRule(index, 'theoryCount', e.target.value)} className="w-16 bg-white dark:bg-black p-2 rounded-lg border border-blue-200 dark:border-blue-800 outline-none font-black text-base text-center text-blue-600 dark:text-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none cursor-text" />
                                                         </div>
 
-                                                        {/* Coding Input */}
                                                         <div className="flex-1 sm:flex-none flex items-center justify-between gap-3 bg-emerald-50 dark:bg-emerald-900/10 border-2 border-emerald-200 dark:border-emerald-900/50 rounded-xl p-2 focus-within:border-emerald-500 transition-colors shadow-inner">
                                                             <div className="flex flex-col pl-2">
                                                                 <span className="text-[10px] uppercase text-emerald-600 dark:text-emerald-400 font-black flex items-center gap-1"><Code2 className="w-3 h-3"/> Coding</span>
@@ -441,8 +505,6 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                         )}
 
                         {mode === 'MANUAL' && (
-                           // ... Your existing Manual UI mode block here ...
-                           // (Keeping it exactly as it was, no changes needed to manual UI)
                            <div className="flex flex-col h-full space-y-4">
                                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white/80 dark:bg-[#150a29]/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border-2 border-gray-200 dark:border-purple-900/50 shadow-sm shrink-0">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex items-center gap-3 w-full lg:w-auto">
@@ -463,10 +525,6 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                                             <Search className="w-4 h-4 text-gray-400 mr-2 shrink-0" />
                                             <input type="text" placeholder="Keyword..." value={manualSearch} onChange={e => setManualSearch(e.target.value)} className="bg-transparent border-none outline-none font-bold text-sm w-full text-gray-900 dark:text-white" />
                                         </div>
-                                    </div>
-                                    <div className="flex items-center justify-center gap-2 bg-purple-600 text-white px-5 py-3 rounded-xl shadow-md w-full lg:w-auto shrink-0 font-black tracking-wide">
-                                        <CheckCircle className="w-5 h-5" />
-                                        {selectedQuestionIds.length} / {totalQuestions} Selected
                                     </div>
                                 </div>
 
@@ -536,8 +594,8 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                 {step < 3 ? (
                     <button onClick={() => { setStep(step + 1); setError(''); }} disabled={step === 1 && (!title || !totalQuestions)} className="px-8 sm:px-10 py-3 rounded-xl font-black bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-all cursor-pointer border-b-4 border-purple-800 active:border-b-0 active:translate-y-1 shadow-lg shadow-purple-600/30">Proceed</button>
                 ) : (
-                    <button onClick={handleSubmit} disabled={loading} className="px-8 sm:px-10 py-3 rounded-xl font-black bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer border-b-4 border-emerald-700 active:border-b-0 active:translate-y-1 shadow-lg shadow-emerald-500/30">
-                        {loading ? <><div className="w-5 h-5 border-4 border-white/40 border-t-white rounded-full animate-spin" /> Publishing...</> : <><Rocket className="w-5 h-5" /> Launch Blueprint</>}
+                    <button onClick={handleSubmit} disabled={loading} className="px-8 sm:px-10 py-3.5 rounded-xl font-black bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 text-white disabled:opacity-50 flex items-center justify-center transition-all cursor-pointer border-b-4 border-purple-800 active:border-b-0 active:translate-y-1 shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] uppercase tracking-widest text-xs sm:text-sm">
+                        {loading ? <><div className="w-4 h-4 sm:w-5 sm:h-5 border-4 border-white/40 border-t-white rounded-full animate-spin mr-2" /> PUBLISHING...</> : 'LAUNCH BLUEPRINT'}
                     </button>
                 )}
             </div>

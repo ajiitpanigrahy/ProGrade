@@ -71,4 +71,20 @@ export const studentService = {
         const response = await axiosClient.get(`/student/assessments/${examId}/secure-payload`);
         return response.data; // 🌟 Returns the raw JSON exactly as Java sends it
     },
+    // Inside studentService object:
+    getPracticeExams: async () => {
+        const response = await axiosClient.get('/student/practice');
+        return response.data;
+    },
+    generatePracticeExam: async (payload: any) => {
+        const response = await axiosClient.post('/student/practice/generate', payload);
+        return response.data;
+    },
+    // Inside your studentService object:
+    // Inside your studentService object
+    getInventory: async (technology: string) => {
+        // 🌟 Make sure it hits the student route, NOT the admin route!
+        const response = await axiosClient.get(`/student/practice/inventory/${technology}`);
+        return response.data;
+    },
 };

@@ -1,5 +1,9 @@
 package mac.prograde.api.entity;
 
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.CreationTimestamp;
+
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -50,6 +54,19 @@ public class Question {
  // 🌟 STRICT DIFFERENTIATION COLUMN
     @Column(length = 20)
     private String questionType; // Will explicitly store "THEORY" or "CODING"
+    
+    @Column(name = "created_by_email", updatable = false)
+    private String createdByEmail;
+
+    @Column(name = "created_by_name", updatable = false)
+    private String createdByName;
+
+    @Column(name = "creator_role", updatable = false)
+    private String creatorRole;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
     public enum DifficultyLevel {
         EASY, MEDIUM, HARD

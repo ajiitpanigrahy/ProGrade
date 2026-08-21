@@ -17,7 +17,7 @@ public class AssessmentRequestDTO {
 	private List<AutoRuleDTO> autoRules;
     private java.time.LocalDateTime startTime;
     private int maxAttempts;
-    
+    private String difficultyLevel;
     // 🌟 CHANGED: Frontend sends UUIDs, not full Java objects
     private List<UUID> assignedBatchIds; 
 

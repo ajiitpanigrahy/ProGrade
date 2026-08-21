@@ -18,6 +18,7 @@ import mac.prograde.api.dto.StudentQuestionDTO;
 import mac.prograde.api.entity.Question;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.Collections;
 
 @Service
 public class StudentAssessmentServiceImpl implements StudentAssessmentService {
@@ -111,16 +112,23 @@ public class StudentAssessmentServiceImpl implements StudentAssessmentService {
     @Override
     public Map<String, Object> getSecureExamPayload(String idString) {
         
-        // 🌟 FIX: Parse the URL parameter (e.g., "28") into a Long Database ID
+        // 🌟 Parse the URL parameter into a Long Database ID
         Long dbId = Long.parseLong(idString);
         
-        // 🌟 FIX: Use findById instead of searchAssessmentByExamId
+        // 🌟 Fetch the assessment safely from the database repository context
         Assessment assessment = assessmentRepository.findById(dbId)
                 .orElseThrow(() -> new RuntimeException("Assessment not found with ID: " + dbId));
         
+        // 🚀 STEP 1: Copy references to a brand-new list to ensure absolute thread-safety!
+        List<Question> independentQuestions = new ArrayList<>(assessment.getQuestions());
+        
+        // 🚀 STEP 2: Shuffle the independent list. This does NOT affect the managed entity collection.
+        Collections.shuffle(independentQuestions);
+        
         List<StudentQuestionDTO> secureQuestions = new ArrayList<>();
         
-        for (Question q : assessment.getQuestions()) {
+        // Loop through the cleanly randomized, independent list arrays
+        for (Question q : independentQuestions) {
             StudentQuestionDTO dto = new StudentQuestionDTO();
             dto.setId(q.getId());
             dto.setQuestionText(q.getQuestionText());
@@ -132,10 +140,10 @@ public class StudentAssessmentServiceImpl implements StudentAssessmentService {
             dto.setTechnology(q.getTechnology());
             dto.setTopic(q.getTopic());
             
-            // Safe Enum mapping
+            // Safe Enum tracking extraction
             dto.setDifficultyLevel(q.getDifficultyLevel() != null ? q.getDifficultyLevel().name() : null);
             
-            // 🌟 EXPLICITLY MAP THE CODE SNIPPET DATA
+            // Explicitly map the code payload data parameters
             dto.setQuestionType(q.getQuestionType());
             dto.setCodeSnippet(q.getCodeSnippet());
             dto.setCodeLanguage(q.getCodeLanguage());
@@ -155,4 +163,5 @@ public class StudentAssessmentServiceImpl implements StudentAssessmentService {
         
         return payload;
     }
+
 }

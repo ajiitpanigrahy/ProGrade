@@ -27,27 +27,22 @@ axiosClient.interceptors.request.use(
 axiosClient.interceptors.response.use(
     (response) => response,
     (error) => {
-        // 🌟 Logger Addition: Log raw status and data body directly to console for quick developer tracing
         console.error("API Error:", error.response?.status, error.response?.data);
 
-        // Catch 401 (Unauthorized) and 403 (Forbidden) conditions safely
-        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+        // 🌟 FIX: Removed the 403 check! Only log out on 401 (Token Expired/Invalid)
+        if (error.response && error.response.status === 401) {
             
             const currentPath = window.location.pathname;
             const isAuthPage = currentPath === '/login' || currentPath === '/register';
 
-            // ONLY clear session data and redirect if they are NOT currently on an auth route
             if (!isAuthPage) {
-                // Clear specific authentication tokens safely without breaking unrelated browser configurations
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 sessionStorage.removeItem('token');
                 sessionStorage.removeItem('user');
                 
-                // Force route correction back to root login engine page
                 window.location.href = '/login';
             }
-            // If they ARE on the login/register page, do nothing here. Let your local views throw the shaking/error modal layout!
         }
         
         return Promise.reject(error);

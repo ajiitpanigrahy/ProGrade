@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -100,4 +101,20 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
 	            @Param("typeFilter") String typeFilter, 
 	            org.springframework.data.domain.Pageable pageable
 	    );
+	    
+	    public interface QuestionContributionDTO {
+	        String getEmail();
+	        String getName();
+	        String getRole();
+	        Long getTotalQuestions();
+	        LocalDateTime getLastContribution();
+	    }
+
+	    @Query("SELECT q.createdByEmail AS email, q.createdByName AS name, q.creatorRole AS role, " +
+	            "COUNT(q.id) AS totalQuestions, MAX(q.createdAt) AS lastContribution " +
+	            "FROM Question q " +
+	            "WHERE q.createdByEmail IS NOT NULL " +
+	            "GROUP BY q.createdByEmail, q.createdByName, q.creatorRole " +
+	            "ORDER BY MAX(q.createdAt) DESC")
+	     List<QuestionContributionDTO> getContributionHistory();
 }
