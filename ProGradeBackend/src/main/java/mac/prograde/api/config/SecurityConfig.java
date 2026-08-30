@@ -56,7 +56,8 @@ public class SecurityConfig {
      * Defines Cross-Origin Resource Sharing (CORS) rules.
      * This is critical to allow our React frontend on port 1112 to talk to Spring Boot.
      */
-    @Bean
+    @SuppressWarnings("null")
+	@Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // Allow the React frontend

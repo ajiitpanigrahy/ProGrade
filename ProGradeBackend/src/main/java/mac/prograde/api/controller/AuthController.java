@@ -37,6 +37,7 @@ public class AuthController {
 	/**
 	 * Endpoint to register a new user. Route: POST /api/v1/auth/register
 	 */
+	@SuppressWarnings("null")
 	@PostMapping("/register")
 	public ResponseEntity<?> register(@RequestBody AuthDto.RegisterRequest request) {
 		try {
@@ -70,6 +71,7 @@ public class AuthController {
 		}
 	}
 
+	@SuppressWarnings("null")
 	@PostMapping("/logout")
 	public ResponseEntity<String> logout(HttpServletRequest request) {
 		String authHeader = request.getHeader("Authorization");
@@ -96,6 +98,7 @@ public class AuthController {
 		return ResponseEntity.ok("OTP generated successfully.");
 	}
 
+	@SuppressWarnings("null")
 	@PostMapping("/reset-password")
 	public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
 		String email = request.get("email");
@@ -113,18 +116,16 @@ public class AuthController {
 		otpService.clearOtp(email); // Clean up
 		return ResponseEntity.ok("Password reset successfully.");
 	}
-	
-	// 🌟 ADD THIS: Used by frontend after OAuth redirect to hydrate UserContext
-    @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser(Authentication authentication) {
-        User user = userRepository.findByEmail(authentication.getName());
-        if (user == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
-        return ResponseEntity.ok(new AuthDto.AuthResponse(
-                null, // Token not needed here
-                user.getFullName(), user.getEmail(), user.getRole(),
-                user.isApproved(), user.getProfilePictureUrl(),
-                user.getPhoneNumber(), user.getGender(), user.getHighestQualification()
-        ));
-    }
+	// ADD THIS: Used by frontend after OAuth redirect to hydrate UserContext
+	@GetMapping("/me")
+	public ResponseEntity<?> getCurrentUser(Authentication authentication) {
+		User user = userRepository.findByEmail(authentication.getName());
+		if (user == null)
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+		return ResponseEntity.ok(new AuthDto.AuthResponse(null, // Token not needed here
+				user.getFullName(), user.getEmail(), user.getRole(), user.isApproved(), user.getProfilePictureUrl(),
+				user.getPhoneNumber(), user.getGender(), user.getHighestQualification()));
+	}
 }

@@ -50,7 +50,7 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("success", true));
     }
 
-    // 🌟 TEST ENDPOINT: Call this via Postman to trigger a live toast in your browser!
+    // TEST ENDPOINT: Call this via Postman to trigger a live toast in your browser!
     @PostMapping("/test")
     public ResponseEntity<?> triggerTestNotification(Authentication auth, @RequestParam String type) {
         Notification n = new Notification();

@@ -36,13 +36,15 @@ public class ApplicationConfig {
         return new BCryptPasswordEncoder();
     }
 
-    @Bean
+    @SuppressWarnings("null")
+	@Bean
     public AuthenticationProvider authenticationProvider(
             UserDetailsService userDetailsService,
             PasswordEncoder passwordEncoder) {
 
         // FIX: Inject userDetailsService through the constructor 
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+        @SuppressWarnings("null")
+		DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
         
         // Pass the encoder through the setter
         provider.setPasswordEncoder(passwordEncoder);

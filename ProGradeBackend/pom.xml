@@ -23,6 +23,19 @@
 		<jjwt.version>0.12.5</jjwt.version>
 	</properties>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>2023.0.1</version> <!-- Use the version matching your
+				Spring Boot version -->
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 		<!-- ========================================== -->
 		<!-- 1. CORE SPRING BOOT WEB & DATA             -->
@@ -79,22 +92,27 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- ========================================== -->
-		<!-- 3. ASPECT-ORIENTED PROGRAMMING (AOP)       -->
-		<!-- ========================================== -->
+		<!-- Swagger / OpenAPI 3 -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>2.5.0</version>
+		</dependency>
 
-		<!-- Enables AOP so you can use @Around to intercept methods for
-		performance tracking -->
-		<!--
+		<dependency>
+			<groupId>io.github.resilience4j</groupId>
+			<artifactId>resilience4j-spring-boot3</artifactId>
+			<version>2.2.0</version>
+		</dependency>
+
+		<!-- JUnit 5 & Mockito (Usually already included via
+		spring-boot-starter-test) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-aop</artifactId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
 		</dependency>
-	-->
 
-		<!-- ========================================== -->
-		<!-- 4. DATABASE & UTILITIES                    -->
-		<!-- ========================================== -->
 
 		<!-- The driver that allows Hibernate to communicate with your MySQL
 		database -->
@@ -173,6 +191,23 @@
 			<artifactId>spring-boot-starter-oauth2-client</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
+		<!-- Spring Data Redis for High-Speed Caching -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+
+		<!-- Connection Pooling (Recommended for high concurrency) -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-pool2</artifactId>
+		</dependency>
+
 	</dependencies>
 
 	<build>
@@ -224,6 +259,13 @@
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<argLine>-XX:+EnableDynamicAgentLoading</argLine>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

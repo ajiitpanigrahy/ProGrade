@@ -35,10 +35,11 @@ public class QuestionController {
     @Autowired private QuestionBulkImportService bulkImportService;
     @Autowired private QuestionRepository questionRepository;
     
-    // 🌟 ADDED: To fetch user data for single creations
+    //  ADDED: To fetch user data for single creations
     @Autowired private UserRepository userRepository; 
 
-    @PostMapping("/bulk-upload")
+    @SuppressWarnings("null")
+	@PostMapping("/bulk-upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
         if (file.getSize() > 5 * 1024 * 1024) {
             return ResponseEntity.badRequest().body(Map.of("error", "File exceeds 5MB size limit."));
@@ -53,7 +54,7 @@ public class QuestionController {
         }
     }
 
-    // 🌟 NEW: HISTORY ENDPOINT FOR THE LEADERBOARD
+    //  NEW: HISTORY ENDPOINT FOR THE LEADERBOARDßß
     @GetMapping("/history")
     public ResponseEntity<?> getContributionHistory() {
         return ResponseEntity.ok(questionRepository.getContributionHistory());
@@ -76,13 +77,15 @@ public class QuestionController {
         return ResponseEntity.ok(result);
     }
 
-    @DeleteMapping("/{id}")
+    @SuppressWarnings("null")
+	@DeleteMapping("/{id}")
     public ResponseEntity<?> deleteQuestion(@PathVariable Long id) {
         questionRepository.deleteById(id);
         return ResponseEntity.ok(Map.of("message", "Question deleted successfully"));
     }
     
-    @PostMapping("/create")
+    @SuppressWarnings("null")
+	@PostMapping("/create")
     public ResponseEntity<?> createQuestion(@RequestBody Question question, Authentication auth) {
         try {
             if (question.getCorrectOption() == null || !question.getCorrectOption().matches("[A-D]")) {
@@ -109,7 +112,8 @@ public class QuestionController {
         }
     }
     
-    @PutMapping("/{id}")
+    @SuppressWarnings("null")
+	@PutMapping("/{id}")
     public ResponseEntity<?> updateQuestion(@PathVariable Long id, @RequestBody Question questionDetails) {
         try {
             Question existingQuestion = questionRepository.findById(id)

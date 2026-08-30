@@ -17,18 +17,20 @@ public class AdminSeeder {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // 🚀 Injecting credentials via system environment variables
+    // Injecting credentials via system environment variables
     @Value("${app.admin.email:admin@prograde.com}")
     private String adminEmail;
 
     @Value("${app.admin.password:Admin@DefaultFallback}")
     private String adminPassword;
 
-    @Bean
+    @SuppressWarnings("null")
+	@Bean
     public CommandLineRunner seedAdminAccount() {
         return args -> {
             if (userRepository.findByEmail(adminEmail) == null) {
-                User admin = User.builder()
+                @SuppressWarnings("null")
+				User admin = User.builder()
                         .fullName("Super Admin")
                         .email(adminEmail)
                         .password(passwordEncoder.encode(adminPassword)) // Dynamic system password hashed safely
@@ -37,10 +39,10 @@ public class AdminSeeder {
                         .build();
 
                 userRepository.save(admin);
-                System.out.println("✅ Default Admin account seeded successfully!");
+                System.out.println("Default Admin account seeded successfully!");
                 System.out.println("Email: " + adminEmail);
             } else {
-                System.out.println("ℹ️ Default Admin account already exists. Skipping seed.");
+                System.out.println("Default Admin account already exists. Skipping seed.");
             }
         };
     }

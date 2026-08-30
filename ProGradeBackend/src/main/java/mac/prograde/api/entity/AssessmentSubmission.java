@@ -36,6 +36,9 @@ public class AssessmentSubmission {
     // 🌟 CRITICAL FIX: Must be 'Integer' (Object) not 'int' (primitive) so it can be null-checked!
     @Column(name = "time_taken_seconds")
     private Integer timeTaken;
+    
+    @Column(columnDefinition = "TEXT")
+    private String techBreakdownJson;
 
     @PrePersist
     protected void onCreate() {

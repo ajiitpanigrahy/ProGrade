@@ -20,7 +20,7 @@ public class ProfileController {
     private final ProfileService profileService;
     private final UserRepository userRepository;
 
-    // 🚀 THE FIX: Bulletproof User Extraction
+    // THE FIX: Bulletproof User Extraction
     private User getAuthenticatedUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email;

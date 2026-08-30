@@ -34,7 +34,7 @@ public class NotificationAspect {
             Notification n = new Notification();
             n.setRecipientEmail(email);
             n.setSender("SYSTEM");
-            n.setTitle("Welcome to ProGrade! 🚀");
+            n.setTitle("Welcome to ProGrade!");
             n.setMessage("We're glad to have you. Explore your dashboard to get started.");
             n.setType(NotificationType.WELCOME);
             n.setTargetUrl("/student/dashboard");
@@ -50,7 +50,7 @@ public class NotificationAspect {
         Notification n = new Notification();
         n.setRecipientEmail(email);
         n.setSender("SYSTEM");
-        n.setTitle("Assessment Forged Successfully 🛠️");
+        n.setTitle("Assessment Forged Successfully️");
         n.setMessage("Your assessment '" + assessment.getTitle() + "' has been compiled and is ready.");
         n.setType(NotificationType.ASSESSMENT_CREATED);
         n.setTargetUrl("/educator/assessments/" + assessment.getId());
@@ -66,7 +66,7 @@ public class NotificationAspect {
         // Example for a single student:
         Notification n = new Notification();
         n.setSender("EDUCATOR");
-        n.setTitle("New Exam Assigned 📚");
+        n.setTitle("New Exam Assigned");
         n.setMessage("A new assessment has been assigned to your batch. Check your Active Examinations tab.");
         n.setType(NotificationType.EXAM_ASSIGNED);
         n.setTargetUrl("/student/dashboard?view=active-exams");
@@ -80,7 +80,7 @@ public class NotificationAspect {
         Notification n = new Notification();
         n.setRecipientEmail(email);
         n.setSender("SECURITY SHIELD");
-        n.setTitle("⚠️ Security Warning");
+        n.setTitle("Security Warning");
         n.setMessage("Suspicious activity was detected during your session. Multiple violations may result in exam termination.");
         n.setType(NotificationType.FRAUD_ALERT);
         notificationService.sendNotification(n);

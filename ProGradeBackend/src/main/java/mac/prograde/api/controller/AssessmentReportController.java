@@ -23,13 +23,14 @@ public class AssessmentReportController {
     @Autowired private MalpracticeLogRepository malpracticeLogRepository;
     @Autowired private AssessmentRepository assessmentRepository;
 
-    @GetMapping("/assessments/{assessmentId}")
+    @SuppressWarnings("null")
+	@GetMapping("/assessments/{assessmentId}")
     @PreAuthorize("hasAnyRole('EDUCATOR', 'ADMIN')")
     public ResponseEntity<?> getAssessmentReports(@PathVariable Long assessmentId, Authentication auth) {
         Assessment exam = assessmentRepository.findById(assessmentId)
                 .orElseThrow(() -> new RuntimeException("Assessment not found."));
 
-        // 🌟 STRICT ACCESS CONTROL
+        // TRICT ACCESS CONTROL
         // Admins can see all. Educators can ONLY see exams they created.
         boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         if (!isAdmin && !exam.getCreatorEmail().equals(auth.getName())) {

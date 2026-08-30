@@ -29,21 +29,25 @@ public class LoggingAspect {
 
 	// Matches all REST controllers
 	@Pointcut("within(mac.prograde.api.controller..*)")
-	public void controllerPointcut() {}
+	public void controllerPointcut() {
+	}
 
-	// Matches all service implementations, but EXCLUDES the auditing service itself to avoid infinite loops
+	// Matches all service implementations, but EXCLUDES the auditing service itself
+	// to avoid infinite loops
 	@Pointcut("within(mac.prograde.api.service.impl..*) && !target(mac.prograde.api.service.DatabaseAuditService)")
-	public void servicePointcut() {}
+	public void servicePointcut() {
+	}
 
 	/**
-	 * Controller Layer Interceptor: Focuses on HTTP metadata, entry/exit checkpoints, and DB Auditing.
+	 * Controller Layer Interceptor: Focuses on HTTP metadata, entry/exit
+	 * checkpoints, and DB Auditing.
 	 */
 	@Around("controllerPointcut()")
 	public Object logControllerLayer(ProceedingJoinPoint joinPoint) throws Throwable {
 		String className = joinPoint.getTarget().getClass().getSimpleName();
 		String methodName = joinPoint.getSignature().getName();
 		String loggerName = joinPoint.getTarget().getClass().getName();
-		
+
 		String actor = extractCurrentUser();
 		String ipAddress = extractClientIp();
 		String args = Arrays.toString(joinPoint.getArgs());
@@ -52,7 +56,7 @@ public class LoggingAspect {
 
 		StopWatch stopWatch = new StopWatch();
 		stopWatch.start();
-		
+
 		Object result;
 		String status = "SUCCESS";
 		String message = "Execution completed successfully";
@@ -65,7 +69,7 @@ public class LoggingAspect {
 			status = "ERROR";
 			message = "API Failed: " + e.getClass().getSimpleName() + " - " + e.getMessage();
 			thrownException = e;
-			throw e; 
+			throw e;
 		} finally {
 			stopWatch.stop();
 			long timeTaken = stopWatch.getTotalTimeMillis();
@@ -73,22 +77,24 @@ public class LoggingAspect {
 			// Detect performance issues dynamically
 			if (timeTaken > 2000 && !"ERROR".equals(status)) {
 				status = "WARN";
-				message = "🐢 SLOW API DETECTED: Execution took " + timeTaken + "ms";
-				log.warn("⚠️ API EXIT: {}.{}() | {} | Duration: {}ms", className, methodName, message, timeTaken);
+				message = "SLOW API DETECTED: Execution took " + timeTaken + "ms";
+				log.warn("API EXIT: {}.{}() | {} | Duration: {}ms", className, methodName, message, timeTaken);
 			} else if ("ERROR".equals(status)) {
-				log.error("❌ API EXIT: {}.{}() | {} | Duration: {}ms", className, methodName, message, timeTaken);
+				log.error("API EXIT: {}.{}() | {} | Duration: {}ms", className, methodName, message, timeTaken);
 			} else {
-				log.info("✅ API EXIT: {}.{}() | Success | Duration: {}ms", className, methodName, timeTaken);
+				log.info("API EXIT: {}.{}() | Success | Duration: {}ms", className, methodName, timeTaken);
 			}
 
 			// Write to the Database once per API call sequence (at the root entry point)
-			auditService.saveLog(status, loggerName, message + " (Duration: " + timeTaken + "ms)", actor, ipAddress, className, methodName, thrownException);
+			auditService.saveLog(status, loggerName, message + " (Duration: " + timeTaken + "ms)", actor, ipAddress,
+					className, methodName, thrownException);
 		}
 	}
 
 	/**
-	 * Service Layer Interceptor: Purely text-based SLF4J tracing for internal business logic debugging.
-	 * Does not write to DB to avoid performance issues and database locks.
+	 * Service Layer Interceptor: Purely text-based SLF4J tracing for internal
+	 * business logic debugging. Does not write to DB to avoid performance issues
+	 * and database locks.
 	 */
 	@Around("servicePointcut()")
 	public Object logServiceLayer(ProceedingJoinPoint joinPoint) throws Throwable {
@@ -96,25 +102,27 @@ public class LoggingAspect {
 		String methodName = joinPoint.getSignature().getName();
 
 		log.debug("⚙️ SERVICE START: {}.{}()", className, methodName);
-		
+
 		StopWatch stopWatch = new StopWatch();
 		stopWatch.start();
 
 		try {
 			Object result = joinPoint.proceed();
 			stopWatch.stop();
-			log.debug("⚙️ SERVICE END: {}.{}() | Duration: {}ms", className, methodName, stopWatch.getTotalTimeMillis());
+			log.debug("SERVICE END: {}.{}() | Duration: {}ms", className, methodName, stopWatch.getTotalTimeMillis());
 			return result;
 		} catch (Throwable e) {
 			stopWatch.stop();
-			log.error("⚙️ SERVICE FAILED: {}.{}() | Exception: {} | Duration: {}ms", className, methodName, e.getClass().getSimpleName(), stopWatch.getTotalTimeMillis());
+			log.error("SERVICE FAILED: {}.{}() | Exception: {} | Duration: {}ms", className, methodName,
+					e.getClass().getSimpleName(), stopWatch.getTotalTimeMillis());
 			throw e;
 		}
 	}
 
 	private String extractCurrentUser() {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-		return (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) ? auth.getName() : "SYSTEM";
+		return (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) ? auth.getName()
+				: "SYSTEM";
 	}
 
 	private String extractClientIp() {
@@ -126,7 +134,8 @@ public class LoggingAspect {
 				if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
 					ip = req.getHeader("Proxy-Client-IP");
 				}
-				return (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) ? req.getRemoteAddr() : ip.split(",")[0].trim();
+				return (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) ? req.getRemoteAddr()
+						: ip.split(",")[0].trim();
 			}
 		} catch (Exception ignored) {
 		}

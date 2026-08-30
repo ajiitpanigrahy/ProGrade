@@ -49,6 +49,7 @@ public class LiveExamController {
 
 	@GetMapping("/{assessmentId}")
 	public ResponseEntity<?> getSecureExamPayload(@PathVariable Long assessmentId) {
+		@SuppressWarnings("null")
 		Assessment exam = assessmentRepository.findById(assessmentId)
 				.orElseThrow(() -> new RuntimeException("Assessment not found."));
 
@@ -73,95 +74,113 @@ public class LiveExamController {
 	}
 
 	@PostMapping("/{assessmentId}/submit")
-	@SuppressWarnings("unchecked")
-	public ResponseEntity<?> submitExam(@PathVariable Long assessmentId, @RequestBody Map<String, Object> payload,
-			Authentication auth) {
-		try {
-			Assessment exam = assessmentRepository.findById(assessmentId).orElseThrow();
+    @SuppressWarnings({ "unchecked", "null" })
+    public ResponseEntity<?> submitExam(@PathVariable Long assessmentId, @RequestBody Map<String, Object> payload, Authentication auth) {
+        try {
+            Assessment exam = assessmentRepository.findById(assessmentId).orElseThrow();
 
-			Map<String, String> studentAnswers = (Map<String, String>) payload.get("answers");
-			if (studentAnswers == null)
-				studentAnswers = new java.util.HashMap<>();
+            Map<String, String> studentAnswers = (Map<String, String>) payload.get("answers");
+            if (studentAnswers == null) studentAnswers = new java.util.HashMap<>();
 
-			String startedAtStr = (String) payload.get("startedAt");
-			Map<String, Object> rawTimeSpent = (Map<String, Object>) payload.get("timeSpent");
-			Map<String, Integer> timeSpentMap = new java.util.HashMap<>();
+            String startedAtStr = (String) payload.get("startedAt");
+            Map<String, Object> rawTimeSpent = (Map<String, Object>) payload.get("timeSpent");
+            Map<String, Integer> timeSpentMap = new java.util.HashMap<>();
 
-			if (rawTimeSpent != null) {
-				for (Map.Entry<String, Object> entry : rawTimeSpent.entrySet()) {
-					timeSpentMap.put(entry.getKey(), Integer.parseInt(String.valueOf(entry.getValue())));
-				}
-			}
+            if (rawTimeSpent != null) {
+                for (Map.Entry<String, Object> entry : rawTimeSpent.entrySet()) {
+                    timeSpentMap.put(entry.getKey(), Integer.parseInt(String.valueOf(entry.getValue())));
+                }
+            }
 
-			int flaggedCount = payload.containsKey("flaggedCount") && payload.get("flaggedCount") != null
-					? Integer.parseInt(String.valueOf(payload.get("flaggedCount")))
-					: 0;
+            int flaggedCount = payload.containsKey("flaggedCount") && payload.get("flaggedCount") != null
+                    ? Integer.parseInt(String.valueOf(payload.get("flaggedCount"))) : 0;
 
-			double posMarks = (exam.getPositiveMarks() <= 0) ? 1.0 : exam.getPositiveMarks();
-			double negMarks = (exam.getNegativeMarks() <= 0) ? 0.25 : exam.getNegativeMarks();
+            double posMarks = (exam.getPositiveMarks() <= 0) ? 1.0 : exam.getPositiveMarks();
+            double negMarks = (exam.getNegativeMarks() <= 0) ? 0.25 : exam.getNegativeMarks();
 
-			double totalScore = 0.0;
-			int correctCount = 0;
-			int incorrectCount = 0;
-			int unattemptedCount = exam.getTotalQuestions() - studentAnswers.size();
-			List<Question> questions = exam.getQuestions();
+            double totalScore = 0.0;
+            int correctCount = 0;
+            int incorrectCount = 0;
+            int unattemptedCount = exam.getTotalQuestions() - studentAnswers.size();
+            
+            // 🌟 NEW: Track granular scores per technology
+            Map<String, Map<String, Double>> techBreakdown = new java.util.HashMap<>();
+            List<Question> questions = exam.getQuestions();
 
-			for (int i = 0; i < questions.size(); i++) {
-				String studentChoice = studentAnswers.get(String.valueOf(i));
-				if (studentChoice != null) {
-					if (studentChoice.equals(questions.get(i).getCorrectOption())) {
-						totalScore += posMarks;
-						correctCount++;
-					} else {
-						totalScore -= negMarks;
-						incorrectCount++;
-					}
-				}
-			}
+            for (int i = 0; i < questions.size(); i++) {
+                Question q = questions.get(i);
+                String studentChoice = studentAnswers.get(String.valueOf(i));
+                
+                // Extract the specific technology for this exact question
+                String tech = (q.getTechnology() != null && !q.getTechnology().isBlank()) 
+                        ? q.getTechnology().trim().toUpperCase() : "GENERAL";
 
-			if (totalScore < 0)
-				totalScore = 0;
-			double maxScore = exam.getTotalQuestions() * posMarks;
+                // Initialize tracking for this tech if it doesn't exist yet
+                techBreakdown.putIfAbsent(tech, new java.util.HashMap<>(Map.of("earned", 0.0, "max", 0.0)));
+                
+                // Add to the Max Possible Score for this tech
+                techBreakdown.get(tech).put("max", techBreakdown.get(tech).get("max") + posMarks);
 
-			AssessmentSubmission submission = new AssessmentSubmission();
-			submission.setAssessmentId(assessmentId);
-			submission.setStudentEmail(auth.getName());
-			submission.setTotalScore(totalScore);
-			submission.setMaxScore(maxScore);
-			submission.setCorrectCount(correctCount);
-			submission.setIncorrectCount(incorrectCount);
-			submission.setUnattemptedCount(unattemptedCount);
-			submission.setFlaggedCount(flaggedCount);
+                if (studentChoice != null) {
+                    if (studentChoice.equals(q.getCorrectOption())) {
+                        totalScore += posMarks;
+                        correctCount++;
+                        techBreakdown.get(tech).put("earned", techBreakdown.get(tech).get("earned") + posMarks);
+                    } else {
+                        totalScore -= negMarks;
+                        incorrectCount++;
+                        techBreakdown.get(tech).put("earned", techBreakdown.get(tech).get("earned") - negMarks);
+                    }
+                }
+            }
 
-			if (startedAtStr != null && !startedAtStr.isEmpty()) {
-				try {
-					ZonedDateTime zdt = ZonedDateTime.parse(startedAtStr);
-					submission.setStartedAt(zdt.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime());
-				} catch (Exception ex) {
-					submission.setStartedAt(LocalDateTime.now());
-				}
-			} else {
-				submission.setStartedAt(LocalDateTime.now());
-			}
+            if (totalScore < 0) totalScore = 0;
+            double maxScore = exam.getTotalQuestions() * posMarks;
 
-			ObjectMapper mapper = new ObjectMapper();
-			try {
-				submission.setResponseJson(mapper.writeValueAsString(studentAnswers));
-				submission.setQuestionTimeJson(mapper.writeValueAsString(timeSpentMap));
-			} catch (Exception e) {
-				submission.setResponseJson("{}");
-				submission.setQuestionTimeJson("{}");
-			}
+            AssessmentSubmission submission = new AssessmentSubmission();
+            submission.setAssessmentId(assessmentId);
+            submission.setStudentEmail(auth.getName().trim().toLowerCase());
+            submission.setTotalScore(totalScore);
+            submission.setMaxScore(maxScore);
+            submission.setCorrectCount(correctCount);
+            submission.setIncorrectCount(incorrectCount);
+            submission.setUnattemptedCount(unattemptedCount);
+            submission.setFlaggedCount(flaggedCount);
 
-			AssessmentSubmission savedSubmission = submissionRepository.save(submission);
-			return ResponseEntity
-					.ok(Map.of("message", "Submitted successfully.", "submissionId", savedSubmission.getId()));
-		} catch (Exception e) {
-			e.printStackTrace();
-			return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
-		}
-	}
+            if (startedAtStr != null && !startedAtStr.isEmpty()) {
+                try {
+                    ZonedDateTime zdt = ZonedDateTime.parse(startedAtStr);
+                    submission.setStartedAt(zdt.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime());
+                } catch (Exception ex) {
+                    submission.setStartedAt(LocalDateTime.now());
+                }
+            } else {
+                submission.setStartedAt(LocalDateTime.now());
+            }
 
+            submission.setSubmittedAt(LocalDateTime.now());
+
+            ObjectMapper mapper = new ObjectMapper();
+            try {
+                submission.setResponseJson(mapper.writeValueAsString(studentAnswers));
+                submission.setQuestionTimeJson(mapper.writeValueAsString(timeSpentMap));
+                // 🌟 NEW: Save the precise technological breakdown to the database
+                submission.setTechBreakdownJson(mapper.writeValueAsString(techBreakdown));
+            } catch (Exception e) {
+                submission.setResponseJson("{}");
+                submission.setQuestionTimeJson("{}");
+                submission.setTechBreakdownJson("{}");
+            }
+
+            AssessmentSubmission savedSubmission = submissionRepository.saveAndFlush(submission);
+            return ResponseEntity.ok(Map.of("message", "Submitted successfully.", "submissionId", savedSubmission.getId()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+	@SuppressWarnings("null")
 	@GetMapping("/submissions")
 	public ResponseEntity<?> getMySubmissions(Authentication auth) {
 		List<AssessmentSubmission> subs = submissionRepository.findByStudentEmailOrderBySubmittedAtDesc(auth.getName());
@@ -175,9 +194,11 @@ public class LiveExamController {
 		return ResponseEntity.ok(result);
 	}
 
+	@SuppressWarnings("null")
 	@GetMapping("/analysis/{submissionId}")
 	public ResponseEntity<?> getTestAnalysis(@PathVariable Long submissionId, Authentication auth) {
 		AssessmentSubmission sub = submissionRepository.findById(submissionId).orElseThrow();
+		@SuppressWarnings("null")
 		Assessment exam = assessmentRepository.findById(sub.getAssessmentId()).orElseThrow();
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -271,13 +292,13 @@ public class LiveExamController {
 		};
 	}
 
-	@GetMapping("/analysis/{submissionId}/ai-insights")
+	@SuppressWarnings("null")
+    @GetMapping("/analysis/{submissionId}/ai-insights")
     public ResponseEntity<?> getGeminiInsights(@PathVariable Long submissionId) {
         AssessmentSubmission sub = submissionRepository.findById(submissionId).orElseThrow();
+        @SuppressWarnings("null")
         Assessment exam = assessmentRepository.findById(sub.getAssessmentId()).orElseThrow();
 
-        // 🌟 FIX: We no longer ask for JSON formatting here because GeminiAiService handles it securely!
-        // We just pass the raw data so the AI "Mentor" can analyze it.
         StringBuilder prompt = new StringBuilder();
         prompt.append("STUDENT EXAM PERFORMANCE DATA:\n");
         prompt.append("- Exam Title: ").append(exam.getTitle()).append("\n");
@@ -286,7 +307,18 @@ public class LiveExamController {
         prompt.append("- Incorrect Answers: ").append(sub.getIncorrectCount()).append("\n");
         prompt.append("- Skipped Questions: ").append(sub.getUnattemptedCount()).append("\n");
 
-        Map<String, Object> aiResponse = geminiAiService.generateTestAnalysis(prompt.toString());
+        // 🌟 PASS BOTH THE ID (FOR REDIS) AND THE PROMPT (FOR GEMINI)
+        Map<String, Object> aiResponse;
+        try {
+            aiResponse = geminiAiService.generateTestAnalysis(submissionId, prompt.toString());
+        } catch (Exception e) {
+            // Safety net just in case JSON parsing fails after API call
+            aiResponse = Map.of(
+                "overallAnalysis", "An internal error occurred while parsing the AI response.",
+                "explanations", Map.of()
+            );
+        }
+        
         return ResponseEntity.ok(aiResponse);
     }
 

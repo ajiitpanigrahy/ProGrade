@@ -1,5 +1,6 @@
 package mac.prograde.api.service;
 
+import mac.prograde.api.dto.StudentDashboardDTO;
 import mac.prograde.api.entity.Assessment;
 import java.util.List;
 import java.util.Map;
@@ -13,4 +14,6 @@ public interface StudentAssessmentService {
     Map<String, Object> checkMaxAttemptsStatus(String examId, String studentEmail);
  // 🌟 ADD THIS METHOD
     java.util.Map<String, Object> getSecureExamPayload(String examId);
+    StudentDashboardDTO getStudentDashboardOverview(String studentEmail);
+    mac.prograde.api.dto.LeaderboardDTO getLeaderboards(String studentEmail);
 }

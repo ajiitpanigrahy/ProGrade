@@ -9,7 +9,8 @@ import java.nio.file.Paths;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Override
+    @SuppressWarnings("null")
+	@Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         Path uploadDir = Paths.get("uploads/profiles");
         String uploadPath = uploadDir.toFile().getAbsolutePath();

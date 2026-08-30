@@ -1,5 +1,6 @@
 package mac.prograde.api.controller;
 
+import mac.prograde.api.dto.StudentDashboardDTO;
 import mac.prograde.api.entity.Assessment;
 import mac.prograde.api.service.StudentAssessmentService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,8 @@ public class StudentAssessmentController {
 
     @Autowired
     private StudentAssessmentService studentService;
+    @Autowired
+    private StudentAssessmentService studentAssessmentService;
 
     @GetMapping("/public")
     public ResponseEntity<?> getPublicAssessments(Authentication auth) {
@@ -84,5 +87,18 @@ public class StudentAssessmentController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+    
+    @GetMapping("/dashboard/overview")
+    public ResponseEntity<StudentDashboardDTO> getDashboardOverview(Authentication authentication) {
+        String studentEmail = authentication.getName();
+        StudentDashboardDTO dto = studentAssessmentService.getStudentDashboardOverview(studentEmail);
+        return ResponseEntity.ok(dto);
+    }
+    
+    @GetMapping("/dashboard/leaderboard")
+    public ResponseEntity<?> getLeaderboards(Authentication authentication) {
+        String studentEmail = authentication.getName();
+        return ResponseEntity.ok(studentAssessmentService.getLeaderboards(studentEmail));
     }
 }

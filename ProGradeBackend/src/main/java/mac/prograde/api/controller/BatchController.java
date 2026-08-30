@@ -22,7 +22,8 @@ public class BatchController {
         return ResponseEntity.ok(batchRepository.findAll());
     }
 
-    @PostMapping("/upload")
+    @SuppressWarnings("null")
+	@PostMapping("/upload")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> uploadStudentRoster(@RequestParam("file") MultipartFile file) {
         try {
