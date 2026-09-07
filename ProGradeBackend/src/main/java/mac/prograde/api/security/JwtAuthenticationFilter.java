@@ -23,72 +23,66 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
-    private final TokenBlacklistRepository tokenBlacklistRepository;
-    
-    // 🌟 ADDED: We need the UserRepository to verify the user actually still exists!
-    private final UserRepository userRepository; 
+	private final JwtService jwtService;
+	private final UserDetailsService userDetailsService;
+	private final TokenBlacklistRepository tokenBlacklistRepository;
 
-    @Override
-    protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
-        final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String userEmail;
+// We need the UserRepository to verify the user actually still exists!
+	private final UserRepository userRepository;
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
+	@Override
+	protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
+			@NonNull FilterChain filterChain) throws ServletException, IOException {
+		final String authHeader = request.getHeader("Authorization");
+		final String jwt;
+		final String userEmail;
 
-        jwt = authHeader.substring(7);
+		if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+			filterChain.doFilter(request, response);
+			return;
+		}
 
-        // Check if the token was manually logged out
-        if (tokenBlacklistRepository.existsByToken(jwt)) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Token has been revoked");
-            return;
-        }
+		jwt = authHeader.substring(7);
 
-        userEmail = jwtService.extractUsername(jwt);
+		// Check if the token was manually logged out
+		if (tokenBlacklistRepository.existsByToken(jwt)) {
+			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+			response.getWriter().write("Token has been revoked");
+			return;
+		}
 
-        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            
-            // 🌟 THE ULTIMATE SECURITY FIX: 
-            // Check the database to ensure this user hasn't been deleted or blocked!
-            User dbUser = userRepository.findByEmail(userEmail);
-            
-            if (dbUser == null) {
-                // The user was deleted from the DB! Reject the token immediately.
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("User account no longer exists in the system.");
-                return;
-            }
+		userEmail = jwtService.extractUsername(jwt);
 
-            if ("BLOCKED".equalsIgnoreCase(dbUser.getStatus()) || "SUSPENDED".equalsIgnoreCase(dbUser.getStatus())) {
-                // The user was blocked! Reject the token.
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("User account has been restricted.");
-                return;
-            }
+		if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+			// THE ULTIMATE SECURITY FIX:
+			// Check the database to ensure this user hasn't been deleted or blocked!
+			User dbUser = userRepository.findByEmail(userEmail);
 
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            }
-        }
-        
-        filterChain.doFilter(request, response);
-    }
+			if (dbUser == null) {
+				// The user was deleted from the DB! Reject the token immediately.
+				response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+				response.getWriter().write("User account no longer exists in the system.");
+				return;
+			}
+
+			if ("BLOCKED".equalsIgnoreCase(dbUser.getStatus()) || "SUSPENDED".equalsIgnoreCase(dbUser.getStatus())) {
+				// The user was blocked! Reject the token.
+				response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+				response.getWriter().write("User account has been restricted.");
+				return;
+			}
+
+			UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+
+			if (jwtService.isTokenValid(jwt, userDetails)) {
+				UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,
+						null, userDetails.getAuthorities());
+				authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+				SecurityContextHolder.getContext().setAuthentication(authToken);
+			}
+		}
+
+		filterChain.doFilter(request, response);
+	}
 }

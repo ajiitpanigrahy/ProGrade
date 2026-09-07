@@ -9,7 +9,7 @@ interface Notification {
     sender?: string;
     title: string;
     message: string;
-    type: 'INFO' | 'SUCCESS' | 'WARNING' | 'CRITICAL';
+    type: 'INFO' | 'SUCCESS' | 'WARNING' | 'CRITICAL' | 'FRAUD_ALERT' | 'ADMIN_ALERT';
     targetUrl: string | null;
     isRead: boolean;
     createdAt: string;
@@ -31,6 +31,9 @@ const NotificationContext = createContext<NotificationContextType>({
 });
 
 export const useNotifications = () => useContext(NotificationContext);
+
+// 🌟 CRITICAL: Custom Error class to identify when we should permanently stop retrying
+class FatalError extends Error {}
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { user } = useAuth();
@@ -63,9 +66,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
 
         const ctrl = new AbortController();
-        console.log("SSE: Attempting to connect to Notification Engine on port 2406...");
-
-        const baseURL = axiosClient.defaults.baseURL || 'http://localhost:2406/api/v1';
+        
+        // 🌟 Ensure we use the exact Environment Variable for production
+        const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:2406/api/v1';
+        console.log(`SSE: Attempting to connect to Notification Engine at ${baseURL}...`);
 
         fetchEventSource(`${baseURL}/notifications/subscribe`, {
             method: 'GET',
@@ -74,13 +78,18 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 'Accept': 'text/event-stream'
             },
             signal: ctrl.signal,
-            onopen(response) {
+            async onopen(response) {
                 if (response.ok) {
                     console.log("✅ SSE: Successfully connected to Notification Engine!");
-                    return Promise.resolve();
+                    return; // Everything is good, proceed.
                 }
-                console.error("❌ SSE: Server responded with error", response.status);
-                return Promise.resolve();
+                
+                // 🌟 CRITICAL FIX: If the server responds with ANY HTTP error (400, 401, 404, 500), 
+                // throw the FatalError so the library immediately STOPS the infinite retry loop.
+                if (response.status >= 400) {
+                    console.error(`❌ SSE: Server rejected connection with status ${response.status}. Stopping retries.`);
+                    throw new FatalError(`Server Error ${response.status}`);
+                }
             },
             onmessage(ev) {
                 if (['CHAT_MESSAGE', 'ROOM_UPDATE', 'MESSAGES_SEEN', 'TYPING'].includes(ev.event)) {
@@ -98,9 +107,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     setTimeout(() => setLiveToast(null), 5000);
                 }
             },
+            onclose() {
+                // 🌟 Render drops idle connections. We let this run so it reconnects automatically.
+                console.log("⚠️ SSE Connection closed by server. Will attempt to reconnect...");
+            },
             onerror(err) {
-                console.error("❌ SSE Connection Lost or Failed", err);
-                throw err;
+                if (err instanceof FatalError) {
+                    console.error("❌ SSE Fatal Error: Stopping all retries.", err);
+                    throw err; // Rethrowing STOPS the retry process completely.
+                }
+                // 🌟 By NOT throwing an error here, the library will automatically retry the connection!
+                console.warn("⚠️ SSE Network Error: Automatically retrying connection...", err);
             }
         });
 
@@ -115,24 +132,18 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // =========================================================
 
     const markAsRead = async (id: number) => {
-        // 1. Instantly update the UI so it vanishes from the unread Bell count
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-        
         try {
-            // 2. Tell the backend to update the database
             await axiosClient.patch(`/notifications/${id}/read`);
         } catch (e) { 
             console.error("Failed to mark as read", e); 
-            fetchNotifications(); // If it fails, restore the UI to the actual DB state
+            fetchNotifications(); 
         }
     };
 
     const markAllAsRead = async () => {
-        // 1. Instantly update the UI
         setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-        
         try {
-            // 2. Tell the backend
             await axiosClient.patch(`/notifications/read-all`);
         } catch (e) { 
             console.error("Failed to mark all as read", e); 

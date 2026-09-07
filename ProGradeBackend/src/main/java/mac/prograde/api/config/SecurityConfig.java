@@ -30,44 +30,56 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-        .oauth2Login(oauth2 -> oauth2
+            .oauth2Login(oauth2 -> oauth2
                 .successHandler(oAuth2LoginSuccessHandler))
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            // Keep authorizeHttpRequests as a safety net
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/v1/public/**").permitAll() 
-                    .requestMatchers("/api/v1/profile/images/**").permitAll()
-                    .requestMatchers("/api/v1/assessments/**").hasAnyRole("ADMIN", "EDUCATOR")
-                    .requestMatchers("/api/v1/auth/**").permitAll()
-                    .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "EDUCATOR")
-                    .requestMatchers("/api/v1/educator/**").hasAnyRole("EDUCATOR", "ADMIN")
-                    .requestMatchers("/api/v1/student/**").hasAnyRole("STUDENT", "ADMIN")
-                    .anyRequest().authenticated()
-                )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authenticationProvider(authenticationProvider)
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                // FIX 1: Allow CORS preflight requests to pass through
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                // FIX 2: Allow Spring's internal error router to resolve without hitting the JWT filter again
+                .requestMatchers("/error").permitAll()
+                
+                .requestMatchers("/api/v1/public/**").permitAll() 
+                .requestMatchers("/api/v1/profile/images/**").permitAll()
+                .requestMatchers("/api/v1/assessments/**").hasAnyRole("ADMIN", "EDUCATOR")
+                .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "EDUCATOR")
+                .requestMatchers("/api/v1/educator/**").hasAnyRole("EDUCATOR", "ADMIN")
+                .requestMatchers("/api/v1/student/**").hasAnyRole("STUDENT", "ADMIN")
+                .anyRequest().authenticated()
+            )
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authenticationProvider(authenticationProvider)
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    /**
-     * Defines Cross-Origin Resource Sharing (CORS) rules.
-     * This is critical to allow our React frontend on port 1112 to talk to Spring Boot.
-     */
-    @SuppressWarnings("null")
-	@Bean
+    @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Allow the React frontend
-        configuration.setAllowedOrigins(List.of("http://localhost:1112"));
+
+        // 🌟 setAllowedOriginPatterns dynamically matches origins without breaking credentials
+        configuration.setAllowedOriginPatterns(List.of(
+            "http://localhost:1112",
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "https://*.vercel.app", // Matches any preview or production Vercel URL
+            "https://*."            // Fallback wildcard pattern for custom domains
+        ));
+
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        
+        //  Allow all request headers (prevents issues with SSE, Content-Type, Authorization, etc.)
+        configuration.setAllowedHeaders(List.of("*"));
+        
+        //  Expose headers so the frontend can read pagination or authorization headers if sent
+        configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
+
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // Apply this configuration to all endpoints
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
