@@ -2,23 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Trophy, ArrowLeft, CheckCircle2, XCircle, BrainCircuit, Loader2, MinusCircle, Clock, Calendar, BarChart3, Download, Sparkles, ShieldCheck, Terminal, Code2, BookOpen } from 'lucide-react';
 import { studentService } from '../../features/student/studentService';
+// 🌟 IMPORT SYNTAX HIGHLIGHTER
+import CodeSnippetBox from '../../components/CodeSnippetBox';
 
-// 🌟 ADDED RENDER HELPER FOR CODE FORMATTING
+// 🌟 FIX Multi-line code for Legacy Markdown
 const renderQuestionContent = (text: string) => {
     if (!text) return null;
-    const parts = text.split(/(```[\s\S]*?```)/g);
+    const formattedText = text.replace(/\\n/g, '\n');
+    const parts = formattedText.split(/(```[\s\S]*?```)/g);
+    
     return parts.map((part, index) => {
         if (part.startsWith('```') && part.endsWith('```')) {
             const code = part.replace(/```[a-z]*\n?/i, '').replace(/```$/, '');
             return (
-                <div key={index} className="my-4 bg-[#0d0714] border border-purple-900/50 rounded-xl overflow-hidden shadow-inner w-full">
-                    <div className="bg-[#150a29] px-4 py-2.5 flex items-center gap-2 border-b border-purple-900/50">
-                        <Terminal className="w-4 h-4 text-purple-400" />
-                        <span className="text-xs uppercase font-black text-purple-400 tracking-wider">Code Snippet</span>
-                    </div>
-                    <pre className="p-5 text-sm sm:text-base text-emerald-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar whitespace-pre">
-                        <code>{code}</code>
-                    </pre>
+                <div key={index} className="my-4">
+                    <CodeSnippetBox code={code} language="javascript" />
                 </div>
             );
         }
@@ -239,21 +237,23 @@ export default function TestAnalysisView() {
                                             </div>
 
                                             <div className="text-white font-semibold text-sm sm:text-lg leading-relaxed w-full">
-                                                {/* 🌟 1. Render the main text and handle legacy markdown */}
                                                 {renderQuestionContent(q.questionText)}
                                                 
-                                                {/* 🌟 2. Explicitly render the dedicated Code Snippet */}
+                                                {/* 🌟 FIX: Apply Highlighting and multi-line conversion */}
                                                 {q.codeSnippet && (
                                                     <div className="mt-4 bg-[#0c0618] border border-purple-900/50 rounded-xl overflow-hidden shadow-xl w-full text-left">
                                                         <div className="bg-[#150a29] px-4 py-2 flex items-center gap-2 border-b border-purple-900/50">
                                                             <Terminal className="w-4 h-4 text-emerald-400"/>
                                                             <span className="text-xs uppercase font-black text-emerald-400 tracking-wider">
-                                                                Developer Code Snippet ({q.codeLanguage || 'Code'})
+                                                                Developer Code ({q.codeLanguage || 'Code'})
                                                             </span>
                                                         </div>
-                                                        <pre className="p-4 sm:p-5 text-sm sm:text-base text-emerald-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar whitespace-pre">
-                                                            <code>{q.codeSnippet}</code>
-                                                        </pre>
+                                                        <div className="p-2">
+                                                            <CodeSnippetBox 
+                                                                code={q.codeSnippet.replace(/\\n/g, '\n')} 
+                                                                language={q.codeLanguage || 'javascript'} 
+                                                            />
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>

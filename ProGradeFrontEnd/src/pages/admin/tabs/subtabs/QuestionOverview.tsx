@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../../../../features/admin/adminService';
-import { TECH_STACK } from '../QuestionBankTab';
 import { Loader2, Database, Filter, Layers } from 'lucide-react';
+
+// 🌟 Import Central Taxonomy
+import { ALL_TECHNOLOGIES } from '../../../../constants/taxonomy';
 
 export default function QuestionOverview({ refreshTrigger }: { refreshTrigger: number }) {
     const [data, setData] = useState<{ technologies: any[], topics: any[] } | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const [selectedChartTech, setSelectedChartTech] = useState<string>('JAVA');
+    const [selectedChartTech, setSelectedChartTech] = useState<string>(ALL_TECHNOLOGIES[0] || 'Java');
     const [selectedDifficulty, setSelectedDifficulty] = useState<'ALL' | 'EASY' | 'MEDIUM' | 'HARD'>('ALL');
 
     useEffect(() => {
@@ -27,10 +29,14 @@ export default function QuestionOverview({ refreshTrigger }: { refreshTrigger: n
     if (loading) return <div className="h-64 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-purple-600" /></div>;
     if (!data) return null;
 
-    const allTechCards = TECH_STACK.filter(t => t.id !== 'OVERVIEW').map(techDef => {
-        const backendData = data.technologies.find(t => t.technology === techDef.id);
+    // 🌟 FIX 1: BULLETPROOF CASE-INSENSITIVE MATCHING FOR TECH CARDS
+    const allTechCards = ALL_TECHNOLOGIES.map(tech => {
+        const backendData = data.technologies.find(t => 
+            t.technology && t.technology.toUpperCase().replace(/[\s_]/g, '') === tech.toUpperCase().replace(/[\s_]/g, '')
+        );
         return {
-            ...techDef,
+            id: tech,
+            name: tech,
             totalCount: backendData?.totalCount || 0,
             easyCount: backendData?.easyCount || 0,
             mediumCount: backendData?.mediumCount || 0,
@@ -38,8 +44,12 @@ export default function QuestionOverview({ refreshTrigger }: { refreshTrigger: n
         };
     });
 
-    const activeTechName = TECH_STACK.find(t => t.id === selectedChartTech)?.name || selectedChartTech;
-    let filteredTopics = data.topics.filter(t => t.technology === selectedChartTech);
+    const activeTechName = selectedChartTech;
+    
+    // 🌟 FIX 2: BULLETPROOF CASE-INSENSITIVE MATCHING FOR TOPIC CHART
+    let filteredTopics = data.topics.filter(t => 
+        t.technology && t.technology.toUpperCase().replace(/[\s_]/g, '') === selectedChartTech.toUpperCase().replace(/[\s_]/g, '')
+    );
 
     const chartData = filteredTopics.map(topic => {
         let value = 0;
@@ -102,9 +112,10 @@ export default function QuestionOverview({ refreshTrigger }: { refreshTrigger: n
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#0f0a1c] border border-gray-200 dark:border-purple-900/50 rounded-xl px-3 py-2 focus-within:ring-2 ring-purple-600 transition-all">
                             <Filter className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            {/* 🌟 DYNAMIC SELECT */}
                             <select value={selectedChartTech} onChange={(e) => setSelectedChartTech(e.target.value)} className="bg-transparent text-sm font-semibold text-gray-700 dark:text-gray-200 outline-none cursor-pointer pr-4">
-                                {TECH_STACK.filter(t => t.id !== 'OVERVIEW').map(tech => (
-                                    <option key={tech.id} value={tech.id}>{tech.name}</option>
+                                {ALL_TECHNOLOGIES.map(tech => (
+                                    <option key={tech} value={tech}>{tech}</option>
                                 ))}
                             </select>
                         </div>

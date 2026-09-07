@@ -6,7 +6,11 @@ import CodeSnippetBox from '../../../../components/CodeSnippetBox';
 
 const renderQuestionContent = (text: string) => {
     if (!text) return null;
-    const parts = text.split(/(```[\s\S]*?```)/g);
+
+    // 🌟 FIX 1: Convert literal Excel "\n" characters into real line breaks
+    const formattedText = text.replace(/\\n/g, '\n');
+
+    const parts = formattedText.split(/(```[\s\S]*?```)/g);
     return parts.map((part, index) => {
         if (part.startsWith('```') && part.endsWith('```')) {
             const code = part.replace(/```[a-z]*\n?/i, '').replace(/```$/, '');
@@ -16,10 +20,14 @@ const renderQuestionContent = (text: string) => {
                         <Terminal className="w-3 h-3 text-purple-400" />
                         <span className="text-[10px] uppercase font-bold text-purple-400 tracking-wider">Legacy Code</span>
                     </div>
-                    <pre className="p-4 text-[13px] text-green-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar"><code>{code}</code></pre>
+                    {/* 🌟 Ensure whitespace-pre is used for code blocks */}
+                    <pre className="p-4 text-[13px] text-green-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar whitespace-pre">
+                        <code>{code}</code>
+                    </pre>
                 </div>
             );
         }
+        // 🌟 Ensure whitespace-pre-wrap is here so text line breaks are respected
         return <span key={index} className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed">{part}</span>;
     });
 };
@@ -37,20 +45,21 @@ export default function QuestionGrid({ technology, techData, refreshTrigger, onE
     const [totalPages, setTotalPages] = useState(1);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
-    
+
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [questionToDelete, setQuestionToDelete] = useState<number | null>(null);
 
     const fetchQuestions = async (pageNumber: number, searchTerm: string) => {
         setLoading(true);
         try {
+            // Note: If you have matching issues here, you might need to use technology.toUpperCase().replace(/[\s_]/g, '') based on your DB
             const res = await adminService.getQuestionsByTech(technology, pageNumber, searchTerm);
             setQuestions(res?.content || (Array.isArray(res) ? res : []));
             setTotalPages(res?.totalPages || 1);
             setPage(res?.number || 0);
         } catch (error) {
             console.error("Failed to load questions", error);
-            setQuestions([]); 
+            setQuestions([]);
         } finally {
             setLoading(false);
         }
@@ -84,9 +93,8 @@ export default function QuestionGrid({ technology, techData, refreshTrigger, onE
         <div className="space-y-4 animate-in fade-in slide-in-from-right-2 w-full pb-10">
             <div className="flex items-center bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-purple-900/50 rounded-xl px-4 py-2.5 shadow-sm max-w-md focus-within:ring-2 focus-within:ring-purple-600 transition-all">
                 <Search className="w-5 h-5 text-gray-400" />
-                <input 
-                    type="text" 
-                    // 🌟 SAFE FALLBACK: Optional Chaining (?.) prevents crashes!
+                <input
+                    type="text"
                     placeholder={`Search ${techData?.name || technology} topics or keywords...`}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -121,26 +129,30 @@ export default function QuestionGrid({ technology, techData, refreshTrigger, onE
                                             </span>
                                         </td>
                                         <td className="py-4 px-6">
-                                            <span className={`text-[10px] font-black px-2 py-1 rounded uppercase ${
-                                                q.difficultyLevel === 'EASY' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                            <span className={`text-[10px] font-black px-2 py-1 rounded uppercase ${q.difficultyLevel === 'EASY' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
                                                 q.difficultyLevel === 'MEDIUM' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                                                'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
-                                            }`}>
+                                                    'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+                                                }`}>
                                                 {q.difficultyLevel}
                                             </span>
                                         </td>
                                         <td className="py-4 px-6 max-w-[300px] lg:max-w-[500px]">
-                                            <div className="font-bold text-gray-900 dark:text-white mb-2 leading-relaxed">
-                                                {q.questionText}
+                                            {/* 🌟 FIX 1: Render the Question Text exactly ONCE */}
+                                            <div className="font-bold text-gray-900 dark:text-white mb-3 leading-relaxed whitespace-pre-wrap">
+                                                {renderQuestionContent(q.questionText?.replace(/\\n/g, '\n'))}
                                             </div>
-                                            {q.codeSnippet ? (
-                                                <div className="mb-4">
-                                                    <CodeSnippetBox code={q.codeSnippet} language={q.codeLanguage || q.technology} />
+
+                                            {/* 🌟 FIX 2: Check that codeSnippet actually has text before rendering the Code Box */}
+                                            {q.codeSnippet && q.codeSnippet.trim() !== '' && (
+                                                <div className="mb-4 animate-in slide-in-from-top-2">
+                                                    <CodeSnippetBox
+                                                        code={q.codeSnippet.replace(/\\n/g, '\n')}
+                                                        language={q.codeLanguage || q.technology}
+                                                    />
                                                 </div>
-                                            ) : (
-                                                <div className="mb-4">{renderQuestionContent(q.questionText)}</div>
                                             )}
 
+                                            {/* Options Grid */}
                                             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 opacity-70 hover:opacity-100 transition-opacity">
                                                 <div className={`truncate ${q.correctOption === 'A' ? 'text-green-500 font-bold bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded' : 'px-2 py-1'}`}>A: {q.optionA}</div>
                                                 <div className={`truncate ${q.correctOption === 'B' ? 'text-green-500 font-bold bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded' : 'px-2 py-1'}`}>B: {q.optionB}</div>
@@ -178,17 +190,17 @@ export default function QuestionGrid({ technology, techData, refreshTrigger, onE
             {deleteModalOpen && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/80 dark:bg-black/80 backdrop-blur-sm p-4 animate-in fade-in zoom-in duration-200">
                     <div className="bg-white dark:bg-[#150a29] rounded-3xl shadow-2xl border border-gray-200 dark:border-purple-900/50 w-full max-w-sm overflow-hidden flex flex-col items-center text-center p-8 relative">
-                        <button onClick={() => setDeleteModalOpen(false)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-50 dark:bg-gray-800 rounded-full transition-colors cursor-pointer"><X className="w-4 h-4"/></button>
-                        
+                        <button onClick={() => setDeleteModalOpen(false)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-50 dark:bg-gray-800 rounded-full transition-colors cursor-pointer"><X className="w-4 h-4" /></button>
+
                         <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4 shadow-inner border-2 border-red-200 dark:border-red-800/50">
                             <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
                         </div>
-                        
+
                         <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2">Delete Question?</h3>
                         <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">
                             You are about to permanently delete <span className="text-purple-600 dark:text-purple-400 font-mono">Asset #{questionToDelete}</span> from the Question Bank. This action cannot be undone.
                         </p>
-                        
+
                         <div className="flex w-full gap-3">
                             <button onClick={() => setDeleteModalOpen(false)} className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-wider text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer">
                                 Cancel

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Settings, AlertTriangle, Shield, Mail, Save, MonitorStop, Activity, Lock, Unlock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertTriangle, Shield, Mail, Save, MonitorStop, Activity, Lock, Unlock } from 'lucide-react';
 import { adminService } from '../../../features/admin/adminService';
 import Loader3D from '../../../components/Loader3D';
 

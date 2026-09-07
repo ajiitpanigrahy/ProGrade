@@ -6,27 +6,13 @@ import QuestionOverview from './subtabs/QuestionOverview';
 import QuestionGrid from './subtabs/QuestionGrid';
 import CreateQuestionModal from './subtabs/CreateQuestionModal';
 
-export const TECH_STACK = [
+// 🌟 Import the Central Taxonomy
+import { ALL_TECHNOLOGIES } from '../../../constants/taxonomy';
+
+// Dynamically build the tabs, keeping "Global Overview" at the front
+const DYNAMIC_TECH_STACK = [
     { id: 'OVERVIEW', name: 'Global Overview' },
-    { id: 'JAVA', name: 'Java' },
-    { id: 'PYTHON', name: 'Python' },
-    { id: 'CPP', name: 'C++' },
-    { id: 'C', name: 'C Programming' },
-    { id: 'JAVASCRIPT', name: 'JavaScript' },
-    { id: 'SQL', name: 'Advanced SQL' },
-    { id: 'MYSQL', name: 'MySQL' },
-    { id: 'DSA', name: 'Data Structures' },
-    { id: 'SPRING_CORE', name: 'Spring Core' },
-    { id: 'SPRING_BOOT', name: 'Spring Boot' },
-    { id: 'SPRING_MVC', name: 'Spring MVC' },
-    { id: 'SPRING_DATA_JPA', name: 'Spring Data JPA' },
-    { id: 'SPRING_JDBC', name: 'Spring JDBC' },
-    { id: 'SPRING_ORM', name: 'Spring ORM' },
-    { id: 'REST_API', name: 'REST API' },
-    { id: 'HIBERNATE', name: 'Hibernate' },
-    { id: 'MAVEN', name: 'Maven' },
-    { id: 'JUNIT', name: 'JUnit' },
-    { id: 'LOGGING', name: 'Logging' }
+    ...ALL_TECHNOLOGIES.map(tech => ({ id: tech, name: tech }))
 ];
 
 export default function QuestionBankTab() {
@@ -95,14 +81,12 @@ export default function QuestionBankTab() {
                <div className="flex bg-gray-100 dark:bg-[#0f0a1c] p-1.5 rounded-2xl shadow-inner border border-gray-200 dark:border-purple-900/50 w-full sm:w-auto">
                     <button 
                         onClick={() => setActiveView('BANK')} 
-                        // 🌟 ADDED: cursor-pointer
                         className={`flex-1 sm:px-8 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${activeView === 'BANK' ? 'bg-white dark:bg-purple-600 text-purple-600 dark:text-white shadow-md' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}
                     >
                         Data Bank
                     </button>
                     <button 
                         onClick={() => setActiveView('HISTORY')} 
-                        // 🌟 ADDED: cursor-pointer
                         className={`flex-1 sm:px-8 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer ${activeView === 'HISTORY' ? 'bg-white dark:bg-purple-600 text-purple-600 dark:text-white shadow-md' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}`}
                     >
                         Contribution Log
@@ -130,7 +114,8 @@ export default function QuestionBankTab() {
 
                     <div className="shrink-0 w-full border-b border-gray-200 dark:border-purple-900/30 overflow-x-auto custom-scrollbar pb-1">
                         <div className="flex items-center gap-2 min-w-max">
-                            {TECH_STACK.map((tech) => (
+                            {/* 🌟 DYNAMIC TABS GENERATED FROM TAXONOMY */}
+                            {DYNAMIC_TECH_STACK.map((tech) => (
                                 <button
                                     key={tech.id}
                                     onClick={() => setActiveTechId(tech.id)}
@@ -153,8 +138,8 @@ export default function QuestionBankTab() {
                         ) : (
                             <QuestionGrid 
                                 technology={activeTechId} 
-                                // 🌟 SAFE FALLBACK: Ensures techData is never completely undefined!
-                                techData={TECH_STACK.find(t => t.id === activeTechId) || { id: activeTechId, name: activeTechId }} 
+                                // SAFE FALLBACK: Passes the dynamic object down
+                                techData={DYNAMIC_TECH_STACK.find(t => t.id === activeTechId) || { id: activeTechId, name: activeTechId }} 
                                 refreshTrigger={refreshTrigger}
                                 onEdit={openEditModal}
                             />

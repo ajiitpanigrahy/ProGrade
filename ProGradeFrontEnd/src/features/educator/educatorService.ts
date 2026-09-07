@@ -20,5 +20,9 @@ export const educatorService = {
     getAssessmentReports: async (assessmentId: string) => {
         const response = await axiosClient.get(`/educator/assessments/${assessmentId}/reports`);
         return response.data;
-    }
+    },
+    etLeaderboard: async (timeFilter: string = 'ALL_TIME') => {
+        const response = await axiosClient.get(`/educator/leaderboard?time=${timeFilter}`);
+        return response.data;
+    },
 };

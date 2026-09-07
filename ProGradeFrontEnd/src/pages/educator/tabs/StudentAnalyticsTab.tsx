@@ -1,58 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import { educatorService } from '../../../features/educator/educatorService';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import React from 'react';
+import { Radar, Sparkles } from 'lucide-react';
 
 export default function StudentAnalyticsTab() {
-    const [radarData, setRadarData] = useState<any[]>([]);
-
-    useEffect(() => {
-        educatorService.getTopicMastery().then(setRadarData).catch(console.error);
-    }, []);
-
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-            <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Student Performance Analytics</h2>
-                <p className="text-sm text-gray-500">Measure teaching efficacy and identify weak topic areas across student cohorts.</p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                {/* Radar Chart: Topic Mastery */}
-                <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30 flex flex-col items-center">
-                    <h3 className="font-bold text-gray-900 dark:text-white w-full mb-2">Class Topic Mastery (Averages)</h3>
-                    <p className="text-xs text-gray-500 w-full mb-6">Radar footprint indicates overall proficiency across technical domains.</p>
-                    
-                    <div className="w-full h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                                <PolarGrid stroke="#4c1d95" opacity={0.3} />
-                                <PolarAngleAxis dataKey="topic" tick={{ fill: '#a855f7', fontSize: 12, fontWeight: 'bold' }} />
-                                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 10 }} />
-                                <Tooltip contentStyle={{ backgroundColor: '#1a0d36', borderColor: '#4c1d95', color: '#fff', borderRadius: '12px' }} />
-                                <Radar name="Average Score %" dataKey="score" stroke="#a855f7" strokeWidth={2} fill="#a855f7" fillOpacity={0.4} />
-                            </RadarChart>
-                        </ResponsiveContainer>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6 animate-in fade-in slide-in-from-bottom-4 p-4 text-center">
+            
+            <div className="relative">
+                <div className="absolute inset-0 bg-indigo-500/20 dark:bg-indigo-500/10 blur-3xl rounded-full"></div>
+                <div className="relative w-24 h-24 bg-white dark:bg-[#1a0d36] rounded-3xl flex items-center justify-center border-2 border-indigo-100 dark:border-indigo-900/50 shadow-xl">
+                    <Radar className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
+                    <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-full border-2 border-white dark:border-[#150a29] flex items-center justify-center">
+                        <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 animate-pulse" />
                     </div>
                 </div>
-
-                {/* Score Distribution Insights */}
-                <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-purple-900/30">
-                    <h3 className="font-bold text-gray-900 dark:text-white mb-6">Cohort Insights & Interventions</h3>
-                    
-                    <div className="space-y-4">
-                        <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-xl">
-                            <h4 className="font-bold text-red-700 dark:text-red-400 text-sm">Action Required: Security Concepts</h4>
-                            <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-1">Class average for 'Security' is currently at 55%. Consider assigning supplementary reading or holding a review session.</p>
-                        </div>
-                        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-900/30 rounded-xl">
-                            <h4 className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">Strong Proficiency: Spring Core</h4>
-                            <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80 mt-1">Students are demonstrating excellent retention in Core configuration and Dependency Injection (92% Avg).</p>
-                        </div>
-                    </div>
-                </div>
-
             </div>
+
+            <div className="space-y-2">
+                <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+                    Predictive Analytics <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-400 dark:to-blue-400">Coming Soon</span>
+                </h2>
+                <p className="text-sm sm:text-base font-medium text-gray-500 dark:text-gray-400 max-w-lg mx-auto leading-relaxed">
+                    We are currently calibrating our AI models to provide deep insights into topic mastery radars, cohort learning gaps, and automated intervention strategies.
+                </p>
+            </div>
+            
+            <div className="pt-4">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-[10px] font-black uppercase tracking-widest text-gray-500 border border-gray-200 dark:border-gray-700">
+                    Status: Intelligence Module in Development
+                </span>
+            </div>
+
         </div>
     );
 }

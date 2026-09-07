@@ -11,536 +11,30 @@ import {
     Edit3,
 } from "lucide-react";
 import { adminService } from "../../../../features/admin/adminService";
-import { TECH_STACK } from "../QuestionBankTab";
+
+// 🌟 Import Central Taxonomy
+import { TECHNOLOGY_TAXONOMY, ALL_TECHNOLOGIES } from "../../../../constants/taxonomy";
 
 interface CreateQuestionModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
-    editData?: any | null; // 🌟 NEW: Optional prop for Edit Mode
+    editData?: any | null; 
 }
-
-// (Keep your existing TOPICS_BY_TECH and getFileExtension logic exactly here)
-const TOPICS_BY_TECH: Record<string, string[]> = {
-    JAVA: [
-        "Language Basics",
-        "Syntax Foundations",
-        "Control Flow",
-        "Loops",
-        "Operators",
-        "Unary Operators",
-        "Wrapper Classes",
-        "Keywords",
-        "Methods",
-        "Arrays",
-        "String Handling",
-        "String Pool",
-        "Object Oriented Programming",
-        "Dynamic Dispatch",
-        "Interfaces",
-        "Abstract Classes",
-        "Inner Classes",
-        "Objects",
-        "Collections Framework",
-        "Map Framework",
-        "Generics",
-        "Bounded Wildcards",
-        "Type Erasure",
-        "Streams API",
-        "Functional Programming",
-        "Lambda Expressions",
-        "Multithreading",
-        "Concurrency Locks",
-        "Atomic Variables",
-        "Low Level APIs",
-        "Exception Handling Engine",
-        "Try With Resources",
-        "Custom Errors",
-        "JVM Architecture",
-        "JVM Internals",
-        "Memory Management",
-        "Garbage Collection",
-        "File IO",
-        "NIO2 System",
-        "Object Serialization",
-        "Reflection API",
-        "Annotations",
-        "Java Modules",
-        "Modern Java Features",
-        "Design Patterns",
-    ],
-
-    PYTHON: [
-        "Syntax Basics",
-        "Variables",
-        "Primitive Data Types",
-        "Language Basics",
-        "Operators",
-        "Control Flow",
-        "Loops",
-        "Conditional Statements",
-        "String Handling",
-        "Built-ins",
-        "Mutable Default Arguments",
-        "Data Structures",
-        "Lists",
-        "Tuples",
-        "Sets",
-        "Dictionaries",
-        "Comprehensions",
-        "List Comprehensions",
-        "Functions",
-        "Arguments Parsing",
-        "Closures",
-        "Scope",
-        "Functional Programming",
-        "Object Oriented Programming",
-        "Classes",
-        "Inheritance",
-        "Dunder Methods",
-        "Advanced OOP",
-        "Metaclasses",
-        "Metaprogramming",
-        "Iterators",
-        "Generators",
-        "Decorators",
-        "Context Managers",
-        "File IO",
-        "Exception Handling Engine",
-        "Modules",
-        "Built-in Modules",
-        "Standard Library",
-        "Concurrency",
-        "Asyncio",
-        "Threading",
-        "Multiprocessing",
-        "Memory Management",
-        "Reference Counting",
-        "Garbage Collection",
-        "Memory Profiling",
-        "System Internals",
-        "Type Hinting",
-        "Documentation",
-        "Modern Python Features",
-        "Pandas",
-        "NumPy",
-    ],
-    CPP: [
-        "Basic Syntax",
-        "Primitive Types",
-        "Storage Classes",
-        "Control Statements",
-        "Loops",
-        "Functions",
-        "Pointers",
-        "Pointer Arithmetic",
-        "References",
-        "Smart Pointers",
-        "Unique Pointer Implementation",
-        "Shared Pointer Implementation",
-        "Weak Pointer Implementation",
-        "Manual Memory Management",
-        "New Allocation Keyword",
-        "Delete Deallocation Keyword",
-        "Resource Acquisition Is Initialization",
-        "STL Containers",
-        "STL Iterators",
-        "Object Oriented Polymorphism",
-        "Virtual Tables Dynamic Dispatch",
-        "Data Encapsulation",
-        "Rule Of Three",
-        "Rule Of Five",
-        "Rule Of Zero",
-        "Templates Specifiers",
-        "Typename Parameters",
-        "Generic Programming Patterns",
-        "Preprocessors Compilation Phase",
-        "Macro Definitions",
-        "Inline Functions Optimization",
-        "Header Guards Compilation Protection",
-        "Move Semantics",
-        "Rvalue References",
-        "Perfect Forwarding Parameters",
-    ],
-    C: [
-        "Basic Syntax",
-        "Data Types",
-        "Format Specifiers",
-        "Operators",
-        "Control Flow",
-        "Selection Statements",
-        "Loops",
-        "Arrays",
-        "Multi Dimensional Arrays",
-        "Strings Layout",
-        "Pointers",
-        "Pointer Arithmetic",
-        "Address Resolution",
-        "Function Pointers",
-        "Callbacks",
-        "Structures",
-        "Packed Structs",
-        "Unions",
-        "Bit Fields",
-        "Dynamic Memory Allocation",
-        "Malloc Keyword",
-        "Calloc Keyword",
-        "Realloc Keyword",
-        "Free Keyword",
-        "File Streaming",
-        "Buffer Configurations",
-        "System IO",
-        "Preprocessing Phase",
-        "Compiling Phase",
-        "Assembly Phase",
-        "Linking Phase",
-        "Storage Classes",
-        "Auto Keyword",
-        "Extern Keyword",
-        "Register Keyword",
-        "Static Keyword",
-        "Variable Scope",
-    ],
-    JAVASCRIPT: [
-        "Syntax Basics",
-        "Operators",
-        "Variable Declarations",
-        "Var Variable Context",
-        "Let Variable Context",
-        "Const Variable Context",
-        "Control Structures",
-        "Loops",
-        "Conditional Logic",
-        "Data Types",
-        "Type Coercion",
-        "Strict Equality",
-        "Event Loop",
-        "Microtasks Queue",
-        "Macrotasks Queue",
-        "Concurrency Model",
-        "Asynchronous Callbacks",
-        "Promises Framework",
-        "Async Await Syntax",
-        "Functions Foundations",
-        "Arrow Functions Syntax",
-        "Closures",
-        "Lexical Scope",
-        "Hoisting Engines",
-        "Temporal Dead Zone",
-        "Prototypes Layout",
-        "Prototypal Inheritance",
-        "Object Mutability",
-        "ES6 Classes",
-        "Static Methods",
-        "Private Fields",
-        "DOM Tree Manipulation",
-        "Browser Event Propagation",
-        "Modern ES6 Syntax",
-        "Modules Architecture",
-        "Rest Operators",
-        "Spread Operators",
-        "Strict Mode Execution",
-        "This Keyword Context",
-        "Memory Leaks Layout",
-    ],
-    SQL: [
-        "Basic Syntax",
-        "Data Definition Language",
-        "Data Manipulation Language",
-        "Where Clause Filtering",
-        "Having Clause Filtering",
-        "Sorting Records",
-        "Relational Set Algebra",
-        "Inner Joins",
-        "Outer Joins",
-        "Cross Joins",
-        "Aggregate Functions",
-        "Analytical Window Functions",
-        "First Normal Form",
-        "Second Normal Form",
-        "Third Normal Form",
-        "Boyce Codd Normal Form",
-        "Correlated Subqueries",
-        "Uncorrelated Subqueries",
-        "Nested Subqueries",
-        "Index Architectures",
-        "Clustered Index Layout",
-        "Non Clustered Index Layout",
-        "Search Execution Costs",
-        "Database Triggers",
-        "Stored Procedures",
-        "User Defined Functions",
-        "ACID Properties",
-        "Transaction Control Language",
-        "Isolation Levels",
-    ],
-    MYSQL: [
-        "MySQL Target Syntax",
-        "Database Constraints",
-        "Data Types Engine",
-        "InnoDB Storage Engine",
-        "MyISAM Storage Engine",
-        "Relational Joins Processing",
-        "Unions Engine",
-        "Multi Table Subqueries",
-        "Aggregate Operations",
-        "Windowing Layouts",
-        "Stored Procedures Setup",
-        "Database Triggers Tracking",
-        "Custom Schema Functions",
-        "B Tree Indexes Optimization",
-        "Hash Index Architectures",
-        "Covering Indexes Strategy",
-        "Explain Query Analysis",
-        "Slow Query Log Diagnostics",
-        "Transaction Isolation Context",
-        "Multi Version Concurrency Control",
-        "Deadlocks Triage",
-        "Locking Modes Systems",
-    ],
-    DSA: [
-        "Asymptotic Complexity",
-        "Time Complexity Mapping",
-        "Space Complexity Layout",
-        "Big O Notation",
-        "Arrays Tracking",
-        "Strings Optimization",
-        "Hashing Structures",
-        "Linked Lists",
-        "Stacks",
-        "Queues",
-        "Deques",
-        "Binary Trees",
-        "Binary Search Trees",
-        "AVL Balanced Trees",
-        "Heaps Structure",
-        "Tries",
-        "Segment Trees",
-        "Disjoint Set Union",
-        "Graphs Architectures",
-        "Graph Traversals Algorithms",
-        "Dynamic Programming",
-        "Memoization Strategies",
-        "Tabulation Strategies",
-        "Greedy Frameworks",
-        "Divide And Conquer Layout",
-        "Sorting Algorithms",
-        "Searching Methodologies",
-        "Binary Search Implementations",
-        "Recursion Mathematical Modeling",
-        "Backtracking State Space",
-    ],
-    SPRING_CORE: [
-        "Inversion Of Control Principle",
-        "Dependency Injection Models",
-        "Constructor Injection Architecture",
-        "Setter Injection Configuration",
-        "Field Injection Traps",
-        "Bean Lifecycle Core",
-        "Lifecycle Interceptors",
-        "Bean PostProcessors Hooks",
-        "Lifecycle Callbacks Engine",
-        "Singleton Bean Scope",
-        "Prototype Bean Scope",
-        "Request Bean Scope",
-        "Session Bean Scope",
-        "XML Configuration Engine",
-        "Annotations Configuration Mode",
-        "JavaConfig Specification",
-        "ApplicationContext Architecture",
-        "Resource Loading Framework",
-        "Aspect Oriented Programming Engine",
-        "AOP Proxy Implementations",
-        "AOP JoinPoints Specifications",
-        "AOP Advices Traversal",
-    ],
-    SPRING_BOOT: [
-        "Auto Configuration Architecture",
-        "Conditional Annotations Evaluation",
-        "Production Actuator Telemetry",
-        "System Health Checks",
-        "Custom Metrics Generation",
-        "Micrometer Registration Engine",
-        "Core Boot Annotations",
-        "Externalized Application Context",
-        "Application Properties Profile",
-        "YAML Configuration Layouts",
-        "Dynamic Profile Configurations",
-        "Starter POM Dependency Tree",
-        "Bill Of Materials Import System",
-    ],
-    SPRING_MVC: [
-        "DispatcherServlet Lifecycle Architecture",
-        "Front Controller Design Pattern",
-        "REST Controllers Routing",
-        "Mapping Structural Endpoints",
-        "Route Parameters Extraction",
-        "View Resolvers Engine",
-        "Template Engines Interop",
-        "Model Data Interchanges",
-        "Flash Attributes Lifecycle",
-        "Session Attributes Persistence",
-        "Request Interceptors Processing",
-        "Servlet Filters Interception",
-        "Global Form Validation Framework",
-        "Content Negotiation Engine",
-        "HttpMessageConverters Body Mapping",
-    ],
-    SPRING_DATA_JPA: [
-        "CrudRepository Strategy Pattern",
-        "PagingAndSortingRepository Interface",
-        "JpaRepository Execution Engine",
-        "Dynamic Derived Query Parsers",
-        "Custom Query Keywords Mapping",
-        "JPQL Object Queries",
-        "Native SQL Executions",
-        "Named Queries Configurations",
-        "Relational Entity Lifecycle Mapping",
-        "Cascading Operations Propagation",
-        "Declarative Transaction Context",
-        "Transactional Annotation Bounds",
-        "Pagination Result Sets",
-        "Sorting Parameters Filter",
-        "Dynamic Specifications Specifications",
-    ],
-    SPRING_JDBC: [
-        "JdbcTemplate Core Engine",
-        "Query Executions Management",
-        "NamedParameterJdbcTemplate Parsing",
-        "RowMapper Transformations",
-        "ResultSetExtractor Compilations",
-        "RowCallbackHandler Stream Processing",
-        "DataSource Pooling Drivers",
-        "HikariCP Connection Pool Settings",
-    ],
-    SPRING_ORM: [
-        "SessionFactory Container Lifespans",
-        "Session Lifecycle Tracking",
-        "Contextual Current Session Routing",
-        "Platform Transaction Management Interoperability",
-    ],
-    REST_API: [
-        "HTTP Semantic Target Methods",
-        "HTTP Idempotency Boundaries",
-        "RESTful HTTP Status Codes Registry",
-        "JSON Serialization Frameworks",
-        "XML Serialization Mappings",
-        "Custom Media Types Definition",
-        "API Security Design",
-        "JWT Authentication Strategies",
-        "OAuth2 Protocol Flow",
-        "Rate Limiting Strategies",
-        "Throttling Ingress Controllers",
-        "CORS Security Configurations",
-        "API Versioning Architectures",
-    ],
-    HIBERNATE: [
-        "Session Lifecycle Framework",
-        "Persistence Context Mechanisms",
-        "First Level Cache Architecture",
-        "Second Level Cache Integration",
-        "Hibernate Query Language Processor",
-        "JPQL Mapping Core",
-        "Criteria API Specifications",
-        "Transient Entity State Management",
-        "Persistent Entity State Tracking",
-        "Detached Entity State Lifecycle",
-        "Removed Entity State Execution",
-        "Association Relational Declarations",
-        "Lazy Fetch Strategy Mechanics",
-        "Eager Fetch Processing Model",
-        "NPlus1 Query Optimization Triage",
-        "Entity Graphs Layout Boundaries",
-    ],
-    MAVEN: [
-        "Project Object Model XML Architecture",
-        "Build Lifecycle",
-        "Clean Phase Lifecycle Execution",
-        "Default Phase Processing Engine",
-        "Site Phase Documentation Flow",
-        "Transitive Dependency Graph Resolution",
-        "Dependency Exclusion Vectors Layout",
-        "Plugin Architecture Configurations",
-        "Goal Executions Pipelines",
-        "Dependency Scopes Framework",
-        "Compile Dependency Scope",
-        "Provided Dependency Scope",
-        "Runtime Dependency Scope",
-        "Test Dependency Scope",
-        "System Dependency Scope",
-    ],
-    JUNIT: [
-        "Test Lifecycle Execution Pipelines",
-        "Setup Target Annotations",
-        "Execution Evaluation Hooks",
-        "Teardown Configurations Methods",
-        "Standard Core Assertions Engine",
-        "Grouped Assertions Logic Matrices",
-        "Mocking Isolation Mechanics",
-        "Mockito Mock Stubs Injection",
-        "Mockito Mock Spies Integration",
-        "Mockito Automation Engine",
-        "Data Driven Testing Design",
-        "Parameterized Test Compilation",
-        "Dynamic Test Execution Generation",
-        "Test Extensions Registry System",
-        "Test Runners Driver Layer",
-        "Test Rules Implementation Architecture",
-        "Suite Groupings Filtering Method",
-    ],
-    LOGGING: [
-        "Dynamic Severity Log Levels Hierarchy",
-        "Trace Level Processing Context",
-        "Debug Level Information Streams",
-        "Info Level Operational Status",
-        "Warn Level Predictor Errors",
-        "Error Level Failure Isolation",
-        "Appender Target Transports Engine",
-        "Console Appender Processing",
-        "Rolling File Appender Setup",
-        "Async Appender Multithreading Engine",
-        "Logback Diagnostics Engine Integration",
-        "XML Logging Profiles Setup",
-        "Groovy Configurations Processing Engine",
-        "Log4j2 Multi Core Async Framework",
-        "Structured Layout Log Formats",
-        "Pattern Layout Encoder Configurations",
-        "JSON Formatting Output Interop",
-    ],
-    OVERVIEW: [
-        "Architectural System Fundamentals",
-        "Software Engineering Principles",
-        "Clean Code Rules",
-        "Creational Design Patterns",
-        "Structural Design Patterns",
-        "Behavioral Design Patterns",
-    ],
-};
 
 const getFileExtension = (lang: string) => {
     switch (lang.toLowerCase()) {
-        case "python":
-            return "py";
-        case "javascript":
-            return "js";
-        case "cpp":
-            return "cpp";
-        case "c":
-            return "c";
-        case "sql":
-            return "sql";
-        case "java":
-            return "java";
-        case "xml":
-            return "xml";
-        case "yaml":
-            return "yml";
-        case "properties":
-            return "properties";
-        case "bash":
-            return "sh";
-        default:
-            return "txt";
+        case "python": return "py";
+        case "javascript": return "js";
+        case "cpp": return "cpp";
+        case "c": return "c";
+        case "sql": return "sql";
+        case "java": return "java";
+        case "xml": return "xml";
+        case "yaml": return "yml";
+        case "properties": return "properties";
+        case "bash": return "sh";
+        default: return "txt";
     }
 };
 
@@ -558,10 +52,14 @@ export default function CreateQuestionModal({
     const [hasCode, setHasCode] = useState(false);
     const [isCustomTopic, setIsCustomTopic] = useState(false);
 
+    // Fallbacks from central taxonomy
+    const defaultTech = ALL_TECHNOLOGIES[0] || "Java";
+    const defaultTopic = TECHNOLOGY_TAXONOMY[defaultTech]?.[0] || "General";
+
     const [formData, setFormData] = useState({
-        technology: "JAVA",
+        technology: defaultTech,
         difficultyLevel: "EASY",
-        topic: "Language Basics",
+        topic: defaultTopic,
         questionText: "",
         codeSnippet: "",
         codeLanguage: "java",
@@ -578,9 +76,9 @@ export default function CreateQuestionModal({
             setResult(null);
             if (editData) {
                 setFormData({
-                    technology: editData.technology || "JAVA",
+                    technology: editData.technology || defaultTech,
                     difficultyLevel: editData.difficultyLevel || "EASY",
-                    topic: editData.topic || "Language Basics",
+                    topic: editData.topic || defaultTopic,
                     questionText: editData.questionText || "",
                     codeSnippet: editData.codeSnippet || "",
                     codeLanguage: editData.codeLanguage || "java",
@@ -590,12 +88,10 @@ export default function CreateQuestionModal({
                     optionD: editData.optionD || "",
                     correctOption: editData.correctOption || "A",
                 });
-                setHasCode(!!editData.codeSnippet); // If code exists, toggle is ON
+                setHasCode(!!editData.codeSnippet);
 
                 // If the existing topic isn't in our standard list, set custom topic to true
-                const techTopics = TOPICS_BY_TECH[editData.technology || "JAVA"] || [
-                    "General",
-                ];
+                const techTopics = TECHNOLOGY_TAXONOMY[editData.technology || defaultTech] || ["General"];
                 if (editData.topic && !techTopics.includes(editData.topic)) {
                     setIsCustomTopic(true);
                 } else {
@@ -604,9 +100,9 @@ export default function CreateQuestionModal({
             } else {
                 // Reset for Create Mode
                 setFormData({
-                    technology: "JAVA",
+                    technology: defaultTech,
                     difficultyLevel: "EASY",
-                    topic: "Language Basics",
+                    topic: defaultTopic,
                     questionText: "",
                     codeSnippet: "",
                     codeLanguage: "java",
@@ -622,26 +118,22 @@ export default function CreateQuestionModal({
         }
     }, [isOpen, editData]);
 
-    // AUTO-SYNC Tech language (Only if NOT in Edit mode to prevent overwriting existing data)
+    // 🌟 AUTO-SYNC Tech language matching dynamic names
     useEffect(() => {
-        if (editData) return; // Skip auto-sync if we are editing
-        const tech = formData.technology;
-        const availableTopics = TOPICS_BY_TECH[tech] || ["General"];
+        if (editData) return; 
+        const tech = formData.technology.toUpperCase();
+        const availableTopics = TECHNOLOGY_TAXONOMY[formData.technology] || ["General"];
+        
         let autoLang = "txt";
-        if (
-            tech === "JAVA" ||
-            tech.includes("SPRING") ||
-            tech === "HIBERNATE" ||
-            tech === "JUNIT"
-        )
-            autoLang = "java";
-        else if (tech === "PYTHON") autoLang = "python";
-        else if (tech === "CPP") autoLang = "cpp";
-        else if (tech === "C") autoLang = "c";
-        else if (tech === "JAVASCRIPT") autoLang = "javascript";
-        else if (tech === "SQL" || tech === "MYSQL") autoLang = "sql";
-        else if (tech === "MAVEN") autoLang = "xml";
-        else if (tech === "LOGGING") autoLang = "properties";
+        
+        if (tech.includes("JAVASCRIPT")) autoLang = "javascript";
+        else if (tech === "JAVA" || tech.includes("SPRING") || tech.includes("HIBERNATE") || tech.includes("JUNIT")) autoLang = "java";
+        else if (tech.includes("PYTHON")) autoLang = "python";
+        else if (tech === "CPP" || tech === "C++") autoLang = "cpp";
+        else if (tech === "C" || tech === "C PROGRAMMING") autoLang = "c";
+        else if (tech.includes("SQL") || tech.includes("MYSQL")) autoLang = "sql";
+        else if (tech.includes("MAVEN")) autoLang = "xml";
+        else if (tech.includes("LOGGING")) autoLang = "properties";
 
         setFormData((prev) => ({
             ...prev,
@@ -678,15 +170,13 @@ export default function CreateQuestionModal({
         try {
             const payload = {
                 ...formData,
-                questionType: hasCode ? "CODING" : "THEORY", // 🌟 STRICT DIFFERENTIATION SENT TO DB
+                questionType: hasCode ? "CODING" : "THEORY",
                 codeSnippet: hasCode ? formData.codeSnippet : null,
                 codeLanguage: hasCode ? formData.codeLanguage : null,
             };
 
-            // 🌟 Switch between Update API and Create API
             if (editData) {
                 await adminService.updateQuestion(editData.id, payload);
-                // ... REST OF THE FUNCTION REMAINS THE SAME ...
                 setResult({
                     type: "success",
                     message: "Question successfully updated.",
@@ -713,7 +203,7 @@ export default function CreateQuestionModal({
         }
     };
 
-    const currentTopics = TOPICS_BY_TECH[formData.technology] || ["General"];
+    const currentTopics = TECHNOLOGY_TAXONOMY[formData.technology] || ["General"];
 
     const modalContent = (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/80 dark:bg-black/80 backdrop-blur-sm p-4 sm:p-6 md:p-12 animate-in fade-in duration-200">
@@ -722,7 +212,6 @@ export default function CreateQuestionModal({
 
                 <div className="flex-none flex items-center justify-between p-4 sm:p-6 border-b border-gray-100 dark:border-purple-900/30 bg-white/95 dark:bg-[#150a29]/95 relative z-20">
                     <div>
-                        {/* 🌟 Dynamic Title based on mode */}
                         <h2 className="text-lg sm:text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2">
                             {editData ? (
                                 <Edit3 className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 dark:text-purple-400" />
@@ -778,9 +267,10 @@ export default function CreateQuestionModal({
                                         onChange={handleChange}
                                         className="w-full bg-gray-50 dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl px-4 py-2.5 sm:py-3 text-sm font-bold focus:outline-none focus:border-purple-500 shadow-inner dark:text-white transition-all cursor-pointer"
                                     >
-                                        {TECH_STACK.filter((t) => t.id !== "OVERVIEW").map((t) => (
-                                            <option key={t.id} value={t.id}>
-                                                {t.name}
+                                        {/* 🌟 DYNAMIC TAXONOMY LOOP */}
+                                        {ALL_TECHNOLOGIES.map((t) => (
+                                            <option key={t} value={t}>
+                                                {t}
                                             </option>
                                         ))}
                                     </select>

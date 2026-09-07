@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-tomorrow.css';
 
@@ -14,7 +14,7 @@ import 'prismjs/components/prism-sql';
 import 'prismjs/components/prism-bash';
 import 'prismjs/components/prism-json';
 
-import { Copy, Check, Terminal, Code2 } from 'lucide-react';
+import { Copy, Check, Terminal } from 'lucide-react';
 
 interface CodeSnippetBoxProps {
     code: string;

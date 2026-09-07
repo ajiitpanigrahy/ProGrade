@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import mac.prograde.api.dto.AdminDto;
 import mac.prograde.api.service.AdminService;
 import mac.prograde.api.service.BatchUploadService; // 🌟 Added import
+import mac.prograde.api.service.StudentAssessmentService;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile; // 🌟 Added import
@@ -19,6 +21,7 @@ public class AdminController {
 
 	private final AdminService adminService;
 	private final BatchUploadService batchUploadService; // Added Injection
+	private final StudentAssessmentService studentAssessmentService;
 
 	@GetMapping("/metrics")
 	public ResponseEntity<AdminDto.DashboardMetrics> getMetrics() {
@@ -134,5 +137,11 @@ public class AdminController {
 	public ResponseEntity<?> toggleEducatorStatus(@PathVariable UUID id) {
 		adminService.toggleEducatorStatus(id);
 		return ResponseEntity.ok(Map.of("message", "Educator status updated successfully."));
+	}
+	
+	@GetMapping("/leaderboard")
+	public ResponseEntity<?> getAdminLeaderboard(@RequestParam(required = false, defaultValue = "ALL_TIME") String time) {
+	    // Pass null for studentEmail so it calculates globally without highlighting a specific user
+	    return ResponseEntity.ok(studentAssessmentService.getLeaderboards(null, time));
 	}
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle2, GraduationCap, Briefcase, Info, CheckCircle, Wrench, RefreshCcw } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Clock, User, AlertCircle, CheckCircle2, GraduationCap, Briefcase, Info, CheckCircle, Wrench, RefreshCcw } from 'lucide-react';
 import AuthLayout from '../../layouts/AuthLayout';
 import { authService } from '../../features/auth/authService';
 

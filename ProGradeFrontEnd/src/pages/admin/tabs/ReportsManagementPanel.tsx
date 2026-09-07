@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, type SyntheticEvent } from 'react';
 import { reportService } from '../../../features/shared/reportService';
-import { ShieldAlert, AlertTriangle, CheckSquare, Search, Loader2, Edit3, X, ChevronDown, ChevronUp, AlertOctagon, User, Bug, MessageSquare, Ticket, RefreshCcw, Filter, Clock, Link, Calendar, Lightbulb } from 'lucide-react';
+import { AlertTriangle, CheckSquare, Search, Loader2, Edit3, X, ChevronDown, ChevronUp, AlertOctagon, User, Bug, MessageSquare, Ticket, RefreshCcw, Link, Calendar, Lightbulb } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid, PieChart, Pie } from 'recharts';
 
 export default function ReportsManagementPanel() {
@@ -32,7 +32,7 @@ export default function ReportsManagementPanel() {
             .finally(() => setLoading(false));
     };
 
-    const initiateStatusUpdate = (e: React.MouseEvent, id: number, newStatus: string) => {
+    const initiateStatusUpdate = (e: SyntheticEvent, id: number, newStatus: string) => {
         e.stopPropagation();
         setConfirmModal({ isOpen: true, id, status: newStatus, notes: '' });
     };

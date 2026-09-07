@@ -1,10 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, ShieldCheck, Ban, Edit, GraduationCap, CheckCircle2, XCircle, Clock, BookOpen, BarChart3, Users, Star, Activity, Terminal, ArrowUpDown, Loader2, PlayCircle, ShieldAlert } from 'lucide-react';
-import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Line, ZAxis } from 'recharts';
+import { useState, useEffect } from 'react';
+import { Search, Filter, ShieldCheck, Ban, GraduationCap, CheckCircle2, XCircle, Clock, BookOpen, BarChart3, Users, Star, Activity, ArrowUpDown, Loader2, PlayCircle, ShieldAlert } from 'lucide-react';
+import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ZAxis } from 'recharts';
 import { adminService } from '../../../features/admin/adminService';
 
-export default function EducatorHubTab() {
-    const [activeTab, setActiveTab] = useState<'MANAGEMENT' | 'ANALYTICS'>('MANAGEMENT');
+interface EducatorHubTabProps {
+    activeSubTab?: 'MANAGEMENT' | 'ANALYTICS';
+    pendingEducators?: any[];
+}
+
+export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: EducatorHubTabProps) {
+    const [activeTab, setActiveTab] = useState<'MANAGEMENT' | 'ANALYTICS'>(activeSubTab);
+
+    useEffect(() => {
+        if (activeSubTab) {
+            setActiveTab(activeSubTab);
+        }
+    }, [activeSubTab]);
     
     // Filtering & Sorting
     const [searchTerm, setSearchTerm] = useState('');
@@ -15,7 +26,6 @@ export default function EducatorHubTab() {
     const [educators, setEducators] = useState<any[]>([]);
     const [contributionLog, setContributionLog] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedEducator, setSelectedEducator] = useState<any | null>(null);
 
     // Modal State
     const [modalConfig, setModalConfig] = useState<{ isOpen: boolean, type: 'APPROVE' | 'REJECT' | 'SUSPEND' | 'ACTIVATE' | '', educator: any | null }>({

@@ -5,6 +5,7 @@ interface AuthContextType {
     token: string | null;
     login: (token: string, userData: any, rememberMe: boolean) => void;
     logout: () => void;
+    updateUser: (updatedData: any) => void;
     isAuthenticated: boolean;
 }
 
@@ -109,11 +110,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.setItem('logoutEvent', Date.now().toString());
     };
 
+    const updateUser = (updatedData: any) => {
+        setUser(updatedData);
+        if (localStorage.getItem('user')) {
+            localStorage.setItem('user', JSON.stringify(updatedData));
+        }
+        if (sessionStorage.getItem('user')) {
+            sessionStorage.setItem('user', JSON.stringify(updatedData));
+        }
+    };
+
     // Do not render the app (or the GuestRoute barrier) until hydration/sync is finished
     if (isInitializing) return null; 
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token }}>
+        <AuthContext.Provider value={{ user, token, login, logout, updateUser, isAuthenticated: !!token }}>
             {children}
         </AuthContext.Provider>
     );

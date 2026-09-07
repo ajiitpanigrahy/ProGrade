@@ -3,28 +3,25 @@ import { ArrowLeft, Settings, Users, ShieldAlert, CheckCircle2, AlertTriangle, F
 import { axiosClient } from '../../../../api/axiosClient';
 import { useAuth } from '../../../../context/AuthContext';
 import { adminService } from '../../../../features/admin/adminService';
+import CodeSnippetBox from '../../../../components/CodeSnippetBox';
 
 interface Props {
     assessment: any;
     onBack: () => void;
 }
 
-// 🌟 ADDED RENDER HELPER FOR CODE SNIPPETS
 const renderQuestionContent = (text: string) => {
     if (!text) return null;
-    const parts = text.split(/(```[\s\S]*?```)/g);
+    
+    const formattedText = text.replace(/\\n/g, '\n');
+    const parts = formattedText.split(/(```[\s\S]*?```)/g);
+    
     return parts.map((part, index) => {
         if (part.startsWith('```') && part.endsWith('```')) {
             const code = part.replace(/```[a-z]*\n?/i, '').replace(/```$/, '');
             return (
-                <div key={index} className="my-3 bg-[#0d0714] border border-purple-900/50 rounded-xl overflow-hidden shadow-inner w-full">
-                    <div className="bg-[#150a29] px-3 py-1.5 flex items-center gap-2 border-b border-purple-900/50">
-                        <Terminal className="w-3 h-3 text-purple-400" />
-                        <span className="text-[10px] uppercase font-bold text-purple-400 tracking-wider">Code Snippet</span>
-                    </div>
-                    <pre className="p-4 text-[13px] text-emerald-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar">
-                        <code>{code}</code>
-                    </pre>
+                <div key={index} className="my-4 animate-in fade-in">
+                    <CodeSnippetBox code={code} language="javascript" />
                 </div>
             );
         }
@@ -39,8 +36,6 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
     const [loading, setLoading] = useState(true);
 
     const [localAssessment, setLocalAssessment] = useState(assessment);
-
-    // 🌟 1. NEW STATE TO HOLD ACTUAL QUESTIONS
     const [assessmentQuestions, setAssessmentQuestions] = useState<any[]>([]);
 
     const [fraudFilter, setFraudFilter] = useState('ALL');
@@ -59,24 +54,18 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
     const [postponeDate, setPostponeDate] = useState<string>('');
     const [actionLoading, setActionLoading] = useState(false);
 
-    // 🌟 2. FETCH THE QUESTIONS SIMULTANEOUSLY WITH THE REPORT
     useEffect(() => {
         setLoading(true);
-
-        // Fetch Analytics
         adminService.getAdvancedAssessmentReport(localAssessment.id)
             .then(res => setReportData(res))
             .catch(err => console.error("Could not fetch details", err));
 
-        // Fetch Blueprint Questions
         adminService.getAssessmentQuestions(localAssessment.id)
             .then(res => setAssessmentQuestions(res))
             .catch(err => console.error("Could not fetch questions", err))
             .finally(() => setLoading(false));
 
     }, [localAssessment.id]);
-
-    // ... (Keep updateEducatorAccess and all other handlers exactly the same)
 
     const updateEducatorAccess = async (updatedList: string[]) => {
         try {
@@ -143,7 +132,7 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
         return email.split('@')[0].split(/[._-]/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     };
 
-    const rawSubmissions = reportData?.submissions || [];
+    const rawSubmissions = Array.isArray(reportData?.submissions) ? reportData.submissions : [];
     const maxScore = rawSubmissions.length > 0 ? rawSubmissions[0].maxScore : (localAssessment.totalQuestions * 1);
 
     const rankedSubmissions = [...rawSubmissions].map(s => ({
@@ -173,9 +162,15 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
         return a.rank - b.rank;
     });
 
-    const fraudLogs = reportData?.fraudLogs || [];
-    const filteredFraud = fraudFilter === 'ALL' ? fraudLogs : fraudLogs.filter((log: any) => log.infractionType === fraudFilter);
-    const uniqueFraudTypes = Array.from(new Set(fraudLogs.map((log: any) => log.infractionType)));
+    // 🌟 FIX: Bulletproof parsing to stop React crashes on malformed database strings
+    const safeFraudLogs = Array.isArray(reportData?.fraudLogs) ? reportData.fraudLogs : [];
+    const filteredFraud = fraudFilter === 'ALL' 
+        ? safeFraudLogs 
+        : safeFraudLogs.filter((log: any) => log?.infractionType === fraudFilter);
+        
+    const uniqueFraudTypes = Array.from(
+        new Set(safeFraudLogs.map((log: any) => log?.infractionType).filter(Boolean))
+    ) as string[];
 
     const handleExport = (format: 'CSV' | 'PDF') => {
         if (format === 'PDF') { window.print(); return; }
@@ -248,7 +243,6 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
         );
     };
 
-    // Derived variables for Questions Tab
     const codingQCount = assessmentQuestions.filter((q: any) => q.questionType === 'CODING' || q.codeSnippet).length;
     const theoryQCount = assessmentQuestions.length - codingQCount;
 
@@ -282,19 +276,16 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                 <button onClick={() => setActiveTab('OVERVIEW')} className={`px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'OVERVIEW' ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20' : 'bg-white dark:bg-[#150a29] text-gray-600 border border-gray-200 hover:bg-gray-50 dark:border-purple-900/30 dark:text-gray-400'}`}>
                     <Settings className="w-4 h-4" /> Overview & Config
                 </button>
-
-                {/* 🌟 NEW: QUESTIONS TAB BUTTON */}
                 <button onClick={() => setActiveTab('QUESTIONS')} className={`px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'QUESTIONS' ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20' : 'bg-white dark:bg-[#150a29] text-gray-600 border border-gray-200 hover:bg-gray-50 dark:border-purple-900/30 dark:text-gray-400'}`}>
                     <Database className="w-4 h-4" /> Blueprint Questions
                     <span className={`px-1.5 py-0.5 rounded text-[10px] ${activeTab === 'QUESTIONS' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400'}`}>{assessmentQuestions.length}</span>
                 </button>
-
                 <button onClick={() => setActiveTab('LEADERBOARD')} className={`px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'LEADERBOARD' ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20' : 'bg-white dark:bg-[#150a29] text-gray-600 border border-gray-200 hover:bg-gray-50 dark:border-purple-900/30 dark:text-gray-400'}`}>
                     <Users className="w-4 h-4" /> Submissions & Leaderboard
                 </button>
                 <button onClick={() => setActiveTab('FRAUD')} className={`px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'FRAUD' ? 'bg-red-600 text-white shadow-md shadow-red-600/20' : 'bg-white dark:bg-[#150a29] text-gray-600 border border-gray-200 hover:bg-gray-50 dark:border-purple-900/30 dark:text-gray-400'}`}>
                     <ShieldAlert className="w-4 h-4" /> Malpractice Logs
-                    {fraudLogs.length > 0 && <span className={`px-1.5 py-0.5 rounded text-[10px] ${activeTab === 'FRAUD' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400'}`}>{fraudLogs.length}</span>}
+                    {safeFraudLogs.length > 0 && <span className={`px-1.5 py-0.5 rounded text-[10px] ${activeTab === 'FRAUD' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400'}`}>{safeFraudLogs.length}</span>}
                 </button>
             </div>
 
@@ -349,44 +340,7 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                                 <Trash2 className="w-4 h-4" /> Delete Exam
                                             </button>
                                         </div>
-                                        {localAssessment.startTime && (
-                                            <p className="text-[10px] text-gray-500 font-bold mt-3 bg-white dark:bg-[#150a29] p-2 rounded-lg border border-gray-100 dark:border-gray-800 shadow-inner">
-                                                Scheduled for: <span className="text-blue-600 dark:text-blue-400">{new Date(localAssessment.startTime).toLocaleString()}</span>
-                                            </p>
-                                        )}
                                     </div>
-
-                                    {user?.role === 'ADMIN' && (
-                                        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-purple-900/30">
-                                            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                <Lock className="w-3.5 h-3.5 text-amber-500" /> Security Delegation
-                                            </h4>
-                                            <div className="flex flex-col sm:flex-row gap-2 mb-3">
-                                                <input
-                                                    type="email"
-                                                    value={newEducatorEmail}
-                                                    onChange={(e) => setNewEducatorEmail(e.target.value)}
-                                                    onKeyDown={(e) => e.key === 'Enter' && handleAddEducator()}
-                                                    placeholder="Assign educator email..."
-                                                    className="flex-1 bg-white dark:bg-[#150a29] border-2 border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5 text-xs font-bold text-gray-900 dark:text-white outline-none focus:border-purple-500 transition-colors shadow-inner"
-                                                />
-                                                <button onClick={handleAddEducator} disabled={!newEducatorEmail.trim()} className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-4 py-2 rounded-lg text-xs font-bold shadow-md hover:opacity-90 transition-opacity whitespace-nowrap cursor-pointer disabled:opacity-50">
-                                                    Grant Access
-                                                </button>
-                                            </div>
-
-                                            {allowedEducators.length > 0 && (
-                                                <div className="flex flex-wrap gap-2 mt-3 p-3 bg-white dark:bg-[#1a0d36] rounded-xl border border-gray-100 dark:border-purple-900/30 shadow-inner">
-                                                    {allowedEducators.map(email => (
-                                                        <div key={email} className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 px-2.5 py-1.5 rounded-md text-[10px] font-bold">
-                                                            <span>{email}</span>
-                                                            <button onClick={() => handleRemoveEducator(email)} className="hover:bg-amber-200 dark:hover:bg-amber-900/50 rounded-full p-0.5 text-amber-500 transition-colors cursor-pointer"><X className="w-3.5 h-3.5" /></button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
@@ -416,7 +370,6 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                         </div>
                     )}
 
-                    {/* 🌟 NEW: QUESTIONS TAB RENDER */}
                     {activeTab === 'QUESTIONS' && (
                         <div className="flex flex-col h-full max-h-[80vh]">
                             <div className="flex items-center justify-between mb-4 bg-gray-50 dark:bg-[#0f0a1c] p-4 rounded-xl border border-gray-100 dark:border-purple-900/50 shrink-0">
@@ -464,21 +417,23 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                             </div>
 
                                             <div className="text-sm font-semibold text-gray-900 dark:text-white mb-5 leading-relaxed">
-                                                {/* Renders the prompt text (and handles legacy markdown if it exists) */}
                                                 {renderQuestionContent(q.questionText)}
 
-                                                {/* 🌟 FIX: Explicitly render the dedicated codeSnippet from the database */}
+                                                {/* 🌟 FIX: Multi-line Colorful Syntax Highlighting! */}
                                                 {q.codeSnippet && (
-                                                    <div className="mt-4 bg-[#0c0618] border border-purple-900/50 rounded-xl overflow-hidden shadow-inner w-full">
-                                                        <div className="bg-[#150a29] px-3 py-2 flex items-center gap-2 border-b border-purple-900/50">
-                                                            <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-                                                            <span className="text-[10px] uppercase font-black text-emerald-400 tracking-wider">
-                                                                Developer Code Snippet ({q.codeLanguage || q.technology})
+                                                    <div className="mt-5 bg-[#0c0618] border-2 border-purple-900/50 rounded-xl overflow-hidden shadow-2xl w-full text-left animate-in fade-in">
+                                                        <div className="bg-[#150a29] px-4 py-2.5 flex items-center gap-2 border-b border-purple-900/50">
+                                                            <Terminal className="w-4 h-4 text-emerald-400"/>
+                                                            <span className="text-xs uppercase font-black text-emerald-400 tracking-wider">
+                                                                Developer Code ({q.codeLanguage || q.technology || 'Code'})
                                                             </span>
                                                         </div>
-                                                        <pre className="p-4 text-[13px] text-emerald-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar whitespace-pre">
-                                                            <code>{q.codeSnippet}</code>
-                                                        </pre>
+                                                        <div className="p-2">
+                                                            <CodeSnippetBox 
+                                                                code={q.codeSnippet.replace(/\\n/g, '\n')} 
+                                                                language={q.codeLanguage || 'javascript'} 
+                                                            />
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
@@ -510,19 +465,10 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                         <input type="text" placeholder="Search by name or email..." value={lbSearch} onChange={(e) => setLbSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:border-purple-500 dark:text-white" />
                                     </div>
-                                    <select value={lbSort} onChange={(e) => setLbSort(e.target.value as any)} className="bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 outline-none cursor-pointer">
-                                        <option value="RANK">Sort by Rank</option><option value="SCORE">Sort by Score</option><option value="TIME">Sort by Time Taken</option><option value="NAME">Sort by Name</option>
-                                    </select>
-                                    <select value={lbLimit} onChange={(e) => setLbLimit(e.target.value as any)} className="bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 outline-none cursor-pointer">
-                                        <option value="ALL">All Participants</option><option value="TOP5">Top 5 Only</option><option value="TOP10">Top 10 Only</option>
-                                    </select>
                                 </div>
                                 <div className="flex gap-2">
                                     <button onClick={() => handleExport('CSV')} className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100 px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer">
                                         <Download className="w-3.5 h-3.5" /> Export CSV
-                                    </button>
-                                    <button onClick={() => handleExport('PDF')} className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-900/50 hover:bg-red-100 px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer">
-                                        <FileText className="w-3.5 h-3.5" /> Print PDF
                                     </button>
                                 </div>
                             </div>
@@ -531,7 +477,6 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                 <div className="text-center text-gray-500 py-10 font-medium border border-dashed border-gray-200 rounded-xl">No leaderboard data matches your filters.</div>
                             ) : (
                                 <div className="flex-1 overflow-auto rounded-xl border border-gray-200 dark:border-purple-900/30 print:border-none print:shadow-none">
-                                    <h2 className="hidden print:block text-2xl font-black mb-6 text-center text-purple-700">Official Leaderboard: {localAssessment.title}</h2>
                                     <table className="w-full text-left border-collapse whitespace-nowrap">
                                         <thead className="bg-gray-50 dark:bg-[#150a29] sticky top-0 z-10 shadow-sm print:bg-gray-100">
                                             <tr className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">
@@ -559,7 +504,6 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                                         <div className="flex justify-end gap-1.5 text-[9px] font-bold uppercase">
                                                             <span className="text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-100 dark:border-emerald-900/30">{sub.correctCount} ✓</span>
                                                             <span className="text-red-600 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded border border-red-100 dark:border-red-900/30">{sub.incorrectCount} ✗</span>
-                                                            <span className="text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700">{sub.unattemptedCount} -</span>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -582,16 +526,20 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                         <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 shrink-0" />
                                         <select value={fraudFilter} onChange={(e) => setFraudFilter(e.target.value)} className="bg-transparent text-[10px] sm:text-xs font-bold text-gray-700 dark:text-gray-300 outline-none cursor-pointer w-full">
                                             <option value="ALL">All Violations</option>
-                                            {(uniqueFraudTypes as string[]).map(type => <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>)}
+                                            {uniqueFraudTypes.map(type => <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>)}
                                         </select>
                                     </div>
                                 )}
                             </div>
 
-                            {filteredFraud.length === 0 ? (
+                            {safeFraudLogs.length === 0 ? (
                                 <div className="text-center py-10 sm:py-16 text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-200 dark:border-emerald-900/30">
                                     <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-2 sm:mb-3 opacity-50" />
                                     No malpractice incidents detected for this assessment!
+                                </div>
+                            ) : filteredFraud.length === 0 ? (
+                                <div className="text-center py-10 sm:py-16 text-gray-500 font-bold bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                                    No incidents match the selected filter.
                                 </div>
                             ) : (
                                 <div className="flex-1 overflow-auto rounded-xl border border-red-200 dark:border-red-900/30">
@@ -612,7 +560,7 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
                                                     </td>
                                                     <td className="px-4 py-3 font-black text-red-600 dark:text-red-500">
                                                         <span className="bg-red-100 dark:bg-red-900/30 px-2.5 py-1 rounded border border-red-200 dark:border-red-900/50 text-[10px] uppercase">
-                                                            <AlertTriangle className="w-3 h-3 inline mr-1 -mt-0.5" /> {log.infractionType.replace(/_/g, ' ')}
+                                                            <AlertTriangle className="w-3 h-3 inline mr-1 -mt-0.5" /> {log.infractionType ? log.infractionType.replace(/_/g, ' ') : 'VIOLATION'}
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3 text-xs text-red-800/80 dark:text-red-300/80 whitespace-normal min-w-[250px]">{log.details}</td>

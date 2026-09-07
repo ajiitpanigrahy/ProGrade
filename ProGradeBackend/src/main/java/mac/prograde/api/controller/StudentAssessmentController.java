@@ -95,10 +95,13 @@ public class StudentAssessmentController {
         StudentDashboardDTO dto = studentAssessmentService.getStudentDashboardOverview(studentEmail);
         return ResponseEntity.ok(dto);
     }
-    
-    @GetMapping("/dashboard/leaderboard")
-    public ResponseEntity<?> getLeaderboards(Authentication authentication) {
-        String studentEmail = authentication.getName();
-        return ResponseEntity.ok(studentAssessmentService.getLeaderboards(studentEmail));
-    }
+
+	@GetMapping("/dashboard/leaderboard")
+	public ResponseEntity<?> getStudentLeaderboards(
+	        Authentication authentication, 
+	        @RequestParam(required = false, defaultValue = "ALL_TIME") String time) {
+	    
+	    String studentEmail = authentication.getName();
+	    return ResponseEntity.ok(studentAssessmentService.getLeaderboards(studentEmail, time));
+	}
 }

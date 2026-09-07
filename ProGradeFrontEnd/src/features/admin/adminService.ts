@@ -242,4 +242,8 @@ export const adminService = {
         const response = await axiosClient.get('/admin/questions/history');
         return response.data;
     },
+    getLeaderboard: async (timeFilter: string = 'ALL_TIME') => {
+        const response = await axiosClient.get(`/admin/leaderboard?time=${timeFilter}`);
+        return response.data;
+    },
 };

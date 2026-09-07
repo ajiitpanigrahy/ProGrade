@@ -8,10 +8,10 @@ import NotificationBell from '../components/NotificationBell';
 
 import {
     LayoutDashboard, FileText, Users, Settings, LogOut, Menu, X, Sun, Moon,
-    CheckSquare, Search, BookOpen, BarChart3, ShieldCheck,
+    CheckSquare, BookOpen, BarChart3, ShieldCheck,
     GraduationCap, ShieldAlert, Database, ChevronDown, ChevronRight, Activity,
-    TerminalSquare, Rocket, Code, Trophy, HelpCircle, MessageSquare, Bell,
-    LifeBuoy, RefreshCcw // 🌟 IMPORTED RefreshCcw
+    TerminalSquare, Rocket, Code, Trophy, MessageSquare, Bell,
+    LifeBuoy, RefreshCcw 
 } from 'lucide-react';
 
 export type UserRole = 'STUDENT' | 'EDUCATOR' | 'ADMIN';
@@ -26,7 +26,9 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     const navigate = useNavigate();
     const location = useLocation();
 
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
+    
     const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
     const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({});
 
@@ -45,7 +47,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         setOpenAccordions(newAccordionsState);
     }, [location.pathname, location.search]);
 
-    const toggleAccordion = (name: string) => {
+    const handleAccordionClick = (name: string) => {
+        setIsSidebarCollapsed(false); 
         setOpenAccordions(prev => ({ ...prev, [name]: !prev[name] }));
     };
 
@@ -70,7 +73,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     }, [isDarkMode]);
 
     const toggleTheme = () => setIsDarkMode(!isDarkMode);
-
     const { withLoader } = useGlobalLoader();
 
     const handleLogout = async () => {
@@ -121,10 +123,12 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                             { name: 'Analytics', path: '/admin/dashboard?view=student-analytics' },
                         ]
                     },
+                    { name: 'Global Rankings', path: '/admin/dashboard?view=leaderboard', icon: Trophy }, 
                     {
                         name: 'Assessment Hub', icon: ShieldAlert,
                         subItems: [
                             { name: 'Exam Operations', path: '/admin/dashboard?view=assessment-management' },
+                            { name: 'Practice Monitor', path: '/admin/dashboard?view=practice-monitor' }, 
                             { name: 'Fraud & Proctoring', path: '/admin/dashboard?view=assessment-fraud' },
                         ]
                     },
@@ -141,8 +145,10 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                     { name: 'Overview', path: '/educator/dashboard?view=overview', icon: LayoutDashboard },
                     { name: 'My Question Bank', path: '/educator/dashboard?view=questions', icon: BookOpen },
                     { name: 'Assessment Builder', path: '/educator/dashboard?view=assessments', icon: FileText },
+                    { name: 'Practice Monitor', path: '/educator/dashboard?view=practice-monitor', icon: ShieldCheck },
                     { name: 'Grading & Evaluation', path: '/educator/dashboard?view=grading', icon: CheckSquare },
                     { name: 'Student Analytics', path: '/educator/dashboard?view=analytics', icon: BarChart3 },
+                    { name: 'Global Leaderboard', path: '/educator/dashboard?view=leaderboard', icon: Trophy }, 
                     { name: 'Messages', path: '/educator/messages', icon: MessageSquare },
                     { name: 'Notifications', path: '/educator/notifications', icon: Bell },
                     { name: 'Support & Reports', path: '/educator/reports', icon: LifeBuoy },
@@ -177,12 +183,14 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                     ></div>
                 )}
 
-                <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-[#0f0a1c] border-r border-gray-200 dark:border-purple-900/50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                {/* 🌟 CSS-DRIVEN RESPONSIVE SIDEBAR */}
+                <aside className={`fixed lg:static inset-y-0 left-0 z-50 bg-white dark:bg-[#0f0a1c] border-r border-gray-200 dark:border-purple-900/50 transform transition-all duration-300 ease-in-out flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} ${isSidebarCollapsed ? 'lg:w-20 w-64' : 'w-64'}`}>
 
-                    <div className="h-20 flex items-center justify-between px-6 border-b border-gray-200 dark:border-purple-900/50 shrink-0">
+                    <div className={`h-20 flex items-center border-b border-gray-200 dark:border-purple-900/50 shrink-0 transition-all justify-between px-6 ${isSidebarCollapsed ? 'lg:justify-center lg:px-0' : ''}`}>
                         <Link to={getLogoRedirectPath()} className="flex items-center gap-3">
-                            <img src={logo} alt="Pro Grade" className="w-8 h-8" />
-                            <span className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-fuchsia-500">
+                            <img src={logo} alt="Pro Grade" className="w-8 h-8 shrink-0" />
+                            {/* Hidden ONLY on Desktop when collapsed */}
+                            <span className={`text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-fuchsia-500 whitespace-nowrap transition-opacity duration-300 ${isSidebarCollapsed ? 'lg:hidden' : ''}`}>
                                 Pro Grade
                             </span>
                         </Link>
@@ -191,9 +199,11 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                         </button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto py-6 px-4 space-y-2 custom-scrollbar">
-                        <div className="px-2 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                            {role} PANEL
+                    <div className="flex-1 overflow-y-auto py-6 px-3 space-y-2 custom-scrollbar overflow-x-hidden">
+                        
+                        <div className={`px-2 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider transition-all whitespace-nowrap ${isSidebarCollapsed ? 'lg:text-center lg:text-[9px]' : ''}`}>
+                            <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>{role} PANEL</span>
+                            <span className={`hidden ${isSidebarCollapsed ? 'lg:block' : 'hidden'}`}>{role.substring(0, 3)}</span>
                         </div>
 
                         {navLinks.map((link: any) => {
@@ -207,21 +217,24 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                                 return (
                                     <div key={link.name} className="flex flex-col gap-1">
                                         <button
-                                            onClick={() => toggleAccordion(link.name)}
-                                            className={`flex items-center justify-between w-full px-3 py-3 rounded-xl transition-all cursor-pointer ${isParentActive
+                                            onClick={() => handleAccordionClick(link.name)}
+                                            title={isSidebarCollapsed ? link.name : ''}
+                                            className={`flex items-center w-full py-3 rounded-xl transition-all cursor-pointer group ${isParentActive
                                                 ? 'text-purple-600 dark:text-purple-400 font-bold'
                                                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-purple-900/20'
-                                                }`}
+                                                } justify-between px-3 ${isSidebarCollapsed ? 'lg:justify-center lg:px-0' : ''}`}
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <Icon className="w-5 h-5" />
-                                                <span>{link.name}</span>
+                                            <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'lg:justify-center lg:gap-0' : ''}`}>
+                                                <Icon className={`w-5 h-5 shrink-0 ${isParentActive && isSidebarCollapsed ? 'lg:animate-pulse' : ''}`} />
+                                                <span className={`whitespace-nowrap ${isSidebarCollapsed ? 'lg:hidden' : ''}`}>{link.name}</span>
                                             </div>
-                                            {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                            <div className={isSidebarCollapsed ? 'lg:hidden' : ''}>
+                                                {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                            </div>
                                         </button>
 
                                         {isOpen && (
-                                            <div className="pl-11 pr-2 space-y-1 mt-1 animate-in slide-in-from-top-2">
+                                            <div className={`pl-11 pr-2 space-y-1 mt-1 animate-in slide-in-from-top-2 ${isSidebarCollapsed ? 'lg:hidden' : ''}`}>
                                                 {link.subItems.map((sub: any) => {
                                                     const isSubActive = currentPathWithQuery === sub.path;
                                                     return (
@@ -229,7 +242,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                                                             key={sub.name}
                                                             to={sub.path}
                                                             onClick={() => setIsSidebarOpen(false)}
-                                                            className={`block px-3 py-2 rounded-lg text-sm transition-all ${isSubActive
+                                                            className={`block px-3 py-2 rounded-lg text-sm transition-all whitespace-nowrap ${isSubActive
                                                                 ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-bold'
                                                                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-purple-900/10'
                                                                 }`}
@@ -250,26 +263,28 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                                 <Link
                                     key={link.name}
                                     to={link.path}
+                                    title={isSidebarCollapsed ? link.name : ''}
                                     onClick={() => setIsSidebarOpen(false)}
-                                    className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${isDirectlyActive
+                                    className={`flex items-center py-3 rounded-xl transition-all group ${isDirectlyActive
                                         ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-semibold'
                                         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-purple-900/20 hover:text-gray-900 dark:hover:text-white'
-                                        }`}
+                                        } justify-start px-3 gap-3 ${isSidebarCollapsed ? 'lg:justify-center lg:px-0 lg:gap-0' : ''}`}
                                 >
-                                    <Icon className={`w-5 h-5 ${isDirectlyActive ? 'text-purple-600 dark:text-purple-400' : ''}`} />
-                                    {link.name}
+                                    <Icon className={`w-5 h-5 shrink-0 ${isDirectlyActive ? 'text-purple-600 dark:text-purple-400' : 'group-hover:scale-110 transition-transform'}`} />
+                                    <span className={`whitespace-nowrap ${isSidebarCollapsed ? 'lg:hidden' : ''}`}>{link.name}</span>
                                 </Link>
                             )
                         })}
                     </div>
 
-                    <div className="p-4 border-t border-gray-200 dark:border-purple-900/50 shrink-0">
+                    <div className="p-3 border-t border-gray-200 dark:border-purple-900/50 shrink-0">
                         <button
                             onClick={handleLogout}
-                            className="w-full flex items-center gap-3 px-3 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors font-medium cursor-pointer"
+                            title={isSidebarCollapsed ? "Sign Out" : ""}
+                            className={`w-full flex items-center py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors font-medium cursor-pointer gap-3 px-3 ${isSidebarCollapsed ? 'lg:justify-center lg:px-0 lg:gap-0' : ''}`}
                         >
-                            <LogOut className="w-5 h-5" />
-                            Sign Out
+                            <LogOut className="w-5 h-5 shrink-0" />
+                            <span className={`whitespace-nowrap ${isSidebarCollapsed ? 'lg:hidden' : ''}`}>Sign Out</span>
                         </button>
                     </div>
                 </aside>
@@ -281,13 +296,17 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                             <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-gray-600 dark:text-gray-300 hover:text-purple-600 focus:outline-none cursor-pointer">
                                 <Menu className="w-6 h-6" />
                             </button>
+                            
+                            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden lg:block text-gray-600 dark:text-gray-300 hover:text-purple-600 focus:outline-none cursor-pointer transition-transform hover:scale-105">
+                                <Menu className="w-6 h-6" />
+                            </button>
+                            
                             <h1 className="text-xl font-bold text-gray-800 dark:text-white hidden sm:block">
                                 Dashboard
                             </h1>
                         </div>
 
                         <div className="flex items-center gap-2 sm:gap-4">
-                            {/* 🌟 NATIVE REFRESH BUTTON */}
                             <button 
                                 onClick={() => window.location.reload()} 
                                 title="Refresh Dashboard"

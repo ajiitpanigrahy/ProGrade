@@ -16,4 +16,6 @@ public interface StudentAssessmentService {
     java.util.Map<String, Object> getSecureExamPayload(String examId);
     StudentDashboardDTO getStudentDashboardOverview(String studentEmail);
     mac.prograde.api.dto.LeaderboardDTO getLeaderboards(String studentEmail);
+ // Update the method signature in StudentAssessmentService.java
+    mac.prograde.api.dto.LeaderboardDTO getLeaderboards(String studentEmail, String timeFilter);
 }

@@ -1,39 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { adminService } from '../../../../features/admin/adminService';
-import { Layers, CheckCircle2, ChevronRight, FileText, Bot, Plus, Trash2, Search, Terminal, CheckCircle, AlertCircle, Users, Sparkles, Database, Code2, BookOpen, Activity } from 'lucide-react';
+import { CheckCircle2, ChevronRight, FileText, Bot, Plus, Trash2, Search, Terminal, AlertCircle, Users, Sparkles, Code2, BookOpen, Activity } from 'lucide-react';
 
-// 🌟 LOCALLY DEFINED TO PREVENT VITE CIRCULAR DEPENDENCY CRASHES
-const TECH_STACK = [
-    { id: 'OVERVIEW', name: 'Global Overview' },
-    { id: 'JAVA', name: 'Java' },
-    { id: 'PYTHON', name: 'Python' },
-    { id: 'CPP', name: 'C++' },
-    { id: 'C', name: 'C Programming' },
-    { id: 'JAVASCRIPT', name: 'JavaScript' },
-    { id: 'SQL', name: 'Advanced SQL' },
-    { id: 'MYSQL', name: 'MySQL' },
-    { id: 'DSA', name: 'Data Structures' },
-    { id: 'SPRING_CORE', name: 'Spring Core' },
-    { id: 'SPRING_BOOT', name: 'Spring Boot' },
-    { id: 'SPRING_MVC', name: 'Spring MVC' },
-    { id: 'SPRING_DATA_JPA', name: 'Spring Data JPA' },
-    { id: 'SPRING_JDBC', name: 'Spring JDBC' },
-    { id: 'SPRING_ORM', name: 'Spring ORM' },
-    { id: 'REST_API', name: 'REST API' },
-    { id: 'HIBERNATE', name: 'Hibernate' },
-    { id: 'MAVEN', name: 'Maven' },
-    { id: 'JUNIT', name: 'JUnit' },
-    { id: 'LOGGING', name: 'Logging' }
-];
+// 🌟 IMPORT CENTRAL TAXONOMY
+import { ALL_TECHNOLOGIES, TECHNOLOGY_TAXONOMY } from '../../../../constants/taxonomy';
 
-const TOPICS_BY_TECH: Record<string, string[]> = {
-    'JAVA': ['Core Java', 'OOPs', 'Collections', 'Multithreading', 'Streams', 'Exception Handling', 'Spring Boot Basics'],
-    'SPRING_BOOT': ['Spring Core', 'Spring MVC', 'Spring Data JPA', 'Spring Security', 'Microservices', 'REST APIs'],
-    'REACT': ['Components', 'Hooks', 'State Management', 'React Router', 'Performance', 'Redux'],
-    'PYTHON': ['Syntax', 'Data Structures', 'OOPs', 'File Handling', 'Django Basics', 'Data Science'],
-    'MYSQL': ['SQL Basics', 'Joins', 'Indexes', 'Transactions', 'Stored Procedures', 'Optimization'],
-    'DSA': ['Arrays', 'Strings', 'Linked Lists', 'Trees', 'Graphs', 'Dynamic Programming', 'Sorting'],
-    'JAVASCRIPT': ['ES6+', 'Promises/Async', 'DOM Manipulation', 'Closures', 'Hoisting']
+// Helper to reliably extract topics from taxonomy regardless of casing or format
+const getTopicsForTech = (tech: string): string[] => {
+    if (!tech) return [];
+    if (TECHNOLOGY_TAXONOMY[tech]) return TECHNOLOGY_TAXONOMY[tech];
+
+    const clean = (str: string) => str.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const target = clean(tech);
+
+    // Common aliases
+    if (target === 'CPP' && TECHNOLOGY_TAXONOMY['C++']) return TECHNOLOGY_TAXONOMY['C++'];
+    if (target === 'C' && TECHNOLOGY_TAXONOMY['C Programming']) return TECHNOLOGY_TAXONOMY['C Programming'];
+    if (target === 'DSA' && TECHNOLOGY_TAXONOMY['Data Structures']) return TECHNOLOGY_TAXONOMY['Data Structures'];
+    if (target === 'SQL' && TECHNOLOGY_TAXONOMY['Advanced SQL']) return TECHNOLOGY_TAXONOMY['Advanced SQL'];
+
+    const matchedKey = Object.keys(TECHNOLOGY_TAXONOMY).find(k => clean(k) === target);
+    return matchedKey ? TECHNOLOGY_TAXONOMY[matchedKey] : [];
 };
 
 const renderQuestionContent = (text: string) => {
@@ -80,12 +67,15 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
 
     const [mode, setMode] = useState<'MANUAL' | 'AUTOMATIC'>('AUTOMATIC');
     
+    // Default to the first taxonomy technology
+    const defaultTech = ALL_TECHNOLOGIES[0] || 'Java';
+
     const [autoRules, setAutoRules] = useState([
-        { technology: 'JAVA', topic: 'ALL', difficulty: 'MEDIUM', theoryCount: 10, codingCount: 0 }
+        { technology: defaultTech, topic: 'ALL', difficulty: 'MEDIUM', theoryCount: 10, codingCount: 0 }
     ]);
     const [techAvailability, setTechAvailability] = useState<Record<string, any[]>>({});
 
-    const [manualTechFilter, setManualTechFilter] = useState('JAVA');
+    const [manualTechFilter, setManualTechFilter] = useState(defaultTech);
     const [manualTopicFilter, setManualTopicFilter] = useState('ALL');
     const [manualDifficultyFilter, setManualDifficultyFilter] = useState<'ALL' | 'EASY' | 'MEDIUM' | 'HARD'>('ALL');
     const [manualTypeFilter, setManualTypeFilter] = useState<'ALL' | 'THEORY' | 'CODING'>('ALL');
@@ -101,8 +91,8 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
             uniqueTechs.forEach(tech => {
                 if (!techAvailability[tech]) {
                     adminService.getInventory(tech)
-                        .then(data => setTechAvailability(prev => ({ ...prev, [tech]: data })))
-                        .catch(console.error);
+                        .then(data => setTechAvailability(prev => ({ ...prev, [tech]: data || [] })))
+                        .catch(() => setTechAvailability(prev => ({ ...prev, [tech]: [] })));
                 }
             });
         }
@@ -111,7 +101,8 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
     useEffect(() => {
         if (mode === 'MANUAL' && step === 3) {
             adminService.getQuestionsByTech(manualTechFilter, 0, manualSearch, 500, manualTypeFilter)
-                .then(res => setAvailableQuestions(res.content));
+                .then(res => setAvailableQuestions(res?.content || []))
+                .catch(() => setAvailableQuestions([]));
         }
     }, [manualTechFilter, manualSearch, manualTypeFilter, mode, step]);
 
@@ -170,7 +161,7 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
         setError('');
         const currentSum = autoRules.reduce((acc, rule) => acc + rule.theoryCount + rule.codingCount, 0);
         if (currentSum >= totalQuestions) return setError(`Limit reached! Allocated all ${totalQuestions} questions.`);
-        setAutoRules([...autoRules, { technology: 'JAVA', topic: 'ALL', difficulty: 'MEDIUM', theoryCount: Math.min(5, totalQuestions - currentSum), codingCount: 0 }]);
+        setAutoRules([...autoRules, { technology: defaultTech, topic: 'ALL', difficulty: 'MEDIUM', theoryCount: Math.min(5, totalQuestions - currentSum), codingCount: 0 }]);
     };
 
     const handleRemoveRule = (index: number) => { setError(''); setAutoRules(autoRules.filter((_, i) => i !== index)); };
@@ -183,7 +174,9 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
             const newTech = value as string;
             updated[index] = { ...updated[index], technology: newTech, topic: 'ALL' };
             if (!techAvailability[newTech]) {
-                adminService.getInventory(newTech).then(data => setTechAvailability(prev => ({ ...prev, [newTech]: data })));
+                adminService.getInventory(newTech)
+                    .then(data => setTechAvailability(prev => ({ ...prev, [newTech]: data || [] })))
+                    .catch(() => setTechAvailability(prev => ({ ...prev, [newTech]: [] })));
             }
         } else if (field === 'theoryCount' || field === 'codingCount') {
             const newValue = Number(value);
@@ -194,7 +187,10 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                 const filtered = techStats.filter((item: any) => item.difficulty === updated[index].difficulty);
                 totalAvailableInDb = filtered.reduce((acc: number, curr: any) => acc + Number(curr[field] || 0), 0);
             } else {
-                const matchingStat = techStats.find((item: any) => item.topic === updated[index].topic && item.difficulty === updated[index].difficulty);
+                const matchingStat = techStats.find((item: any) => 
+                    item.topic && item.topic.toLowerCase().trim() === String(updated[index].topic).toLowerCase().trim() && 
+                    item.difficulty === updated[index].difficulty
+                );
                 totalAvailableInDb = matchingStat ? Number(matchingStat[field] || 0) : 0;
             }
 
@@ -202,8 +198,9 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                 .filter((r, i) => i !== index && r.technology === updated[index].technology && r.topic === updated[index].topic && r.difficulty === updated[index].difficulty)
                 .reduce((acc, r) => acc + (field === 'theoryCount' ? r.theoryCount : r.codingCount), 0);
 
-            const effectiveAvailable = Math.max(0, totalAvailableInDb - claimedByOtherRules);
-            const boundedValue = Math.min(newValue, effectiveAvailable);
+            // Allow setting counts even if database is empty during blueprint creation
+            const effectiveAvailable = totalAvailableInDb > 0 ? Math.max(0, totalAvailableInDb - claimedByOtherRules) : newValue;
+            const boundedValue = totalAvailableInDb > 0 ? Math.min(newValue, effectiveAvailable) : newValue;
 
             const sumWithoutCurrent = autoRules.reduce((acc, rule, i) => 
                 i !== index ? acc + rule.theoryCount + rule.codingCount : acc + (field === 'theoryCount' ? rule.codingCount : rule.theoryCount), 0);
@@ -267,7 +264,7 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
 
     const displayedQuestions = availableQuestions.filter(q => {
         const matchDiff = manualDifficultyFilter === 'ALL' || q.difficultyLevel === manualDifficultyFilter;
-        const matchTopic = manualTopicFilter === 'ALL' || (q.topic && q.topic.toUpperCase() === manualTopicFilter.toUpperCase());
+        const matchTopic = manualTopicFilter === 'ALL' || (q.topic && q.topic.toLowerCase().trim() === manualTopicFilter.toLowerCase().trim());
         return matchDiff && matchTopic;
     });
 
@@ -432,7 +429,11 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                                 <div className="space-y-4">
                                     {autoRules.map((rule, index) => {
                                         const techStats = techAvailability[rule.technology] || [];
-                                        const availableTopics = Array.from(new Set(techStats.map((item: any) => item.topic)));
+                                        
+                                        // 🌟 GUARANTEED TOPIC DISCOVERY: Central taxonomy + any DB inventory topics
+                                        const taxonomyTopics = getTopicsForTech(rule.technology);
+                                        const dbTopics = techStats.map((item: any) => item.topic).filter(Boolean);
+                                        const availableTopics = Array.from(new Set([...taxonomyTopics, ...dbTopics]));
 
                                         let totalAvailableTheoryInDb = 0;
                                         let totalAvailableCodingInDb = 0;
@@ -442,7 +443,10 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                                             totalAvailableTheoryInDb = filtered.reduce((acc: number, curr: any) => acc + Number(curr.theoryCount || 0), 0);
                                             totalAvailableCodingInDb = filtered.reduce((acc: number, curr: any) => acc + Number(curr.codingCount || 0), 0);
                                         } else {
-                                            const matchingStat = techStats.find((item: any) => item.topic === rule.topic && item.difficulty === rule.difficulty);
+                                            const matchingStat = techStats.find((item: any) => 
+                                                item.topic && item.topic.toLowerCase().trim() === String(rule.topic).toLowerCase().trim() && 
+                                                item.difficulty === rule.difficulty
+                                            );
                                             totalAvailableTheoryInDb = matchingStat ? Number(matchingStat.theoryCount || 0) : 0;
                                             totalAvailableCodingInDb = matchingStat ? Number(matchingStat.codingCount || 0) : 0;
                                         }
@@ -451,22 +455,27 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                                         const usedTheory = otherRules.reduce((acc, r) => acc + r.theoryCount, 0);
                                         const usedCoding = otherRules.reduce((acc, r) => acc + r.codingCount, 0);
 
-                                        const effectiveTheoryLeft = Math.max(0, totalAvailableTheoryInDb - usedTheory);
-                                        const effectiveCodingLeft = Math.max(0, totalAvailableCodingInDb - usedCoding);
+                                        const effectiveTheoryLeft = totalAvailableTheoryInDb > 0 ? Math.max(0, totalAvailableTheoryInDb - usedTheory) : 999;
+                                        const effectiveCodingLeft = totalAvailableCodingInDb > 0 ? Math.max(0, totalAvailableCodingInDb - usedCoding) : 999;
 
                                         return (
                                             <div key={index} className="flex flex-col bg-white/80 dark:bg-[#150a29]/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border-2 border-gray-200 dark:border-purple-900/50 shadow-sm hover:shadow-md transition-shadow gap-4">
                                                 
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                    
+                                                    {/* 🌟 DYNAMIC TAXONOMY LOOP FOR AUTO ENGINE */}
                                                     <select value={rule.technology} onChange={(e) => handleUpdateRule(index, 'technology', e.target.value)} className="w-full bg-gray-50 dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl p-3 outline-none font-black text-xs uppercase tracking-wider text-gray-700 dark:text-gray-200 focus:border-purple-500 transition-colors cursor-pointer shadow-inner">
-                                                        {TECH_STACK.filter(t => t.id !== 'OVERVIEW').map(t => (
-                                                            <option key={t.id} value={t.id}>{t.name}</option>
+                                                        {ALL_TECHNOLOGIES.map(t => (
+                                                            <option key={t} value={t}>{t}</option>
                                                         ))}
                                                     </select>
 
+                                                    {/* 🌟 PROPERLY POPULATED TOPICS DROPDOWN */}
                                                     <select value={rule.topic} onChange={(e) => handleUpdateRule(index, 'topic', e.target.value)} className="w-full bg-gray-50 dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl p-3 outline-none font-black text-xs uppercase tracking-wider text-gray-700 dark:text-gray-200 focus:border-purple-500 transition-colors cursor-pointer shadow-inner">
                                                         <option value="ALL">All Topics</option>
-                                                        {availableTopics.map((t: any) => <option key={t} value={t}>{t}</option>)}
+                                                        {availableTopics.map((t: string) => (
+                                                            <option key={t} value={t}>{t}</option>
+                                                        ))}
                                                     </select>
 
                                                     <select value={rule.difficulty} onChange={(e) => handleUpdateRule(index, 'difficulty', e.target.value)} className="w-full bg-gray-50 dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl p-3 outline-none font-black text-xs uppercase tracking-wider text-gray-700 dark:text-gray-200 focus:border-purple-500 transition-colors cursor-pointer shadow-inner">
@@ -479,17 +488,17 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                                                         <div className="flex-1 sm:flex-none flex items-center justify-between gap-3 bg-blue-50 dark:bg-blue-900/10 border-2 border-blue-200 dark:border-blue-900/50 rounded-xl p-2 focus-within:border-blue-500 transition-colors shadow-inner">
                                                             <div className="flex flex-col pl-2">
                                                                 <span className="text-[10px] uppercase text-blue-600 dark:text-blue-400 font-black flex items-center gap-1"><BookOpen className="w-3 h-3"/> Theory</span>
-                                                                <span className="text-[9px] font-bold text-gray-500">Avail: {effectiveTheoryLeft}</span>
+                                                                <span className="text-[9px] font-bold text-gray-500">Avail: {totalAvailableTheoryInDb > 0 ? effectiveTheoryLeft : 'Open'}</span>
                                                             </div>
-                                                            <input type="number" min="0" max={effectiveTheoryLeft} value={rule.theoryCount} onChange={(e) => handleUpdateRule(index, 'theoryCount', e.target.value)} className="w-16 bg-white dark:bg-black p-2 rounded-lg border border-blue-200 dark:border-blue-800 outline-none font-black text-base text-center text-blue-600 dark:text-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none cursor-text" />
+                                                            <input type="number" min="0" value={rule.theoryCount} onChange={(e) => handleUpdateRule(index, 'theoryCount', e.target.value)} className="w-16 bg-white dark:bg-black p-2 rounded-lg border border-blue-200 dark:border-blue-800 outline-none font-black text-base text-center text-blue-600 dark:text-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none cursor-text" />
                                                         </div>
 
                                                         <div className="flex-1 sm:flex-none flex items-center justify-between gap-3 bg-emerald-50 dark:bg-emerald-900/10 border-2 border-emerald-200 dark:border-emerald-900/50 rounded-xl p-2 focus-within:border-emerald-500 transition-colors shadow-inner">
                                                             <div className="flex flex-col pl-2">
                                                                 <span className="text-[10px] uppercase text-emerald-600 dark:text-emerald-400 font-black flex items-center gap-1"><Code2 className="w-3 h-3"/> Coding</span>
-                                                                <span className="text-[9px] font-bold text-gray-500">Avail: {effectiveCodingLeft}</span>
+                                                                <span className="text-[9px] font-bold text-gray-500">Avail: {totalAvailableCodingInDb > 0 ? effectiveCodingLeft : 'Open'}</span>
                                                             </div>
-                                                            <input type="number" min="0" max={effectiveCodingLeft} value={rule.codingCount} onChange={(e) => handleUpdateRule(index, 'codingCount', e.target.value)} className="w-16 bg-white dark:bg-black p-2 rounded-lg border border-emerald-200 dark:border-emerald-800 outline-none font-black text-base text-center text-emerald-600 dark:text-emerald-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none cursor-text" />
+                                                            <input type="number" min="0" value={rule.codingCount} onChange={(e) => handleUpdateRule(index, 'codingCount', e.target.value)} className="w-16 bg-white dark:bg-black p-2 rounded-lg border border-emerald-200 dark:border-emerald-800 outline-none font-black text-base text-center text-emerald-600 dark:text-emerald-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none cursor-text" />
                                                         </div>
                                                     </div>
 
@@ -508,13 +517,18 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                            <div className="flex flex-col h-full space-y-4">
                                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white/80 dark:bg-[#150a29]/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border-2 border-gray-200 dark:border-purple-900/50 shadow-sm shrink-0">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex items-center gap-3 w-full lg:w-auto">
+                                        
+                                        {/* 🌟 DYNAMIC TAXONOMY FOR MANUAL PICKER */}
                                         <select value={manualTechFilter} onChange={e => { setManualTechFilter(e.target.value); setManualTopicFilter('ALL'); }} className="w-full bg-gray-50 dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl p-3 font-black text-xs uppercase tracking-wider outline-none shadow-inner focus:border-purple-500 cursor-pointer">
-                                            {TECH_STACK.filter(t => t.id !== 'OVERVIEW').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                            {ALL_TECHNOLOGIES.map(t => <option key={t} value={t}>{t}</option>)}
                                         </select>
+
+                                        {/* 🌟 PROPERLY POPULATED MANUAL TOPICS */}
                                         <select value={manualTopicFilter} onChange={e => setManualTopicFilter(e.target.value)} className="w-full bg-gray-50 dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl p-3 font-black text-xs uppercase tracking-wider outline-none shadow-inner focus:border-purple-500 cursor-pointer">
                                             <option value="ALL">All Topics</option>
-                                            {(TOPICS_BY_TECH[manualTechFilter] || []).map(t => <option key={t} value={t}>{t}</option>)}
+                                            {getTopicsForTech(manualTechFilter).map(t => <option key={t} value={t}>{t}</option>)}
                                         </select>
+
                                         <select value={manualDifficultyFilter} onChange={e => setManualDifficultyFilter(e.target.value as any)} className="w-full bg-gray-50 dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl p-3 font-black text-xs uppercase tracking-wider outline-none shadow-inner focus:border-purple-500 cursor-pointer">
                                             <option value="ALL">All Levels</option><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option>
                                         </select>

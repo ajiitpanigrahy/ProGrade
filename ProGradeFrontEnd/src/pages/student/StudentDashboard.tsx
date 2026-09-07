@@ -63,8 +63,6 @@ export default function StudentDashboard() {
 
     const [isLoading, setIsLoading] = useState(true);
     const [data, setData] = useState<DashboardOverviewData | null>(null);
-
-    // Modal state for Quick Passkey Exam Joining
     const [isPasskeyModalOpen, setIsPasskeyModalOpen] = useState(false);
     const [examCodeInput, setExamCodeInput] = useState('');
 
@@ -118,7 +116,6 @@ export default function StudentDashboard() {
         return (
             <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 
-                {/* 🌟 1. HERO BANNER */}
                 <div className="relative overflow-hidden bg-gradient-to-r from-purple-900/40 via-[#150a29] to-fuchsia-900/30 rounded-[2.5rem] p-6 sm:p-10 border border-purple-900/50 shadow-2xl backdrop-blur-xl">
                     <div className="absolute top-0 right-0 w-96 h-96 bg-fuchsia-600/10 blur-[100px] rounded-full pointer-events-none"></div>
                     <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -161,7 +158,6 @@ export default function StudentDashboard() {
                     </div>
                 </div>
 
-                {/* 🌟 2. METRIC KPI CARDS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                     <div className="bg-white/5 dark:bg-[#150a29]/80 backdrop-blur-xl p-6 rounded-3xl border border-gray-100 dark:border-purple-900/40 shadow-sm relative overflow-hidden group hover:border-purple-500/40 transition-all">
                         <div className="flex items-center justify-between mb-4">
@@ -216,7 +212,6 @@ export default function StudentDashboard() {
                     </div>
                 </div>
 
-                {/* 🌟 3. ANALYTICS CHARTS */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 bg-white/5 dark:bg-[#150a29]/80 backdrop-blur-xl p-6 sm:p-8 rounded-[2rem] border border-gray-100 dark:border-purple-900/30 shadow-sm">
                         <div className="flex items-center justify-between mb-6">
@@ -299,7 +294,6 @@ export default function StudentDashboard() {
                     </div>
                 </div>
 
-                {/* 🌟 4. RECENT ASSESSMENT HISTORY */}
                 <div className="bg-white/5 dark:bg-[#150a29]/80 backdrop-blur-xl rounded-[2rem] border border-gray-100 dark:border-purple-900/30 p-6 sm:p-8 shadow-sm">
                     <div className="flex items-center justify-between mb-6">
                         <div>
@@ -379,6 +373,7 @@ export default function StudentDashboard() {
         );
     };
 
+    // 🌟 RE-ORDERED: Stats -> Current Tasks -> Self Improvement -> Past Results -> Competition
     const renderContent = () => {
         switch (activeView) {
             case 'overview':
@@ -387,10 +382,11 @@ export default function StudentDashboard() {
                 return <ActiveExaminationsTab />;
             case 'practice':
                 return (
-                    <div className="p-12 text-center bg-white/5 dark:bg-[#1a0d36] rounded-[2rem] border border-purple-900/30 text-gray-400 font-bold space-y-3">
+                    <div className="p-12 text-center bg-white/5 dark:bg-[#1a0d36] rounded-[2rem] border border-purple-900/30 text-gray-400 font-bold space-y-3 mt-4">
                         <Sparkles className="w-10 h-10 text-purple-400 mx-auto animate-bounce" />
                         <h3 className="text-xl font-black text-white">Self-Practice Arena</h3>
                         <p className="text-xs text-gray-500 max-w-sm mx-auto">Interactive coding and MCQ practice sandbox with automated AI evaluation.</p>
+                        <button className="mt-4 px-6 py-2.5 rounded-xl bg-purple-600 text-white text-xs font-black uppercase tracking-wider hover:bg-purple-700 transition-colors">Launch Practice Session</button>
                     </div>
                 );
             case 'transcripts':
@@ -414,7 +410,6 @@ export default function StudentDashboard() {
         <DashboardLayout role="STUDENT">
             {renderContent()}
 
-            {/* 🌟 QUICK EXAM PASSKEY DIALOG */}
             {isPasskeyModalOpen && (
                 <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
                     <div className="bg-[#150a29] border border-purple-900/50 max-w-md w-full rounded-[2.5rem] p-8 text-center shadow-2xl relative animate-in zoom-in-95">

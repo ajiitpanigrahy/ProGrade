@@ -49,18 +49,23 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
     const handleUpdateProfile = async (e: React.FormEvent) => {
         e.preventDefault();
         setStatus({ type: '', msg: '' });
+        setIsUpdating(true);
 
         // Wrap the logic in withLoader!
-        await withLoader(async () => {
-            try {
-                const updatedUser = await profileService.updateProfile(formData);
-                updateUser(updatedUser);
-                setStatus({ type: 'success', msg: 'Profile updated successfully!' });
-                setTimeout(onClose, 1000);
-            } catch (error) {
-                setStatus({ type: 'error', msg: 'Failed to update profile.' });
-            }
-        }, "SYNCING PROFILE DATA..."); // The text that appears under the 3D loader
+        try {
+            await withLoader(async () => {
+                try {
+                    const updatedUser = await profileService.updateProfile(formData);
+                    updateUser(updatedUser);
+                    setStatus({ type: 'success', msg: 'Profile updated successfully!' });
+                    setTimeout(onClose, 1000);
+                } catch {
+                    setStatus({ type: 'error', msg: 'Failed to update profile.' });
+                }
+            }, "SYNCING PROFILE DATA..."); // The text that appears under the 3D loader
+        } finally {
+            setIsUpdating(false);
+        }
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

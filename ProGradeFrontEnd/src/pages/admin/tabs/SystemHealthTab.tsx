@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, Server, Database, Zap, ShieldCheck, Settings2, RefreshCw, Cpu, HardDrive, AlertTriangle, Clock, Terminal, HeartPulse, Network, XCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Activity, Server, Database, Zap, ShieldCheck, RefreshCw, Cpu, HardDrive, AlertTriangle, HeartPulse, Network } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { adminService } from '../../../features/admin/adminService';
 
 export default function SystemHealthTab() {
     const [healthData, setHealthData] = useState<any>(null);
-    const [logLevel, setLogLevel] = useState('INFO');
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
 
@@ -24,13 +23,6 @@ export default function SystemHealthTab() {
         const interval = setInterval(fetchData, 30000); 
         return () => clearInterval(interval);
     }, []);
-
-    const handleChangeLogLevel = async () => {
-        try {
-            await adminService.updateLogLevel('mac.prograde', logLevel);
-            alert(`Log level successfully changed to ${logLevel}`);
-        } catch (e) { alert('Failed to change log level.'); }
-    };
 
     // Safely Extract Metrics
     const jvmUsed = healthData?.jvmUsedMb || 0;

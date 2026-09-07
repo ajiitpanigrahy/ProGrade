@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Database, Filter, ArrowUpDown, ArrowRight, ArrowLeft, Loader2, UserCircle, Globe, Clock, ShieldAlert, Sparkles, AlertTriangle, Info, Bug, ChevronDown, ChevronUp, Activity, BarChart3, ListTree, User, Server, CheckCircle2 } from 'lucide-react';
+import { Database, ArrowUpDown, ArrowRight, ArrowLeft, Loader2, UserCircle, Globe, Clock, ShieldAlert, Sparkles, AlertTriangle, Bug, ChevronDown, ChevronUp, Activity, BarChart3, ListTree, User, Server, CheckCircle2, Terminal } from 'lucide-react';
 import { adminService } from '../../../features/admin/adminService';
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -12,6 +12,7 @@ interface LogEvent {
     actor?: string;
     ipAddress?: string;
     className?: string;
+    loggerName?: string;
     callerClass?: string;
     methodName?: string;
     formattedMessage?: string;

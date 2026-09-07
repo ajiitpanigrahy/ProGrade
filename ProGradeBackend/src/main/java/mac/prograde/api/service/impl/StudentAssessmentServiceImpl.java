@@ -183,7 +183,6 @@ public class StudentAssessmentServiceImpl implements StudentAssessmentService {
             return new StudentDashboardDTO.ScoreProgressionPoint(title, pct, sub.getSubmittedAt(), sub.getTotalScore(), max);
         }).toList();
 
-        // 🌟 1. Parse Real JSON Data for Dashboard Analytics
         Map<String, List<Double>> techPercentages = new HashMap<>();
         
         List<StudentDashboardDTO.RecentSubmissionDTO> recent = mySubmissions.stream()
@@ -197,12 +196,10 @@ public class StudentAssessmentServiceImpl implements StudentAssessmentService {
                     if (sub.getTechBreakdownJson() != null && !sub.getTechBreakdownJson().equals("{}")) {
                         try {
                             Map<String, Map<String, Double>> breakdown = mapper.readValue(sub.getTechBreakdownJson(), new TypeReference<>() {});
-                            // Find the technology with the highest max score to display as the dominant label
                             dominantTech = breakdown.entrySet().stream()
                                     .max(Comparator.comparingDouble(e -> e.getValue().getOrDefault("max", 0.0)))
                                     .map(Map.Entry::getKey).orElse("GENERAL");
                             
-                            // Also feed the Domain Mastery Graph right here
                             for (Map.Entry<String, Map<String, Double>> entry : breakdown.entrySet()) {
                                 double earned = entry.getValue().getOrDefault("earned", 0.0);
                                 double max = entry.getValue().getOrDefault("max", 1.0);
@@ -244,10 +241,48 @@ public class StudentAssessmentServiceImpl implements StudentAssessmentService {
                 .build();
     }
 
+    // 🌟 1. ROUTE OLD REQUESTS TO NEW LOGIC
     @Override
     @Transactional(readOnly = true)
     public mac.prograde.api.dto.LeaderboardDTO getLeaderboards(String studentEmail) {
-        List<AssessmentSubmission> allSubs = submissionRepository.findAll();
+        return getLeaderboards(studentEmail, "ALL_TIME");
+    }
+
+    // 🌟 2. BULLETPROOF PRACTICE EXAM CHECKER
+    private boolean isPracticeExam(Assessment a) {
+        if (a == null) return true;
+        if ("STUDENT".equalsIgnoreCase(a.getCreatorRole())) return true;
+        if ("PRACTICE".equalsIgnoreCase(a.getStatus())) return true;
+        if (a.getTitle() != null) {
+            String title = a.getTitle().toLowerCase();
+            if (title.contains("practice") || title.contains("self")) return true;
+        }
+        return false;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public mac.prograde.api.dto.LeaderboardDTO getLeaderboards(String studentEmail, String timeFilter) {
+        
+        // 1. RESOLVE THE TIME FILTER
+        java.time.LocalDateTime startDate = null;
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+
+        if ("TODAY".equalsIgnoreCase(timeFilter)) {
+            startDate = now.withHour(0).withMinute(0).withSecond(0).withNano(0);
+        } else if ("WEEK".equalsIgnoreCase(timeFilter)) {
+            startDate = now.minusDays(7);
+        } else if ("MONTH".equalsIgnoreCase(timeFilter)) {
+            startDate = now.minusMonths(1);
+        }
+
+        // 2. FETCH ALL DATA BASED ON TIME
+        List<AssessmentSubmission> allSubs;
+        if (startDate == null) {
+            allSubs = submissionRepository.findAll();
+        } else {
+            allSubs = submissionRepository.findBySubmittedAtGreaterThanEqual(startDate);
+        }
         
         java.util.function.Function<String, String> getName = (email) -> {
             if (email == null) return "Unknown";
@@ -255,16 +290,28 @@ public class StudentAssessmentServiceImpl implements StudentAssessmentService {
             return u != null ? u.getFullName() : email.split("@")[0];
         };
 
-        // 1. GLOBAL LEADERBOARD
+        // CACHE ALL ASSESSMENTS FOR HIGH-SPEED LOOKUP
+        Map<Long, Assessment> assessmentCache = assessmentRepository.findAll().stream()
+                .collect(Collectors.toMap(Assessment::getId, a -> a));
+
+        // =========================================================
+        // 1. GLOBAL LEADERBOARD (Practice points ARE included here)
+        // =========================================================
         Map<String, Double> globalScores = allSubs.stream()
                 .filter(sub -> sub.getStudentEmail() != null)
                 .collect(Collectors.groupingBy(AssessmentSubmission::getStudentEmail, Collectors.summingDouble(AssessmentSubmission::getTotalScore)));
         List<mac.prograde.api.dto.LeaderboardDTO.RankEntry> globalLeaderboard = buildRankedList(globalScores, studentEmail, getName);
 
-        // 🌟 2. TRUE TECHNOLOGY LEADERBOARDS (Using Parsed JSON Breakdown)
+        // =========================================================
+        // 2. TRUE TECHNOLOGY LEADERBOARDS (Practice exams excluded)
+        // =========================================================
         Map<String, Map<String, Double>> techScores = new HashMap<>();
         for (AssessmentSubmission sub : allSubs) {
             if (sub.getStudentEmail() == null || sub.getTechBreakdownJson() == null || sub.getTechBreakdownJson().equals("{}")) continue;
+            
+            // 🚨 BULLETPROOF BLOCKER
+            if (isPracticeExam(assessmentCache.get(sub.getAssessmentId()))) continue;
+
             try {
                 Map<String, Map<String, Double>> breakdown = mapper.readValue(sub.getTechBreakdownJson(), new TypeReference<>() {});
                 for (Map.Entry<String, Map<String, Double>> techEntry : breakdown.entrySet()) {
@@ -283,26 +330,40 @@ public class StudentAssessmentServiceImpl implements StudentAssessmentService {
                 .sorted((a, b) -> b.getRankings().size() - a.getRankings().size()) 
                 .toList();
 
-        // 3. EXAM LEADERBOARDS
+        // =========================================================
+        // 3. EXAM LEADERBOARDS (Practice exams excluded)
+        // =========================================================
         Map<String, Map<String, Double>> examScores = new HashMap<>();
-        List<Long> permittedExamIds = new ArrayList<>(getPermittedPublicAssessments(studentEmail).stream().map(Assessment::getId).toList());
-        List<Long> myPastExamIds = allSubs.stream().filter(s -> studentEmail.equalsIgnoreCase(s.getStudentEmail())).map(AssessmentSubmission::getAssessmentId).toList();
-        permittedExamIds.addAll(myPastExamIds); 
+        
+        List<Long> permittedExamIds = new ArrayList<>();
+        if (studentEmail != null) {
+            permittedExamIds.addAll(getPermittedPublicAssessments(studentEmail).stream().map(Assessment::getId).toList());
+            List<Long> myPastExamIds = allSubs.stream().filter(s -> studentEmail.equalsIgnoreCase(s.getStudentEmail())).map(AssessmentSubmission::getAssessmentId).toList();
+            permittedExamIds.addAll(myPastExamIds); 
+        }
 
         for (AssessmentSubmission sub : allSubs) {
-            if (sub.getStudentEmail() == null || !permittedExamIds.contains(sub.getAssessmentId())) continue; 
-            Assessment a = assessmentRepository.findById(sub.getAssessmentId()).orElse(null);
-            if (a == null) continue;
+            if (sub.getStudentEmail() == null) continue; 
+            if (studentEmail != null && !permittedExamIds.contains(sub.getAssessmentId())) continue; 
+            
+            Assessment a = assessmentCache.get(sub.getAssessmentId());
+            
+            // 🚨 BULLETPROOF BLOCKER
+            if (isPracticeExam(a)) continue;
+
             examScores.putIfAbsent(a.getTitle(), new HashMap<>());
             examScores.get(a.getTitle()).merge(sub.getStudentEmail(), sub.getTotalScore(), Math::max);
         }
+        
         List<mac.prograde.api.dto.LeaderboardDTO.CategoryLeaderboard> examBoards = examScores.entrySet().stream()
                 .map(e -> new mac.prograde.api.dto.LeaderboardDTO.CategoryLeaderboard(e.getKey(), buildRankedList(e.getValue(), studentEmail, getName)))
                 .filter(b -> !b.getRankings().isEmpty())
                 .sorted((a, b) -> a.getCategoryName().compareToIgnoreCase(b.getCategoryName()))
                 .toList();
 
-        // 4. BATCH LEADERBOARDS
+        // =========================================================
+        // 4. BATCH LEADERBOARDS (Practice exams excluded)
+        // =========================================================
         Map<String, Map<String, Double>> batchScores = new HashMap<>();
         List<BatchStudent> allBatchStudents = batchStudentRepository.findAll();
         Map<String, List<String>> emailToBatches = allBatchStudents.stream()
@@ -313,18 +374,24 @@ public class StudentAssessmentServiceImpl implements StudentAssessmentService {
 
         for (AssessmentSubmission sub : allSubs) {
             if (sub.getStudentEmail() == null) continue;
+
+            // 🚨 BULLETPROOF BLOCKER
+            if (isPracticeExam(assessmentCache.get(sub.getAssessmentId()))) continue;
+
             List<String> assignedBatches = emailToBatches.getOrDefault(sub.getStudentEmail(), Collections.emptyList());
             for (String batchName : assignedBatches) {
                 batchScores.putIfAbsent(batchName, new HashMap<>());
                 batchScores.get(batchName).merge(sub.getStudentEmail(), sub.getTotalScore(), Double::sum);
             }
         }
+        
         List<mac.prograde.api.dto.LeaderboardDTO.CategoryLeaderboard> batchBoards = batchScores.entrySet().stream()
                 .map(e -> new mac.prograde.api.dto.LeaderboardDTO.CategoryLeaderboard(e.getKey(), buildRankedList(e.getValue(), studentEmail, getName)))
                 .filter(b -> !b.getRankings().isEmpty())
                 .sorted((a, b) -> a.getCategoryName().compareToIgnoreCase(b.getCategoryName()))
                 .toList();
 
+        // Assemble Final DTO
         return mac.prograde.api.dto.LeaderboardDTO.builder()
                 .globalLeaderboard(globalLeaderboard)
                 .technologyLeaderboards(techBoards)

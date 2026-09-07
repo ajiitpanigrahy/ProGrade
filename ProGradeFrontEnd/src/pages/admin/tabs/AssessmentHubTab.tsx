@@ -1,16 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { ShieldAlert, Plus, FileText, KeyRound, Fingerprint, Copy, ChevronRight, BarChart3, Lock, Loader2, AlertTriangle, Clock, Filter, Activity, Code2, Calendar, Search, User } from 'lucide-react';
+import { useState, useEffect, type MouseEvent } from 'react';
+import { ShieldAlert, Plus, FileText, KeyRound, Fingerprint, Copy, ChevronRight, BarChart3, Lock, Loader2, AlertTriangle, Clock, Activity, Code2, Calendar, Search, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AssessmentBuilder from './subtabs/AssessmentBuilder';
 import AssessmentDetailsPanel from './subtabs/AssessmentDetailsPanel';
 import { adminService } from '../../../features/admin/adminService';
 import { useAuth } from '../../../context/AuthContext';
 
-const KNOWN_TECHS = [
-    'JAVA', 'PYTHON', 'CPP', 'C', 'JAVASCRIPT', 'SQL', 'MYSQL', 'DSA', 
-    'SPRING_CORE', 'SPRING_BOOT', 'SPRING_MVC', 'SPRING_DATA_JPA', 
-    'SPRING_JDBC', 'SPRING_ORM', 'REST_API', 'HIBERNATE', 'MAVEN', 'JUNIT', 'LOGGING'
-];
+// 🌟 Import the Central Taxonomy
+import { ALL_TECHNOLOGIES } from '../../../constants/taxonomy';
 
 export default function AssessmentHubTab({ activeSubTab }: { activeSubTab: string }) {
     const { user } = useAuth();
@@ -18,7 +15,7 @@ export default function AssessmentHubTab({ activeSubTab }: { activeSubTab: strin
     
     const [isBuilding, setIsBuilding] = useState(false);
     const [selectedAssessment, setSelectedAssessment] = useState<any | null>(null);
-    const [assessments, setAssessments] = useState<any[]>([]);
+    const [assessments, setAssessments] = useState<any>([]);
     const [fraudLogs, setFraudLogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [restrictedModal, setRestrictedModal] = useState(false);
@@ -68,21 +65,23 @@ export default function AssessmentHubTab({ activeSubTab }: { activeSubTab: strin
         }
     }, [isBuilding, selectedAssessment, activeSubTab]);
 
-    const copyToClipboard = (e: React.MouseEvent, text: string) => {
+    const copyToClipboard = (e: MouseEvent, text: string) => {
         e.stopPropagation();
         navigator.clipboard.writeText(text);
     };
 
-    // 🌟 BULLETPROOF TECHNOLOGY PARSER
+    // 🌟 DYNAMIC TECHNOLOGY PARSER (Strips spaces/underscores for backward DB compatibility)
     const getExamTech = (tags?: string) => {
         if (!tags) return 'MIXED TECH';
-        const upperTags = String(tags).toUpperCase();
-        const foundTechs = KNOWN_TECHS.filter(tech => {
-            const formattedTech = tech.replace(/_/g, '');
-            return upperTags.includes(formattedTech); // Removed '#' requirement to match legacy DB rows safely
+        const normalizedTags = String(tags).toUpperCase().replace(/[\s_]/g, '');
+        
+        const foundTechs = ALL_TECHNOLOGIES.filter(tech => {
+            const normalizedTech = tech.toUpperCase().replace(/[\s_]/g, '');
+            return normalizedTags.includes(normalizedTech);
         });
+        
         if (foundTechs.length > 1) return 'MIXED TECH';
-        if (foundTechs.length === 1) return foundTechs[0].replace(/_/g, ' ');
+        if (foundTechs.length === 1) return foundTechs[0]; // Returns perfectly formatted name (e.g., "Spring Boot")
         return 'CUSTOM';
     };
 
@@ -96,9 +95,9 @@ export default function AssessmentHubTab({ activeSubTab }: { activeSubTab: strin
     };
 
     // 🌟 INDESTRUCTIBLE FRONTEND FILTERING ENGINE
-    const safeAssessments = Array.isArray(assessments) ? assessments : (assessments?.data || assessments?.content || []);
+    const safeAssessments: any[] = Array.isArray(assessments) ? assessments : (assessments?.data || assessments?.content || []);
     
-    const processedAssessments = safeAssessments.filter(exam => {
+    const processedAssessments = safeAssessments.filter((exam: any) => {
         if (!exam) return false;
         
         const searchLower = searchStr.toLowerCase().trim();
@@ -111,12 +110,13 @@ export default function AssessmentHubTab({ activeSubTab }: { activeSubTab: strin
         const examDiff = exam.difficultyLevel ? String(exam.difficultyLevel).toUpperCase() : 'MIXED';
         const matchesLevel = levelFilter === 'ALL' || examDiff === levelFilter;
         
-        const tags = exam.tags ? String(exam.tags).toUpperCase() : '';
-        const normalizedTechFilter = techFilter.replace(/_/g, '');
+        // Match against dynamic taxonomy
+        const tags = exam.tags ? String(exam.tags).toUpperCase().replace(/[\s_]/g, '') : '';
+        const normalizedTechFilter = techFilter.toUpperCase().replace(/[\s_]/g, '');
         const matchesTech = techFilter === 'ALL' || tags.includes(normalizedTechFilter);
         
         return matchesSearch && matchesLevel && matchesTech;
-    }).sort((a, b) => {
+    }).sort((a: any, b: any) => {
         const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         
@@ -254,28 +254,15 @@ export default function AssessmentHubTab({ activeSubTab }: { activeSubTab: strin
                 <div className="grid grid-cols-2 sm:flex gap-3 w-full xl:w-auto">
                     <div className="relative">
                         <Code2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-purple-500" />
+                        
+                        {/* 🌟 DYNAMIC TECHNOLOGY DROPDOWN */}
                         <select value={techFilter} onChange={e => setTechFilter(e.target.value)} className={`${selectClass} pl-9`}>
                             <option value="ALL">All Technologies</option>
-                            <option value="JAVA">Java</option>
-                            <option value="PYTHON">Python</option>
-                            <option value="CPP">C++</option>
-                            <option value="C">C</option>
-                            <option value="JAVASCRIPT">JavaScript</option>
-                            <option value="SQL">SQL</option>
-                            <option value="MYSQL">MySQL</option>
-                            <option value="DSA">Data Structures & Algo</option>
-                            <option value="SPRING_CORE">Spring Core</option>
-                            <option value="SPRING_BOOT">Spring Boot</option>
-                            <option value="SPRING_MVC">Spring MVC</option>
-                            <option value="SPRING_DATA_JPA">Spring Data JPA</option>
-                            <option value="SPRING_JDBC">Spring JDBC</option>
-                            <option value="SPRING_ORM">Spring ORM</option>
-                            <option value="REST_API">REST API</option>
-                            <option value="HIBERNATE">Hibernate</option>
-                            <option value="MAVEN">Maven</option>
-                            <option value="JUNIT">JUnit</option>
-                            <option value="LOGGING">Logging</option>
+                            {ALL_TECHNOLOGIES.map(tech => (
+                                <option key={tech} value={tech}>{tech}</option>
+                            ))}
                         </select>
+                        
                     </div>
                     <div className="relative">
                         <Activity className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-blue-500" />
@@ -322,7 +309,7 @@ export default function AssessmentHubTab({ activeSubTab }: { activeSubTab: strin
                                     </td>
                                 </tr>
                             ) : (
-                                processedAssessments.map((exam) => {
+                                processedAssessments.map((exam: any) => {
                                     const isAdmin = user?.role === 'ADMIN';
                                     const isCreator = exam.creatorEmail === user?.email;
                                     const hasFullAccess = isAdmin || isCreator;

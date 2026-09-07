@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { chatService } from '../../features/chat/chatService';
-import EmojiPicker from 'emoji-picker-react';
-import { useSearchParams, useNavigate } from 'react-router-dom'; // 🌟 Added useNavigate
-import { Search, Paperclip, Smile, MoreVertical, Check, CheckCheck, ShieldAlert, XCircle, Ban, Flag, ChevronLeft, SendHorizonal, EyeOff, Eye, File as FileIcon, Image as ImageIcon, Download } from 'lucide-react';
+
+import React, { useState, useEffect, useRef } from 'react'; 
+import EmojiPicker, { Theme } from 'emoji-picker-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Search, Paperclip, Smile, MoreVertical, Check, CheckCheck, ShieldAlert, XCircle, Ban, Flag, ChevronLeft, SendHorizonal, EyeOff, Eye, File as FileIcon, Image as ImageIcon, Download, CheckCircle2 } from 'lucide-react';
 
 export default function ChatMessenger() {
     const { user } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
-    const navigate = useNavigate(); // 🌟 Initialized navigate
+    const navigate = useNavigate();
 
     // Core State
     const [rooms, setRooms] = useState<any[]>([]);
@@ -28,11 +29,11 @@ export default function ChatMessenger() {
     const [showMenu, setShowMenu] = useState(false);
     const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
 
-    // Refs
+    // 🌟 FIX: Use a container ref instead of an end ref to prevent whole-page jumping
     const activeRoomRef = useRef<any>(null);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const suggestions = ["Acknowledged.", "Please review the attachment.", "Let's discuss this.", "Approved."];
 
@@ -65,7 +66,20 @@ export default function ChatMessenger() {
     }, []);
 
     useEffect(() => { activeRoomRef.current = activeRoom; }, [activeRoom]);
-    useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, opponentTyping]);
+
+    // 🌟 FIX: Strict Internal Container Scrolling (Prevents the whole page from jumping up)
+    useEffect(() => { 
+        if (messagesContainerRef.current) {
+            setTimeout(() => {
+                if (messagesContainerRef.current) {
+                    messagesContainerRef.current.scrollTo({
+                        top: messagesContainerRef.current.scrollHeight,
+                        behavior: 'smooth'
+                    });
+                }
+            }, 100);
+        }
+    }, [messages, opponentTyping, activeRoom]);
 
     useEffect(() => {
         if (!activeRoom || activeRoom.isNew) return;
@@ -222,7 +236,6 @@ export default function ChatMessenger() {
 
     const closeChatMobile = () => { setActiveRoom(null); setSearchParams({}); };
 
-    // 🌟 HELPER: Generate Redirect path for Reports
     const handleReportRedirect = () => {
         setShowMenu(false);
         const opponentEmail = encodeURIComponent(getOpponentEmail(activeRoom));
@@ -231,10 +244,12 @@ export default function ChatMessenger() {
     };
 
     return (
-        <div className="w-full min-w-0 h-[calc(100vh-6rem)] sm:h-[calc(100vh-8rem)] bg-white/60 dark:bg-[#150a29]/60 backdrop-blur-xl border-2 border-gray-200 dark:border-purple-900/50 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] overflow-hidden flex relative animate-in fade-in">
+        // 🌟 FIX: Exactly calculated height (100vh - 10rem) to perfectly fit inside the dashboard without pushing boundaries
+        <div className="w-full min-w-0 h-[calc(100vh-10rem)] bg-white/60 dark:bg-[#150a29]/60 backdrop-blur-xl border-2 border-gray-200 dark:border-purple-900/50 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] overflow-hidden flex relative animate-in fade-in flex-row">
 
+            {/* LEFT SIDEBAR (Chats List) */}
             <div className={`w-full md:w-80 border-r-2 border-gray-200 dark:border-purple-900/50 flex flex-col bg-white/40 dark:bg-[#0f0a1c]/40 shrink-0 z-20 ${activeRoom ? 'hidden md:flex' : 'flex'}`}>
-                <div className="p-5 border-b-2 border-gray-200 dark:border-purple-900/50">
+                <div className="flex-none p-5 border-b-2 border-gray-200 dark:border-purple-900/50">
                     <h2 className="text-xl font-black text-gray-900 dark:text-white mb-4">Messages</h2>
                     <form onSubmit={handleSearch} className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -246,7 +261,7 @@ export default function ChatMessenger() {
                     {searchError && <p className="text-[10px] text-red-500 font-bold mt-2 uppercase tracking-wider">{searchError}</p>}
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2">
                     {searchResult && (
                         <div onClick={() => openNewChat(searchResult)} className="m-2 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border-2 border-purple-200 dark:border-purple-500/30 cursor-pointer hover:shadow-md transition-all group">
                             <div className="flex items-center gap-3">
@@ -284,7 +299,8 @@ export default function ChatMessenger() {
                 </div>
             </div>
 
-            <div className={`flex-1 w-full min-w-0 flex flex-col h-full relative bg-gray-50 dark:bg-[#05020a] ${!activeRoom ? 'hidden md:flex' : 'flex'}`}>
+            {/* RIGHT SIDEBAR (Main Chat Window) */}
+            <div className={`flex-1 min-w-0 flex flex-col relative bg-gray-50 dark:bg-[#05020a] ${!activeRoom ? 'hidden md:flex' : 'flex'}`}>
 
                 <div className="absolute inset-0 z-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none" 
                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l30 17.32v34.64L30 60 0 51.96V17.32L30 0zm0 34.64l20-11.55-20-11.55-20 11.55 20 11.55zM10 23.09v23.09l20 11.55v-23.1L10 23.09zm40 0l-20 11.55v23.1l20-11.55v-23.09z' fill='%236b21a8' fill-opacity='1' fill-rule='evenodd'/%3E%3C/svg%3E")`, backgroundSize: '40px' }}>
@@ -293,7 +309,7 @@ export default function ChatMessenger() {
 
                 {activeRoom ? (
                     <>
-                        <div className="h-20 border-b-2 border-gray-200 dark:border-purple-900/50 flex items-center justify-between px-3 sm:px-6 bg-white/80 dark:bg-[#150a29]/80 backdrop-blur-xl z-[100] shrink-0 shadow-sm relative">
+                        <div className="flex-none h-20 border-b-2 border-gray-200 dark:border-purple-900/50 flex items-center justify-between px-3 sm:px-6 bg-white/80 dark:bg-[#150a29]/80 backdrop-blur-xl z-[100] shadow-sm relative">
 
                             <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 pr-2">
                                 <button title="Back to Chats" onClick={closeChatMobile} className="md:hidden p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full cursor-pointer transition-colors shrink-0"><ChevronLeft className="w-6 h-6"/></button>
@@ -332,7 +348,6 @@ export default function ChatMessenger() {
                                             activeRoom.blockedByEmail === user?.email && <button onClick={() => handleRoomAction('UNBLOCK')} className="w-full px-4 py-3 text-left text-sm font-bold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 flex items-center gap-2 cursor-pointer transition-colors"><CheckCircle2 className="w-4 h-4"/> Unblock User</button>
                                         )}
                                         
-                                        {/* 🌟 HIDE REPORT OPTION IF USER IS AN ADMIN */}
                                         {user?.role !== 'ADMIN' && (
                                             <button onClick={handleReportRedirect} className="w-full px-4 py-3 text-left text-sm font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 flex items-center gap-2 cursor-pointer transition-colors border-t border-gray-100 dark:border-gray-800">
                                                 <Flag className="w-4 h-4"/> Report Content
@@ -345,7 +360,8 @@ export default function ChatMessenger() {
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-4 custom-scrollbar relative z-10 w-full" onClick={() => {setShowEmoji(false); setShowMenu(false); setActiveTooltip(null);}}>
+                        {/* 🌟 MESSAGES (Internal container ref handles scroll to avoid page jumping) */}
+                        <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-3 custom-scrollbar relative z-10 w-full" onClick={() => {setShowEmoji(false); setShowMenu(false); setActiveTooltip(null);}}>
 
                             {!activeRoom.isNew && activeRoom.status !== 'ACCEPTED' && (
                                 <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-20">
@@ -392,8 +408,8 @@ export default function ChatMessenger() {
                                                 {msg.isViewOnce && !isMe && msg.status !== 'SEEN' ? '🔒 View Once Message (Disappears after reading)' : msg.content}
                                             </p>
 
-                                            <div className={`flex items-center justify-end gap-1 mt-1.5 text-[9px] font-bold ${isMe ? 'text-purple-200' : 'text-gray-400'}`}>
-                                                {msg.isViewOnce && <EyeOff className="w-3 h-3 mr-1 opacity-70" title="View Once Message"/>}
+                                             <div className={`flex items-center justify-end gap-1 mt-1.5 text-[9px] font-bold ${isMe ? 'text-purple-200' : 'text-gray-400'}`}>
+                                                {msg.isViewOnce && <span title="View Once Message"><EyeOff className="w-3 h-3 mr-1 opacity-70"/></span>}
                                                 {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 
                                                 {isMe && (
@@ -417,14 +433,14 @@ export default function ChatMessenger() {
                                     </div>
                                 );
                             })}
-                            <div ref={messagesEndRef} />
                         </div>
 
-                        <div className="p-3 sm:p-4 bg-white/80 dark:bg-[#150a29]/80 backdrop-blur-xl border-t-2 border-gray-200 dark:border-purple-900/50 shrink-0 relative z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] w-full">
+                        {/* 🌟 FOOTER INPUT AREA */}
+                        <div className="flex-none bg-white/80 dark:bg-[#150a29]/80 backdrop-blur-xl border-t-2 border-gray-200 dark:border-purple-900/50 relative z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] w-full flex flex-col pt-3 pb-4 px-4 sm:px-6">
 
-                            <div className="flex gap-2 overflow-x-auto custom-scrollbar mb-2 sm:mb-3 pb-1 w-full">
+                            <div className="flex-none flex gap-2 overflow-x-auto custom-scrollbar mb-3 w-full">
                                 {suggestions.map((text, i) => (
-                                    <button key={i} title={`Quick reply: "${text}"`} onClick={() => handleSend(text)} disabled={activeRoom.status === 'BLOCKED'} className="shrink-0 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 px-4 py-1.5 rounded-full text-[10px] font-bold border border-purple-200 dark:border-purple-800 hover:bg-purple-600 hover:text-white cursor-pointer transition-colors disabled:opacity-50 shadow-sm">
+                                    <button key={i} title={`Quick reply: "${text}"`} onClick={() => handleSend(text)} disabled={activeRoom.status === 'BLOCKED'} className="shrink-0 bg-purple-50 dark:bg-[#110820] text-purple-600 dark:text-purple-400 px-4 py-1.5 rounded-full text-[10px] font-bold border border-purple-200 dark:border-purple-900/50 hover:bg-purple-600 hover:text-white cursor-pointer transition-colors disabled:opacity-50 shadow-sm">
                                         {text}
                                     </button>
                                 ))}
@@ -439,12 +455,12 @@ export default function ChatMessenger() {
                             )}
 
                             {showEmoji && (
-                                <div className="absolute bottom-[80px] left-4 shadow-2xl z-50 animate-in zoom-in-95">
-                                    <EmojiPicker width={280} height={350} theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'} onEmojiClick={(e) => setInputMsg(prev => prev + e.emoji)} />
+                                <div className="absolute bottom-full mb-4 left-4 shadow-2xl z-50 animate-in zoom-in-95">
+                                    <EmojiPicker width={280} height={350} theme={document.documentElement.classList.contains('dark') ? Theme.DARK : Theme.LIGHT} onEmojiClick={(e) => setInputMsg(prev => prev + e.emoji)} />
                                 </div>
                             )}
 
-                            <div className="flex items-end gap-2 sm:gap-3 relative w-full">
+                            <div className="flex-none flex items-end gap-2 sm:gap-3 w-full">
                                 <button title="Add Emoji" onClick={() => setShowEmoji(!showEmoji)} disabled={activeRoom.status === 'BLOCKED'} className="p-2.5 sm:p-3 text-gray-400 hover:text-amber-500 bg-white dark:bg-[#1a0d36] shadow-sm rounded-xl transition-colors cursor-pointer shrink-0 disabled:opacity-50 border border-gray-200 dark:border-gray-800"><Smile className="w-5 h-5"/></button>
 
                                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
@@ -458,7 +474,7 @@ export default function ChatMessenger() {
                                     type="text" placeholder={activeRoom.status === 'BLOCKED' ? "Chat is blocked" : "Type a secure message..."}
                                     value={inputMsg} onChange={handleTyping} onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                                     disabled={activeRoom.status === 'BLOCKED'}
-                                    className="flex-1 min-w-0 w-full bg-white dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm focus:outline-none focus:border-purple-500 shadow-inner dark:text-white disabled:opacity-50 transition-all cursor-text"
+                                    className="flex-1 min-w-0 w-full bg-white dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm font-semibold focus:outline-none focus:border-purple-500 focus:ring-4 ring-purple-600/20 shadow-inner dark:text-white disabled:opacity-50 transition-all cursor-text"
                                 />
 
                                 <button title="Send Message" onClick={() => handleSend()} disabled={(!inputMsg.trim() && !selectedFile) || activeRoom.status === 'BLOCKED'} className="p-2.5 sm:p-3 bg-gradient-to-b from-purple-500 to-purple-700 text-white rounded-xl shadow-[0_4px_0_rgb(107,33,168)] hover:from-purple-400 hover:to-purple-600 disabled:opacity-50 disabled:shadow-none disabled:translate-y-[4px] disabled:bg-gray-400 transition-all active:shadow-[0_0px_0_rgb(107,33,168)] active:translate-y-[4px] cursor-pointer shrink-0 border border-purple-800">

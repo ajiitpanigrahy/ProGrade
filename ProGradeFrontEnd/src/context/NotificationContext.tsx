@@ -6,6 +6,7 @@ import { useAuth } from './AuthContext';
 
 interface Notification {
     id: number;
+    sender?: string;
     title: string;
     message: string;
     type: 'INFO' | 'SUCCESS' | 'WARNING' | 'CRITICAL';

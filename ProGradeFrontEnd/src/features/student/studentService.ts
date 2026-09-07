@@ -20,24 +20,8 @@ export const studentService = {
         const response = await axiosClient.post(`/student/assessments/${examId}/verify`, { password });
         return response.data;
     },
-    getPublicAssessments: async () => {
-        const response = await axiosClient.get('/student/assessments/public');
-        return response.data;
-    },
-    searchPrivateAssessment: async (examId: string) => {
-        const response = await axiosClient.get(`/student/assessments/search?examId=${examId}`);
-        return response.data;
-    },
-    verifyExamPassword: async (examId: string, password: string) => {
-        const response = await axiosClient.post(`/student/assessments/${examId}/verify`, { password });
-        return response.data;
-    },
 
     // 🌟 NEW LIVE EXAM METHODS
-    getSecureExamPayload: async (assessmentId: string) => {
-        const response = await axiosClient.get(`/student/live-exam/${assessmentId}`);
-        return response.data;
-    },
     submitExam: async (assessmentId: string, payload: any) => {
         const response = await axiosClient.post(`/student/live-exam/${assessmentId}/submit`, payload);
         return response.data;
@@ -85,6 +69,10 @@ export const studentService = {
     getInventory: async (technology: string) => {
         // 🌟 Make sure it hits the student route, NOT the admin route!
         const response = await axiosClient.get(`/student/practice/inventory/${technology}`);
+        return response.data;
+    },
+    getLeaderboard: async (timeFilter: string = 'ALL_TIME') => {
+        const response = await axiosClient.get(`/student/dashboard/leaderboard?time=${timeFilter}`);
         return response.data;
     },
 };

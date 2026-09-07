@@ -71,4 +71,20 @@ public class Question {
     public enum DifficultyLevel {
         EASY, MEDIUM, HARD
     }
+    
+    @PrePersist
+    @PreUpdate
+    public void normalizeDataAndSetType() {
+        // 1. If the code snippet is just an empty string or spaces, force it to null
+        if (this.codeSnippet != null && this.codeSnippet.trim().isEmpty()) {
+            this.codeSnippet = null;
+        }
+
+        // 2. Automatically classify the question based on the presence of code
+        if (this.codeSnippet != null) {
+            this.questionType = "CODING";
+        } else {
+            this.questionType = "THEORY";
+        }
+    }
 }

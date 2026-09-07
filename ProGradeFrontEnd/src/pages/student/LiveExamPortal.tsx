@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Clock, ShieldAlert, Flag, RotateCcw, ChevronRight, ChevronLeft, Menu, Loader2, CheckSquare, X, AlertTriangle, FileText, Monitor, Terminal } from 'lucide-react';
 import { studentService } from '../../features/student/studentService';
+// 🌟 IMPORT YOUR SYNTAX HIGHLIGHTER
+import CodeSnippetBox from '../../components/CodeSnippetBox';
 
 type ExamPhase = 'INSTRUCTIONS' | 'TEST' | 'RESULT';
 
@@ -9,28 +11,24 @@ export default function LiveExamPortal() {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    // 🌟 ADD THIS HELPER FUNCTION AT THE TOP
-const renderQuestionContent = (text: string) => {
-    if (!text) return null;
-    const parts = text.split(/(```[\s\S]*?```)/g);
-    return parts.map((part, index) => {
-        if (part.startsWith('```') && part.endsWith('```')) {
-            const code = part.replace(/```[a-z]*\n?/i, '').replace(/```$/, '');
-            return (
-                <div key={index} className="my-4 bg-[#0d0714] border border-purple-900/50 rounded-xl overflow-hidden shadow-inner w-full">
-                    <div className="bg-[#150a29] px-4 py-2.5 flex items-center gap-2 border-b border-purple-900/50">
-                        <Terminal className="w-4 h-4 text-purple-400" />
-                        <span className="text-xs uppercase font-black text-purple-400 tracking-wider">Code Snippet</span>
+    // 🌟 FIX 1: Apply Multi-line replace to legacy markdown content
+    const renderQuestionContent = (text: string) => {
+        if (!text) return null;
+        const formattedText = text.replace(/\\n/g, '\n');
+        const parts = formattedText.split(/(```[\s\S]*?```)/g);
+        
+        return parts.map((part, index) => {
+            if (part.startsWith('```') && part.endsWith('```')) {
+                const code = part.replace(/```[a-z]*\n?/i, '').replace(/```$/, '');
+                return (
+                    <div key={index} className="my-4 animate-in fade-in">
+                        <CodeSnippetBox code={code} language="javascript" />
                     </div>
-                    <pre className="p-5 text-sm sm:text-base text-emerald-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar whitespace-pre">
-                        <code>{code}</code>
-                    </pre>
-                </div>
-            );
-        }
-        return <span key={index} className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed">{part}</span>;
-    });
-};
+                );
+            }
+            return <span key={index} className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed font-semibold">{part}</span>;
+        });
+    };
 
     const [examData, setExamData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -42,13 +40,11 @@ const renderQuestionContent = (text: string) => {
     const [flags, setFlags] = useState<Record<number, boolean>>({});
     const [timeLeft, setTimeLeft] = useState<number>(0);
 
-    // 🌟 BULLETPROOF TIME TRACKING REFS
     const startTimeRef = useRef<string>('');
     const timeSpentRef = useRef<Record<number, number>>({});
     const currentQuestionIndexRef = useRef(currentQuestionIndex);
     const violationCountRef = useRef(0);
 
-    // Sync state to ref for accurate interval tracking
     useEffect(() => { currentQuestionIndexRef.current = currentQuestionIndex; }, [currentQuestionIndex]);
 
     const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
@@ -74,10 +70,21 @@ const renderQuestionContent = (text: string) => {
 
     const handleStartExam = async () => {
         try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch (e) {}
-        
-        // 🌟 RECORD EXACT START TIMESTAMP
         startTimeRef.current = new Date().toISOString();
         setExamPhase('TEST');
+    };
+
+    // 🌟 FIX 2: Bulletproof Next/Prev Handlers
+    const handleNext = () => {
+        if (currentQuestionIndex < (examData?.totalQuestions || 1) - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
+        }
+    };
+
+    const handlePrev = () => {
+        if (currentQuestionIndex > 0) {
+            setCurrentQuestionIndex(prev => prev - 1);
+        }
     };
 
     const handleFinalSubmit = useCallback(async (reason: 'MANUAL' | 'TIME_UP' | 'MALPRACTICE') => {
@@ -86,14 +93,12 @@ const renderQuestionContent = (text: string) => {
         setSubmitReason(reason);
 
         try {
-            console.log("Submitting Time Data:", timeSpentRef.current); // Debug log to ensure seconds are recorded
-            
             const result = await studentService.submitExam(id as string, {
                 answers,
                 isAutoSubmit: reason !== 'MANUAL',
                 flaggedCount,
                 startedAt: startTimeRef.current || new Date().toISOString(),
-                timeSpent: timeSpentRef.current // 🌟 Send exact seconds recorded by the Ref
+                timeSpent: timeSpentRef.current 
             });
 
             if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
@@ -105,7 +110,6 @@ const renderQuestionContent = (text: string) => {
         }
     }, [answers, id, flaggedCount, navigate]);
 
-    // TIMER & SECONDS TRACKER
     useEffect(() => {
         if (examPhase !== 'TEST' || isSubmitting) return;
 
@@ -114,8 +118,6 @@ const renderQuestionContent = (text: string) => {
                 if (prev <= 1) { handleFinalSubmit('TIME_UP'); return 0; }
                 return prev - 1;
             });
-
-            // 🌟 ACCUMULATE EXACT SECONDS FOR CURRENT QUESTION
             const qIdx = currentQuestionIndexRef.current;
             timeSpentRef.current[qIdx] = (timeSpentRef.current[qIdx] || 0) + 1;
         }, 1000);
@@ -123,7 +125,6 @@ const renderQuestionContent = (text: string) => {
         return () => clearInterval(timer);
     }, [examPhase, isSubmitting, handleFinalSubmit]);
 
-    // ANTI-CHEAT ENGINE
     useEffect(() => {
         if (examPhase !== 'TEST' || isSubmitting) return;
         let hiddenTime = 0;
@@ -169,7 +170,7 @@ const renderQuestionContent = (text: string) => {
                             <FileText className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-black text-gray-900 dark:text-white">{examData.title}</h1>
+                            <h1 className="text-2xl font-black text-gray-900 dark:text-white">{examData?.title}</h1>
                             <p className="text-gray-500 font-medium text-sm">Rules & Security Mandate</p>
                         </div>
                     </div>
@@ -185,7 +186,7 @@ const renderQuestionContent = (text: string) => {
                         </div>
                         <div className="flex gap-3 bg-gray-50 dark:bg-[#0f0a1c] p-4 rounded-xl border border-gray-200 dark:border-purple-900/30">
                             <Clock className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                            <p><strong>Auto-Submit:</strong> The test auto-submits when the {examData.durationMinutes} minute timer reaches 00:00.</p>
+                            <p><strong>Auto-Submit:</strong> The test auto-submits when the {examData?.durationMinutes} minute timer reaches 00:00.</p>
                         </div>
                     </div>
 
@@ -220,9 +221,6 @@ const renderQuestionContent = (text: string) => {
     }
 
     const currentQuestion = examData?.questions[currentQuestionIndex];
-    
-    // 🌟 ADD THIS TEMPORARY DEBUG LOG
-    console.log("CURRENT QUESTION DATA:", currentQuestion);
 
     return (
         <div className="h-screen w-screen flex flex-col bg-gray-50 dark:bg-[#05020a] font-sans overflow-hidden">
@@ -236,7 +234,7 @@ const renderQuestionContent = (text: string) => {
                         </div>
                         <div className="p-6 space-y-4">
                             <div className="bg-gray-50 dark:bg-[#1a0d36] rounded-xl p-4 grid grid-cols-2 gap-4 border border-gray-100 dark:border-purple-900/30">
-                                <div className="text-center p-2"><p className="text-2xl font-black text-blue-600">{examData.totalQuestions}</p><p className="text-[10px] font-bold uppercase text-gray-500">Total</p></div>
+                                <div className="text-center p-2"><p className="text-2xl font-black text-blue-600">{examData?.totalQuestions}</p><p className="text-[10px] font-bold uppercase text-gray-500">Total</p></div>
                                 <div className="text-center p-2"><p className="text-2xl font-black text-emerald-500">{answeredCount}</p><p className="text-[10px] font-bold uppercase text-gray-500">Answered</p></div>
                                 <div className="text-center p-2"><p className="text-2xl font-black text-amber-500">{flaggedCount}</p><p className="text-[10px] font-bold uppercase text-gray-500">Flagged</p></div>
                                 <div className="text-center p-2"><p className="text-2xl font-black text-red-500">{unansweredCount}</p><p className="text-[10px] font-bold uppercase text-gray-500">Unanswered</p></div>
@@ -299,21 +297,23 @@ const renderQuestionContent = (text: string) => {
                         </div>
 
                         <div className="text-sm sm:text-base lg:text-lg text-gray-800 dark:text-gray-200 leading-relaxed mb-6 sm:mb-8 font-medium">
-                            {/* 🌟 1. Render the main text and handle legacy markdown */}
                             {renderQuestionContent(currentQuestion?.questionText)}
 
-                            {/* 🌟 2. Explicitly render the dedicated Code Snippet from the Secure Payload */}
+                            {/* 🌟 FIX 3: Multi-line Colorful Syntax Highlighting! */}
                             {currentQuestion?.codeSnippet && (
-                                <div className="mt-5 bg-[#0c0618] border-2 border-purple-900/50 rounded-xl overflow-hidden shadow-2xl w-full text-left">
-                                    <div className="bg-[#150a29] px-4 py-2.5 flex items-center gap-2 border-b-2 border-purple-900/50">
+                                <div className="mt-5 bg-[#0c0618] border-2 border-purple-900/50 rounded-xl overflow-hidden shadow-2xl w-full text-left animate-in fade-in">
+                                    <div className="bg-[#150a29] px-4 py-2.5 flex items-center gap-2 border-b border-purple-900/50">
                                         <Terminal className="w-4 h-4 text-emerald-400"/>
                                         <span className="text-xs uppercase font-black text-emerald-400 tracking-wider">
-                                            Developer Code Snippet ({currentQuestion.codeLanguage || currentQuestion.technology || 'Code'})
+                                            Developer Code ({currentQuestion.codeLanguage || currentQuestion.technology || 'Code'})
                                         </span>
                                     </div>
-                                    <pre className="p-5 text-sm sm:text-base text-emerald-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar whitespace-pre">
-                                        <code>{currentQuestion.codeSnippet}</code>
-                                    </pre>
+                                    <div className="p-2">
+                                        <CodeSnippetBox 
+                                            code={currentQuestion.codeSnippet.replace(/\\n/g, '\n')} 
+                                            language={currentQuestion.codeLanguage || 'javascript'} 
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -339,8 +339,16 @@ const renderQuestionContent = (text: string) => {
                                 <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Clear
                             </button>
                             <div className="flex gap-2 sm:gap-3 ml-auto sm:ml-0">
-                                <button onClick={() => setCurrentQuestionIndex(p => Math.max(0, p - 1))} disabled={currentQuestionIndex === 0} className="flex justify-center items-center gap-1 px-3 sm:px-5 py-2 sm:py-3 bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-purple-900/50 text-gray-700 dark:text-gray-300 font-bold rounded-lg sm:rounded-xl hover:bg-gray-50 dark:hover:bg-purple-900/30 disabled:opacity-50 transition-colors text-xs sm:text-sm cursor-pointer"><ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5"/> <span className="hidden sm:inline">Prev</span></button>
-                                <button onClick={() => setCurrentQuestionIndex(p => Math.min(examData.totalQuestions - 1, p + 1))} disabled={currentQuestionIndex === examData?.totalQuestions - 1} className="flex justify-center items-center gap-1 px-4 sm:px-8 py-2 sm:py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg sm:rounded-xl disabled:opacity-50 shadow-md shadow-purple-600/20 transition-all active:scale-95 text-xs sm:text-sm cursor-pointer"><span className="hidden sm:inline">Save & Next</span><span className="sm:hidden">Next</span> <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5"/></button>
+                                <button onClick={handlePrev} disabled={currentQuestionIndex === 0} className="flex justify-center items-center gap-1 px-3 sm:px-5 py-2 sm:py-3 bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-purple-900/50 text-gray-700 dark:text-gray-300 font-bold rounded-lg sm:rounded-xl hover:bg-gray-50 dark:hover:bg-purple-900/30 disabled:opacity-50 transition-colors text-xs sm:text-sm cursor-pointer"><ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5"/> <span className="hidden sm:inline">Prev</span></button>
+                                
+                                {/* 🌟 FIX 4: Updated Save & Next Handler */}
+                                <button 
+                                    onClick={handleNext} 
+                                    disabled={currentQuestionIndex >= (examData?.totalQuestions || 1) - 1} 
+                                    className="flex justify-center items-center gap-1 px-4 sm:px-8 py-2 sm:py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg sm:rounded-xl disabled:opacity-50 shadow-md shadow-purple-600/20 transition-all active:scale-95 text-xs sm:text-sm cursor-pointer"
+                                >
+                                    <span className="hidden sm:inline">Save & Next</span><span className="sm:hidden">Next</span> <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5"/>
+                                </button>
                             </div>
                         </div>
                     </div>
