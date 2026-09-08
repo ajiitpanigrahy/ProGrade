@@ -60,13 +60,13 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 🌟 setAllowedOriginPatterns dynamically matches origins without breaking credentials
+     // 🌟 Explicitly list exact domains to guarantee CORS passes, with valid wildcards for previews
         configuration.setAllowedOriginPatterns(List.of(
             "http://localhost:1112",
             "http://localhost:5173",
             "http://localhost:3000",
-            "https://*.vercel.app", // Matches any preview or production Vercel URL
-            "https://*."            // Fallback wildcard pattern for custom domains
+            "https://prograde-rho.vercel.app", // Your exact production Vercel URL
+            "https://*.vercel.app"             // Kept safely for Vercel preview branch deployments
         ));
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
