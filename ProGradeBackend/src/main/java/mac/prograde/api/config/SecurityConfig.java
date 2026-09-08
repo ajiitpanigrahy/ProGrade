@@ -60,23 +60,15 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-     // 🌟 Explicitly list exact domains to guarantee CORS passes, with valid wildcards for previews
-        configuration.setAllowedOriginPatterns(List.of(
+        // FIX: Must use setAllowedOrigins (NOT Patterns) when allowCredentials is true
+        configuration.setAllowedOrigins(List.of(
             "http://localhost:1112",
-            "http://localhost:5173",
-            "http://localhost:3000",
-            "https://prograde-rho.vercel.app", // Your exact production Vercel URL
-            "https://*.vercel.app"             // Kept safely for Vercel preview branch deployments
+            "https://prograde-rho.vercel.app" // Exact Vercel URL
         ));
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        
-        //  Allow all request headers (prevents issues with SSE, Content-Type, Authorization, etc.)
         configuration.setAllowedHeaders(List.of("*"));
-        
-        //  Expose headers so the frontend can read pagination or authorization headers if sent
         configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
-
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
