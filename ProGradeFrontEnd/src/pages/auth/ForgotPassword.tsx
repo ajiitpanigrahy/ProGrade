@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, KeyRound, Lock, CheckCircle2, AlertCircle, ArrowLeft, ArrowRight, ShieldCheck, Loader2, RotateCcw, Eye, EyeOff } from 'lucide-react';
 import { axiosClient } from '../../api/axiosClient';
@@ -9,11 +9,9 @@ export default function ForgotPassword() {
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [email, setEmail] = useState('');
     
-    // Password States
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     
-    // 🌟 EXCLUSIVE VISIBILITY STATE
     const [visiblePassword, setVisiblePassword] = useState<'new' | 'confirm' | null>(null);
     
     const [otpArray, setOtpArray] = useState<string[]>(Array(6).fill(''));
@@ -90,7 +88,6 @@ export default function ForgotPassword() {
         setVisiblePassword(prev => prev === field ? null : field);
     };
 
-    // 🌟 REAL-TIME PASSWORD STRENGTH ALGORITHM
     const calculateStrength = (pass: string) => {
         let score = 0;
         if (pass.length >= 8) score += 1;
@@ -180,7 +177,9 @@ export default function ForgotPassword() {
                                 <div className="flex justify-center gap-2 sm:gap-3 mb-4">
                                     {otpArray.map((digit, index) => (
                                         <input 
-                                            key={index} ref={(el) => (inputRefs.current[index] = el)} 
+                                            key={index} 
+                                            // 🌟 FIX: Proper ref assignment returning void
+                                            ref={(el) => { inputRefs.current[index] = el; }} 
                                             type="text" maxLength={1} value={digit} 
                                             onChange={(e) => handleOtpChange(index, e.target.value)} 
                                             onKeyDown={(e) => handleOtpKeyDown(index, e)} 
@@ -191,8 +190,6 @@ export default function ForgotPassword() {
                             </div>
 
                             <div className="space-y-5 pt-4 border-t border-white/10">
-                                
-                                {/* 🌟 NEW PASSWORD & STRENGTH CHECKER */}
                                 <div className="space-y-2">
                                     <div className="relative group">
                                         <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors ${newPassword ? currentStrength.text : 'text-fuchsia-400/70'}`} />
@@ -226,7 +223,6 @@ export default function ForgotPassword() {
                                     )}
                                 </div>
 
-                                {/* 🌟 CONFIRM PASSWORD & MATCH VALIDATOR */}
                                 <div className="space-y-2">
                                     <div className="relative group">
                                         <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors ${isMatching ? 'text-emerald-500' : 'text-fuchsia-400/70'}`} />
@@ -258,7 +254,6 @@ export default function ForgotPassword() {
                             </div>
 
                             <div className="pt-2">
-                                {/* 🌟 PURPLE THEME PATTERN RESTORED FOR SUBMIT */}
                                 <button type="submit" disabled={isLoading} className="w-full py-4 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 text-white font-black rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-all active:scale-95 flex items-center justify-center gap-2 uppercase tracking-widest text-xs cursor-pointer border-b-4 border-purple-800 active:border-b-0 active:translate-y-1">
                                     {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ShieldCheck className="w-5 h-5" /> Initialize Reset</>}
                                 </button>

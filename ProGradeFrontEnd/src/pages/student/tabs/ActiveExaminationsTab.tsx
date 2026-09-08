@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Lock, XCircle, KeyRound, X, Loader2, Clock, ShieldCheck, UserCircle, Fingerprint, Code2, FileText, Trophy, CheckCircle2, ShieldAlert, DatabaseZap, Target, Activity, Rocket, Filter } from "lucide-react";
+import { Search, XCircle, KeyRound, X, Loader2, Clock, ShieldCheck, UserCircle, Fingerprint, Code2, FileText, Trophy, CheckCircle2, ShieldAlert, DatabaseZap, Target, Activity, Rocket } from "lucide-react";
 import { studentService } from "../../../features/student/studentService";
 
 const KNOWN_TECHS = [
@@ -14,7 +14,6 @@ export default function ActiveExaminationsTab() {
   const [publicExams, setPublicExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 🌟 FILTER & SORT STATE
   const [techFilter, setTechFilter] = useState('ALL');
   const [levelFilter, setLevelFilter] = useState('ALL');
   const [sortOrder, setSortOrder] = useState('NEWEST');
@@ -30,14 +29,12 @@ export default function ActiveExaminationsTab() {
 
   const [errorModal, setErrorModal] = useState<{ isOpen: boolean, message: string }>({ isOpen: false, message: '' });
 
-  // Passkey States
   const [examToJoin, setExamToJoin] = useState<any | null>(null);
   const [passkeyArray, setPasskeyArray] = useState<string[]>(Array(8).fill(""));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState(false);
 
-  // MAX ATTEMPTS STATE
   const [attemptResult, setAttemptResult] = useState<any | null>(null);
 
   useEffect(() => {
@@ -158,7 +155,6 @@ export default function ActiveExaminationsTab() {
     return `${m}m ${s}s`;
   };
 
-  // 🌟 SMART TECHNOLOGY PARSER
   const getExamTech = (tags?: string) => {
     if (!tags) return 'MIXED';
     const upperTags = String(tags).toUpperCase();
@@ -171,7 +167,6 @@ export default function ActiveExaminationsTab() {
     return 'CUSTOM';
   };
 
-  // 🌟 PROCESS & FILTER EXAMS
   const safeExams = Array.isArray(publicExams) ? publicExams : [];
   const processedPublicExams = safeExams.filter(exam => {
     const examDiff = exam.difficultyLevel ? String(exam.difficultyLevel).toUpperCase() : 'MIXED';
@@ -225,10 +220,8 @@ export default function ActiveExaminationsTab() {
     const isPractice = exam.examId && exam.examId.startsWith('PRAC-');
     const isLive = state === "LIVE";
 
-    // Parse Space or Comma separated tags into clean hashtags
     const parsedTags = exam.tags ? exam.tags.split(/[\s,]+/).filter(Boolean).map((t: string) => t.startsWith('#') ? t.toUpperCase() : `#${t.replace(/\s+/g, '').toUpperCase()}`) : ['#GENERAL'];
 
-    // Helpers
     const techDisplay = getExamTech(exam.tags);
     const difficultyClass =
       exam.difficultyLevel === 'EASY' ? 'text-emerald-500' :
@@ -250,8 +243,6 @@ export default function ActiveExaminationsTab() {
         </div>
 
         <div className="flex-1 flex flex-col w-full relative z-10 mb-5">
-
-          {/* 🌟 PADDED AREA ONLY FOR THE HEADER TITLE */}
           <div className="pr-28 sm:pr-36">
             {isPrivate && !isPractice && <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black text-white bg-purple-600 px-3 py-1.5 rounded-lg w-max mb-4 uppercase tracking-widest shadow-md"><KeyRound className="w-3.5 h-3.5 shrink-0" /> Private Roster</div>}
             {isPractice && <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black text-white bg-purple-600 px-3 py-1.5 rounded-lg w-max mb-4 uppercase tracking-widest shadow-md"><Target className="w-3.5 h-3.5 shrink-0" /> Private Arena Exam</div>}
@@ -264,7 +255,6 @@ export default function ActiveExaminationsTab() {
             </div>
           </div>
 
-          {/* 🌟 FULL WIDTH DYNAMIC HASHTAGS ROW (Moved out of padding!) */}
           <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-6 w-full">
             {parsedTags.map((t: string, i: number) => (
               <span key={i} className="text-[9px] sm:text-[10px] font-black text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/50 px-2 py-1 rounded shadow-sm tracking-widest break-all max-w-full">
@@ -274,19 +264,16 @@ export default function ActiveExaminationsTab() {
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-auto w-full">
-            {/* Questions */}
             <div className="bg-gray-50 dark:bg-[#0f0a1c] rounded-xl p-3 sm:p-4 border border-gray-100 dark:border-purple-900/30 shadow-inner flex flex-col justify-center w-full transition-colors hover:border-purple-300 dark:hover:border-purple-700/50">
               <p className="text-[9px] sm:text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Questions</p>
               <div className="text-sm sm:text-base font-black text-gray-900 dark:text-white flex items-center gap-1.5"><FileText className="w-4 h-4 text-purple-500 shrink-0" /> <span>{exam.totalQuestions}</span></div>
             </div>
 
-            {/* Duration */}
             <div className="bg-gray-50 dark:bg-[#0f0a1c] rounded-xl p-3 sm:p-4 border border-gray-100 dark:border-purple-900/30 shadow-inner flex flex-col justify-center w-full transition-colors hover:border-amber-300 dark:hover:border-amber-700/50">
               <p className="text-[9px] sm:text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Duration</p>
               <div className="text-sm sm:text-base font-black text-gray-900 dark:text-white flex items-center gap-1.5"><Clock className="w-4 h-4 text-amber-500 shrink-0" /> <span>{exam.durationMinutes} Min</span></div>
             </div>
 
-            {/* Level */}
             <div className="bg-gray-50 dark:bg-[#0f0a1c] rounded-xl p-3 sm:p-4 border border-gray-100 dark:border-purple-900/30 shadow-inner flex flex-col justify-center w-full transition-colors hover:border-blue-300 dark:hover:border-blue-700/50">
               <p className="text-[9px] sm:text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Level</p>
               <div className={`text-sm sm:text-base font-black flex items-center gap-1.5 ${difficultyClass}`}>
@@ -295,7 +282,6 @@ export default function ActiveExaminationsTab() {
               </div>
             </div>
 
-            {/* TECH STACK OR PASSKEY */}
             {isPractice ? (
               <div className="bg-gray-50 dark:bg-[#0f0a1c] rounded-xl p-3 sm:p-4 border border-gray-100 dark:border-purple-900/30 shadow-inner flex flex-col justify-center w-full transition-colors hover:border-emerald-300 dark:hover:border-emerald-700/50 overflow-hidden">
                 <p className="text-[9px] sm:text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Passkey</p>
@@ -337,8 +323,6 @@ export default function ActiveExaminationsTab() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-24 relative scroll-smooth">
-
-      {/* AMBIENT BACKGROUND */}
       <div className="absolute top-10 right-10 w-[400px] h-[400px] bg-purple-600/10 dark:bg-purple-600/20 rounded-full blur-[120px] pointer-events-none -z-10 animate-pulse"></div>
       <div className="absolute bottom-10 left-10 w-[400px] h-[400px] bg-purple-600/10 dark:bg-purple-600/20 rounded-full blur-[120px] pointer-events-none -z-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
 
@@ -356,7 +340,6 @@ export default function ActiveExaminationsTab() {
 
       {attemptResult && <AttemptResultModal />}
 
-      {/* 🌟 3D PASSKEY SECURITY GATEWAY MODAL */}
       {examToJoin && (
         <div className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setExamToJoin(null)}>
           <div className="bg-white dark:bg-[#150a29] w-full max-w-md rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-gray-100 dark:border-purple-900/50 overflow-hidden animate-in zoom-in-95 duration-300 relative flex flex-col" onClick={e => e.stopPropagation()}>
@@ -384,7 +367,8 @@ export default function ActiveExaminationsTab() {
                 <div className={`flex justify-center gap-1.5 sm:gap-2 mb-2 ${verifyError ? 'animate-[shake_0.4s_ease-in-out]' : ''}`}>
                   {passkeyArray.map((digit, index) => (
                     <input
-                      key={index} ref={(el) => (inputRefs.current[index] = el)}
+                      // 🌟 FIX: Proper ref assignment returning void
+                      key={index} ref={(el) => { inputRefs.current[index] = el; }}
                       type="password" maxLength={8} value={digit}
                       onChange={(e) => handlePasskeyChange(index, e.target.value)}
                       onKeyDown={(e) => handlePasskeyKeyDown(index, e)}
@@ -411,7 +395,6 @@ export default function ActiveExaminationsTab() {
         </div>
       )}
 
-      {/* HEADER & SEARCH (3D Glassmorphism) */}
       <div className="bg-white/60 dark:bg-[#150a29]/60 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/20 dark:border-purple-900/30 p-8 sm:p-12 text-center relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-500/10 blur-[100px] rounded-full pointer-events-none transition-all duration-700 group-hover:scale-110"></div>
 
@@ -444,7 +427,6 @@ export default function ActiveExaminationsTab() {
         </div>
       </div>
 
-      {/* PUBLIC EXAMS GRID */}
       <div className="pt-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
@@ -454,7 +436,6 @@ export default function ActiveExaminationsTab() {
             <span className="text-[10px] sm:text-xs font-black bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/50 uppercase tracking-widest">{processedPublicExams.length} Available</span>
           </div>
 
-          {/* 🌟 3D CONTROL BAR (Mobile Fixed Layout) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full lg:w-auto mt-4 md:mt-0">
             <div className="relative w-full">
               <Code2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-purple-500" />

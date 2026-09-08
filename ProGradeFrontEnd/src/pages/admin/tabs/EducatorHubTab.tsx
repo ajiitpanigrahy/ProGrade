@@ -9,6 +9,8 @@ interface EducatorHubTabProps {
 }
 
 export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: EducatorHubTabProps) {
+    // 🌟 FIX: Added the missing selectedEducator state
+    const [selectedEducator, setSelectedEducator] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<'MANAGEMENT' | 'ANALYTICS'>(activeSubTab);
 
     useEffect(() => {
@@ -17,23 +19,19 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
         }
     }, [activeSubTab]);
     
-    // Filtering & Sorting
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [sortOrder, setSortOrder] = useState<'NEWEST' | 'OLDEST' | 'A-Z' | 'Z-A'>('NEWEST');
     
-    // Data State
     const [educators, setEducators] = useState<any[]>([]);
     const [contributionLog, setContributionLog] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Modal State
     const [modalConfig, setModalConfig] = useState<{ isOpen: boolean, type: 'APPROVE' | 'REJECT' | 'SUSPEND' | 'ACTIVATE' | '', educator: any | null }>({
         isOpen: false, type: '', educator: null
     });
     const [actionLoading, setActionLoading] = useState(false);
 
-    // FETCH REAL DATA
     const fetchData = async () => {
         setIsLoading(true);
         try {
@@ -52,13 +50,11 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
 
     useEffect(() => { fetchData(); }, []);
 
-    // HELPER: Map Educator Email to their actual contribution count
     const getEducatorContributions = (email: string) => {
         const log = contributionLog.find((l: any) => l.email === email);
         return log ? log.totalQuestions : 0;
     };
 
-    // Modal Action Executor
     const executeAction = async () => {
         if (!modalConfig.educator) return;
         setActionLoading(true);
@@ -76,7 +72,6 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
         }
     };
 
-    // Process Data (Filter & Sort)
     let processedEducators = [...educators].filter(edu => {
         const matchesSearch = edu.name.toLowerCase().includes(searchTerm.toLowerCase()) || edu.email.toLowerCase().includes(searchTerm.toLowerCase());
         const rawStatus = edu.status || 'PENDING';
@@ -100,31 +95,23 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
         return 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400';
     };
 
-    // DYNAMIC KPI CALCULATIONS
     const pendingCount = educators.filter(e => (e.status || 'PENDING').toUpperCase() === 'PENDING').length;
     const activeCount = educators.filter(e => e.status?.toUpperCase() === 'ACTIVE').length;
     const suspendedCount = educators.length - activeCount - pendingCount;
     const totalQuestionsAddedByEducators = educators.reduce((acc, curr) => acc + getEducatorContributions(curr.email), 0);
 
-    // ============================================================================
-    // 🌟 DYNAMIC ANALYTICS GENERATION (PURPLE THEME)
-    // ============================================================================
-
-    // 1. Top Contributors (Bar Chart)
     const topContributorsData = educators
         .map(edu => ({ name: edu.name.split(' ')[0], questions: getEducatorContributions(edu.email) }))
         .filter(edu => edu.questions > 0)
         .sort((a, b) => b.questions - a.questions)
         .slice(0, 5); 
 
-    // 2. Status Distribution (Pie Chart) - Purple Spectrum
     const statusData = [
-        { name: 'Active', value: activeCount, color: '#8b5cf6' }, // Purple
-        { name: 'Pending', value: pendingCount, color: '#d946ef' }, // Fuchsia
-        { name: 'Restricted', value: suspendedCount, color: '#6366f1' } // Indigo
+        { name: 'Active', value: activeCount, color: '#8b5cf6' },
+        { name: 'Pending', value: pendingCount, color: '#d946ef' },
+        { name: 'Restricted', value: suspendedCount, color: '#6366f1' }
     ].filter(d => d.value > 0);
 
-    // 3. Onboarding Timeline (Area Chart)
     const onboardingMap: Record<string, number> = {};
     const sortedByDate = [...educators].sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime());
     let cumulative = 0;
@@ -136,13 +123,11 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
     });
     const onboardingData = Object.keys(onboardingMap).map(date => ({ date, totalEducators: onboardingMap[date] }));
 
-    // 4. Contribution vs Tenure (Scatter Chart)
     const activityScatterData = educators.map(edu => ({
         name: edu.name.split(' ')[0],
         daysActive: Math.max(1, Math.floor((new Date().getTime() - new Date(edu.joinedAt).getTime()) / (1000 * 3600 * 24))),
         questions: getEducatorContributions(edu.email)
     })).filter(edu => edu.questions > 0);
-
 
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
@@ -169,7 +154,6 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
                 <div className="absolute bottom-10 right-10 w-[500px] h-[500px] bg-fuchsia-500/10 rounded-full blur-[120px] mix-blend-screen"></div>
             </div>
 
-            {/* ACTION CONFIRMATION MODAL */}
             {modalConfig.isOpen && modalConfig.educator && (
                 <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={() => !actionLoading && setModalConfig({ isOpen: false, type: '', educator: null })}>
                     <div className="bg-white dark:bg-[#150a29] max-w-md w-full rounded-[2rem] p-8 text-center shadow-2xl border-2 border-gray-100 dark:border-purple-900/50 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
@@ -216,7 +200,6 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
                 </div>
             )}
 
-            {/* HEADER & TABS */}
             <div className="bg-white/80 dark:bg-[#150a29]/80 backdrop-blur-xl border-b-2 border-gray-200 dark:border-purple-900/50 p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6 shrink-0 z-10 shadow-sm relative">
                 <div>
                     <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-fuchsia-600 dark:from-purple-400 dark:to-fuchsia-400 flex items-center gap-2 drop-shadow-sm">
@@ -234,11 +217,9 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
                 </div>
             </div>
 
-            {/* TAB 1: MANAGEMENT */}
             {activeTab === 'MANAGEMENT' && (
                 <div className="space-y-6 animate-in slide-in-from-bottom-4 relative z-10">
                     
-                    {/* DYNAMIC KPI CARDS (PURPLE THEMATIC) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-purple-900/30">
                             <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-purple-500"/> Total Educators</p>
@@ -258,7 +239,6 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
                         </div>
                     </div>
 
-                    {/* CONTROL BAR */}
                     <div className="flex flex-col lg:flex-row gap-4 justify-between bg-white/60 dark:bg-[#150a29]/60 backdrop-blur-md p-4 rounded-3xl border-2 border-gray-200 dark:border-purple-900/40 shadow-sm">
                         <div className="relative w-full lg:w-96 shrink-0">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -282,7 +262,6 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
                         </div>
                     </div>
 
-                    {/* DATA GRID */}
                     <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-xl rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border-2 border-gray-200 dark:border-purple-900/50 overflow-hidden min-h-[400px]">
                         <div className="overflow-x-auto custom-scrollbar">
                             <table className="w-full text-left border-collapse whitespace-nowrap">
@@ -309,7 +288,6 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
                                                 <tr key={edu.id} className={`transition-colors ${status === 'PENDING' ? 'bg-fuchsia-50/30 dark:bg-fuchsia-900/10 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-900/20' : 'hover:bg-gray-50 dark:hover:bg-[#110820]'}`}>
                                                     <td className="py-4 px-6">
                                                         <div className="flex items-center gap-4">
-                                                            {/* 🌟 PURPLE/FUCHSIA PROFILE ICONS */}
                                                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-white font-black shadow-md">{edu.name.charAt(0)}</div>
                                                             <div>
                                                                 <div className="font-black text-gray-900 dark:text-white text-sm group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">{edu.name}</div>
@@ -343,7 +321,6 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
                                                             
                                                             {status === 'ACTIVE' && (
                                                                 <>
-                                                                    {/* 🌟 PURPLE VIEW ANALYTICS BUTTON */}
                                                                     <button title="View Analytics" onClick={() => setSelectedEducator(edu)} className="hidden sm:flex w-9 h-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-500 hover:text-white dark:bg-purple-900/20 dark:border-purple-800 transition-all shadow-sm active:scale-95 cursor-pointer">
                                                                         <BarChart3 className="w-4 h-4"/>
                                                                     </button>
@@ -371,11 +348,9 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
                 </div>
             )}
 
-            {/* TAB 2: ANALYTICS */}
             {activeTab === 'ANALYTICS' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in slide-in-from-bottom-4 relative z-10">
                     
-                    {/* Chart 1: Onboarding Timeline */}
                     <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30 lg:col-span-2">
                         <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><Activity className="w-5 h-5 text-purple-500"/> Platform Onboarding Growth</h3>
                         <div className="h-72 w-full">
@@ -399,7 +374,6 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
                         </div>
                     </div>
 
-                    {/* Chart 2: Top Contributors */}
                     <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30">
                         <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><Star className="w-5 h-5 text-indigo-500"/> Top 5 Data Contributors</h3>
                         <div className="h-64 w-full">
@@ -419,7 +393,6 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
                         </div>
                     </div>
 
-                    {/* Chart 3: Account Status Distribution */}
                     <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30 relative">
                         <h3 className="text-sm font-black text-gray-900 dark:text-white mb-2 uppercase tracking-wider flex items-center gap-2"><ShieldAlert className="w-5 h-5 text-violet-500"/> Account Status Distribution</h3>
                         <div className="h-64 w-full relative mt-4">
@@ -444,7 +417,6 @@ export default function EducatorHubTab({ activeSubTab = 'MANAGEMENT' }: Educator
                         </div>
                     </div>
 
-                    {/* Chart 4: Contribution vs Tenure (Scatter Plot) */}
                     <div className="bg-white/90 dark:bg-[#1a0d36]/90 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border-2 border-gray-100 dark:border-purple-900/30 lg:col-span-2">
                         <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2"><BookOpen className="w-5 h-5 text-fuchsia-500"/> Contribution Velocity vs Days Active</h3>
                         <div className="h-72 w-full">
