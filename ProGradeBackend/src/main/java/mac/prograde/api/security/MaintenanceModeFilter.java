@@ -33,6 +33,10 @@ public class MaintenanceModeFilter extends OncePerRequestFilter {
         }
 
         SystemSetting settings = settingsService.getGlobalSettings();
+        
+        if (settings == null) {
+            settings = new SystemSetting(); // Safely fall back to defaults
+        }
 
         if (settings.isMaintenanceMode()) {
             
