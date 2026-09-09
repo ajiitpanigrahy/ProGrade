@@ -92,11 +92,12 @@ export default function Login() {
         }
     };
 
-    // 🌟 SSO Triggers: Sets the cookie BEFORE redirecting to Spring Boot!
     const handleSSORedirect = (provider: 'google' | 'github') => {
-        // 🌟 FIX: Added SameSite=Lax so the browser doesn't drop the cookie during redirect
         document.cookie = `OAUTH_ROLE=${oauthRole}; path=/; max-age=300; SameSite=Lax`; 
-        window.location.href = `http://localhost:2406/oauth2/authorization/${provider}`;
+        
+        // Dynamically route to localhost OR Render based on the environment.
+        const backendUrl = (import.meta.env.VITE_API_URL || 'http://localhost:2406').replace('/api/v1', '');
+        window.location.href = `${backendUrl}/oauth2/authorization/${provider}`;
     };
 
     return (

@@ -30,10 +30,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .oauth2Login(oauth2 -> oauth2
-                .successHandler(oAuth2LoginSuccessHandler))
+            .oauth2Login(oauth2 -> oauth2.successHandler(oAuth2LoginSuccessHandler))
             .csrf(csrf -> csrf.disable())
-            // 🌟 Explicitly link the configuration source
+            // 🌟 Standard, stable CORS linkage
             .cors(cors -> cors.configurationSource(corsConfigurationSource())) 
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
@@ -56,19 +55,18 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-
-        configuration.setAllowedOrigins(List.of(
-            "http://localhost:1112",
-            "http://localhost:5173",
-            "http://localhost:3000",
-            "https://prograde-rho.vercel.app" 
-        ));
-
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        CorsConfiguration config = new CorsConfiguration();
         
-        // 🌟 CRITICAL FIX: Explicitly list headers. Browsers block "*" when credentials are true.
-        configuration.setAllowedHeaders(List.of(
+        config.setAllowedOrigins(List.of(
+            "http://localhost:5173",
+            "http://localhost:1112",
+            "http://localhost:3000",
+            "https://prograde-rho.vercel.app"
+        ));
+        
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        
+        config.setAllowedHeaders(List.of(
             "Authorization",
             "Content-Type",
             "Accept",
@@ -78,12 +76,12 @@ public class SecurityConfig {
             "X-Requested-With"
         ));
         
-        configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L); // Caches preflight requests to speed up your frontend
+        config.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/**", config);
         return source;
     }
 }
