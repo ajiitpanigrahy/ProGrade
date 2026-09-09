@@ -21,6 +21,12 @@ public class PublicSystemController {
     @GetMapping("/status")
     public ResponseEntity<Map<String, Object>> getSystemStatus() {
         SystemSetting settings = settingsService.getGlobalSettings();
+        
+        // ADD THESE 3 LINES:
+        if (settings == null) {
+            settings = new SystemSetting(); 
+        }
+
         Map<String, Object> status = new HashMap<>();
         
         status.put("maintenanceMode", settings.isMaintenanceMode());
