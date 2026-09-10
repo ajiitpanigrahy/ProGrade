@@ -6,6 +6,7 @@ import mac.prograde.api.service.AdminService;
 import mac.prograde.api.service.BatchUploadService; // 🌟 Added import
 import mac.prograde.api.service.StudentAssessmentService;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile; // 🌟 Added import
@@ -23,11 +24,13 @@ public class AdminController {
 	private final BatchUploadService batchUploadService; // Added Injection
 	private final StudentAssessmentService studentAssessmentService;
 
+	@Cacheable("adminMetrics")
 	@GetMapping("/metrics")
 	public ResponseEntity<AdminDto.DashboardMetrics> getMetrics() {
 		return ResponseEntity.ok(adminService.getKpiMetrics());
 	}
 
+	@Cacheable("adminCharts")
 	@GetMapping("/charts")
 	public ResponseEntity<AdminDto.DashboardCharts> getCharts() {
 		return ResponseEntity.ok(adminService.getChartData());

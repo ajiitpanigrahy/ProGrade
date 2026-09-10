@@ -12,5 +12,6 @@ public interface SystemReportRepository extends JpaRepository<SystemReport, Long
 	
 	// Add this inside mac.prograde.api.repository.SystemReportRepository
     List<SystemReport> findByReporterEmailOrderByCreatedAtDesc(String email);
+    List<SystemReport> findAllByOrderByCreatedAtDesc();
 	
 }

@@ -38,8 +38,6 @@ public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    // 🌟 ADDED: The rollNumber field with manual getters/setters just in case Lombok fails
     @Column(nullable = true)
     private String rollNumber;
 

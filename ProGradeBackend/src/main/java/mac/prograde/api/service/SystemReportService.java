@@ -9,6 +9,8 @@ import mac.prograde.api.repository.SystemReportRepository;
 
 import org.hibernate.annotations.NotFoundAction;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +28,7 @@ public class SystemReportService {
     @Autowired
     private NotificationRepository notificationRepository; // Assuming you have this from your existing notification system
 
+    @CacheEvict(value = {"adminReports", "myReports"}, allEntries = true)
     public Map<String, Object> submitReport(ReportRequestDTO dto, Authentication auth) {
         SystemReport report = new SystemReport();
         report.setReporterEmail(auth.getName());
@@ -65,12 +68,12 @@ public class SystemReportService {
         return Map.of("message", "Report submitted successfully", "reportId", savedReport.getId());
     }
 
+    @Cacheable(value = "adminReports")
     public List<SystemReport> getAllReports() {
-        return reportRepository.findAll().stream()
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .collect(Collectors.toList());
+       return reportRepository.findAllByOrderByCreatedAtDesc();
     }
 
+    @CacheEvict(value = {"adminReports", "myReports"}, allEntries = true)
     public void updateReportStatus(Long id, String status) {
         SystemReport report = reportRepository.findById(id).orElseThrow();
         report.setStatus(SystemReport.ReportStatus.valueOf(status.toUpperCase()));
@@ -78,10 +81,12 @@ public class SystemReportService {
         reportRepository.save(report);
     }
     
+    @Cacheable(value = "myReports", key = "#email")
     public List<SystemReport> getMyReports(String email) {
         return reportRepository.findByReporterEmailOrderByCreatedAtDesc(email);
     }
 
+    @CacheEvict(value = {"adminReports", "myReports"}, allEntries = true)
     public void updateReportStatus(Long id, String status, String notes) {
         SystemReport report = reportRepository.findById(id).orElseThrow();
         SystemReport.ReportStatus newStatus = SystemReport.ReportStatus.valueOf(status.toUpperCase());
@@ -102,6 +107,7 @@ public class SystemReportService {
         reportRepository.save(report);
     }
 
+    @CacheEvict(value = {"adminReports", "myReports"}, allEntries = true)
     public void reopenReport(Long id, String email) {
         SystemReport report = reportRepository.findById(id).orElseThrow();
         

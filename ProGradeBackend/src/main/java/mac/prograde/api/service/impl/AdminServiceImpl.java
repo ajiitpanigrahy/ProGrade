@@ -41,10 +41,20 @@ public class AdminServiceImpl implements AdminService {
 
 	@Override
 	public AdminDto.DashboardMetrics getKpiMetrics() {
-		long studentCount = userRepository.findByRole(Role.STUDENT).size();
-		long educatorCount = userRepository.findByRole(Role.EDUCATOR).size();
-		return new AdminDto.DashboardMetrics((int) (studentCount * 0.12), "4,250", assessmentRepository.count(), 18400,
-				malpracticeLogRepository.count(), studentCount + educatorCount, studentCount, educatorCount, 12);
+	    long studentCount = userRepository.countByRole(Role.STUDENT);
+	    long educatorCount = userRepository.countByRole(Role.EDUCATOR);
+	    
+	    return new AdminDto.DashboardMetrics(
+	        (int) (studentCount * 0.12), 
+	        "4,250", 
+	        assessmentRepository.count(), 
+	        18400,
+	        malpracticeLogRepository.count(), 
+	        studentCount + educatorCount, 
+	        studentCount, 
+	        educatorCount, 
+	        12
+	    );
 	}
 
 	@Override

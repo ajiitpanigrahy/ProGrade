@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -38,6 +40,8 @@ public class QuestionController {
     //  ADDED: To fetch user data for single creations
     @Autowired private UserRepository userRepository; 
 
+ // 2. Modifying deletes the RAM cache so the next request pulls fresh DB data
+    @CacheEvict(value = "questions", allEntries = true)
     @SuppressWarnings("null")
 	@PostMapping("/bulk-upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
@@ -60,12 +64,14 @@ public class QuestionController {
         return ResponseEntity.ok(questionRepository.getContributionHistory());
     }
 
+    @Cacheable(value = "questions")
     @GetMapping("/summary")
     public ResponseEntity<?> getQuestionSummary() {
         return ResponseEntity.ok(Map.of("technologies", questionRepository.getGlobalQuestionSummary(), "topics",
                 questionRepository.getGlobalTopicSummary()));
     }
 
+    @Cacheable(value = "questions")
     @GetMapping("")
     public ResponseEntity<Page<Question>> getQuestions(@RequestParam String technology,
             @RequestParam(required = false, defaultValue = "") String search,
@@ -77,6 +83,7 @@ public class QuestionController {
         return ResponseEntity.ok(result);
     }
 
+    @CacheEvict(value = "questions", allEntries = true)
     @SuppressWarnings("null")
 	@DeleteMapping("/{id}")
     public ResponseEntity<?> deleteQuestion(@PathVariable Long id) {
@@ -84,6 +91,7 @@ public class QuestionController {
         return ResponseEntity.ok(Map.of("message", "Question deleted successfully"));
     }
     
+    @CacheEvict(value = "questions", allEntries = true)
     @SuppressWarnings("null")
 	@PostMapping("/create")
     public ResponseEntity<?> createQuestion(@RequestBody Question question, Authentication auth) {
@@ -112,6 +120,7 @@ public class QuestionController {
         }
     }
     
+    @CacheEvict(value = "questions", allEntries = true)
     @SuppressWarnings("null")
 	@PutMapping("/{id}")
     public ResponseEntity<?> updateQuestion(@PathVariable Long id, @RequestBody Question questionDetails) {

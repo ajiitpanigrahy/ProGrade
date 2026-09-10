@@ -11,6 +11,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 import java.util.List;
 import java.util.Map;
 
@@ -23,7 +25,11 @@ public class NotificationController {
     private NotificationService notificationService;
 
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribe(Authentication auth) {
+    public SseEmitter subscribe(Authentication auth, HttpServletResponse response) {
+        response.setHeader("Cache-Control", "no-cache");
+        response.setHeader("X-Accel-Buffering", "no"); // Specifically for Nginx/Render
+        response.setHeader("Connection", "keep-alive");
+
         return notificationService.subscribe(auth.getName());
     }
 
@@ -43,7 +49,7 @@ public class NotificationController {
         notificationService.markAllAsRead(auth.getName());
         return ResponseEntity.ok(Map.of("success", true));
     }
-    
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteNotification(@PathVariable Long id, Authentication auth) {
         notificationService.deleteNotification(id, auth.getName());
@@ -62,7 +68,7 @@ public class NotificationController {
         notificationService.sendNotification(n);
         return ResponseEntity.ok(Map.of("success", true));
     }
-    
+
     @PatchMapping("/{id}/unread")
     public ResponseEntity<?> markAsUnread(@PathVariable Long id) {
         notificationService.markAsUnread(id);

@@ -86,13 +86,15 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthDto.AuthResponse authenticate(AuthDto.LoginRequest request) {
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
-        User user = userRepository.findByEmail(request.email());
-
-        if (user == null) throw new IllegalArgumentException("Invalid email or password");
+        // 1. Authenticate (Spring fetches the user and checks the hash)
+        var authResult = authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(request.email(), request.password())
+        );
+        // We SKIP the second database query completely.
+        User user = (User) authResult.getPrincipal();
 
         SystemSetting settings = systemSettingService.getGlobalSettings();
-        if (settings.isMaintenanceMode()) {
+        if (settings != null && settings.isMaintenanceMode()) {
             boolean isAdmin = user.getRole().name().equals("ADMIN"); 
             if (!isAdmin || !settings.isAdminBypass()) {
                 throw new LockedException("MAINTENANCE_MODE: " + settings.getMaintenanceMessage());
