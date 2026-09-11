@@ -1,6 +1,7 @@
 package mac.prograde.api.config;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -30,6 +31,7 @@ public class RedisConfig {
     private GenericJackson2JsonRedisSerializer createJsonSerializer() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule()); // Fixes LocalDateTime / LocalDate serialization
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.activateDefaultTyping(
                 LaissezFaireSubTypeValidator.instance,
                 ObjectMapper.DefaultTyping.NON_FINAL,
