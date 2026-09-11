@@ -64,14 +64,12 @@ public class QuestionController {
         return ResponseEntity.ok(questionRepository.getContributionHistory());
     }
 
-    @Cacheable(value = "questions")
     @GetMapping("/summary")
     public ResponseEntity<?> getQuestionSummary() {
         return ResponseEntity.ok(Map.of("technologies", questionRepository.getGlobalQuestionSummary(), "topics",
                 questionRepository.getGlobalTopicSummary()));
     }
 
-    @Cacheable(value = "questions")
     @GetMapping("")
     public ResponseEntity<Page<Question>> getQuestions(@RequestParam String technology,
             @RequestParam(required = false, defaultValue = "") String search,

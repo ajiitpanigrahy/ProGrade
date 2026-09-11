@@ -2,7 +2,6 @@ package mac.prograde.api.controller;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -21,7 +20,6 @@ public class AdminLogController {
     @Autowired
     private LoggingEventRepository logRepository;
 
-    @Cacheable("systemLogs")
     @GetMapping
     public ResponseEntity<Page<LoggingEvent>> getSystemLogs(
             @RequestParam(defaultValue = "ALL") String level,
