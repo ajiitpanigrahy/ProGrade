@@ -9,6 +9,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import jakarta.servlet.http.HttpServletRequest;
 import mac.prograde.api.entity.Assessment;
 import mac.prograde.api.entity.AssessmentSubmission;
 import mac.prograde.api.entity.MalpracticeLog;
@@ -29,6 +33,7 @@ import mac.prograde.api.entity.Question;
 import mac.prograde.api.repository.AssessmentRepository;
 import mac.prograde.api.repository.AssessmentSubmissionRepository;
 import mac.prograde.api.repository.MalpracticeLogRepository;
+import mac.prograde.api.security.RateLimiterService;
 
 @RestController
 @RequestMapping("/api/v1/student/live-exam")
@@ -46,6 +51,8 @@ public class LiveExamController {
 
 	@Autowired
 	private mac.prograde.api.service.GeminiAiService geminiAiService;
+
+@Autowired private RateLimiterService rateLimiter;
 
 	@GetMapping("/{assessmentId}")
 	public ResponseEntity<?> getSecureExamPayload(@PathVariable Long assessmentId) {
@@ -73,10 +80,17 @@ public class LiveExamController {
         ));
 	}
 
-	@PostMapping("/{assessmentId}/submit")
-    @SuppressWarnings({ "unchecked", "null" })
-    public ResponseEntity<?> submitExam(@PathVariable Long assessmentId, @RequestBody Map<String, Object> payload, Authentication auth) {
-        try {
+	@CacheEvict(value = {"studentOverview", "leaderboards", "adminMetrics"}, allEntries = true)
+    @PostMapping("/{assessmentId}/submit")
+    public ResponseEntity<?> submitExam(@PathVariable Long assessmentId, @RequestBody Map<String, Object> payload, Authentication auth, HttpServletRequest request) {
+        String clientIp = request.getRemoteAddr();
+        String actionKey = "SUBMIT_" + assessmentId + "_" + auth.getName();
+
+        // 🌟 RATE LIMIT: Prevent double-click race conditions and submission spam (1 submit per minute)
+        if (rateLimiter.isBlocked(clientIp, actionKey)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("error", "Submission already processing."));
+        }
+        rateLimiter.recordFailedAttempt(clientIp, actionKey, 1, 1);try {
             Assessment exam = assessmentRepository.findById(assessmentId).orElseThrow();
 
             Map<String, String> studentAnswers = (Map<String, String>) payload.get("answers");
@@ -292,10 +306,18 @@ public class LiveExamController {
 		};
 	}
 
-	@SuppressWarnings("null")
+	@Cacheable(value = "aiReviews", key = "#submissionId")
     @GetMapping("/analysis/{submissionId}/ai-insights")
-    public ResponseEntity<?> getGeminiInsights(@PathVariable Long submissionId) {
-        AssessmentSubmission sub = submissionRepository.findById(submissionId).orElseThrow();
+    public ResponseEntity<?> getGeminiInsights(@PathVariable Long submissionId, HttpServletRequest request, Authentication auth) {
+        String clientIp = request.getRemoteAddr();
+        String actionKey = "AI_INSIGHTS_" + auth.getName();
+
+        // 🌟 RATE LIMIT: Protect Google Gemini API Billing (Max 5 requests per hour)
+        if (rateLimiter.isBlocked(clientIp, actionKey)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(Map.of("error", "AI quota exceeded. Please wait before requesting more insights."));
+        }
+        rateLimiter.recordFailedAttempt(clientIp, actionKey, 5, 60);AssessmentSubmission sub = submissionRepository.findById(submissionId).orElseThrow();
         @SuppressWarnings("null")
         Assessment exam = assessmentRepository.findById(sub.getAssessmentId()).orElseThrow();
 
@@ -323,9 +345,16 @@ public class LiveExamController {
     }
 
 	@PostMapping("/{assessmentId}/fraud-log")
-	public ResponseEntity<?> reportMalpractice(@PathVariable Long assessmentId,
-			@RequestBody Map<String, String> payload, Authentication auth) {
-		MalpracticeLog log = new MalpracticeLog();
+    public ResponseEntity<?> reportMalpractice(@PathVariable Long assessmentId, @RequestBody Map<String, String> payload, Authentication auth, HttpServletRequest request) {
+        String clientIp = request.getRemoteAddr();
+        String actionKey = "FRAUD_" + assessmentId + "_" + auth.getName();
+
+        // 🌟 RATE LIMIT: Prevent infinite loops in the frontend from spamming the DB
+        if (rateLimiter.isBlocked(clientIp, actionKey)) {
+            return ResponseEntity.ok(Map.of("message", "Infraction noted.")); // Silent drop
+        }
+        rateLimiter.recordFailedAttempt(clientIp, actionKey, 10, 5); // Max 10 flags per 5 mins
+        MalpracticeLog log = new MalpracticeLog();
 		log.setAssessmentId(assessmentId);
 		log.setStudentEmail(auth.getName());
 		log.setInfractionType(payload.get("infraction"));

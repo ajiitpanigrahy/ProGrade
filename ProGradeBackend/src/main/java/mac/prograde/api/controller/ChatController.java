@@ -1,10 +1,14 @@
 package mac.prograde.api.controller;
 
+import mac.prograde.api.security.RateLimiterService;
 import mac.prograde.api.service.ChatService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Map;
 
@@ -18,6 +22,7 @@ public class ChatController {
 	private mac.prograde.api.repository.ChatRoomRepository roomRepository;
 	@Autowired
 	private mac.prograde.api.repository.ChatMessageRepository messageRepository;
+	@Autowired private RateLimiterService rateLimiter;
 
 	@GetMapping("/search")
 	public ResponseEntity<?> searchUser(@RequestParam String email) {
@@ -25,11 +30,20 @@ public class ChatController {
 	}
 
 	@PostMapping("/send")
-	public ResponseEntity<?> sendMessage(Authentication auth, @RequestBody Map<String, Object> payload) {
-		return ResponseEntity.ok(chatService.sendMessage(auth.getName(), (String) payload.get("targetEmail"),
-				(String) payload.get("content"), (String) payload.get("fileUrl"), (String) payload.get("fileName"),
-				(Boolean) payload.getOrDefault("isViewOnce", false)));
-	}
+    public ResponseEntity<?> sendMessage(Authentication auth, @RequestBody Map<String, Object> payload, HttpServletRequest request) {
+        String clientIp = request.getRemoteAddr();
+        
+        // 🌟 RATE LIMIT: Prevent global chat spamming (Max 30 messages per minute)
+        if (rateLimiter.isBlocked(clientIp, "CHAT_" + auth.getName())) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(Map.of("error", "You are sending messages too fast."));
+        }
+        rateLimiter.recordFailedAttempt(clientIp, "CHAT_" + auth.getName(), 30, 1);
+
+        return ResponseEntity.ok(chatService.sendMessage(auth.getName(), (String) payload.get("targetEmail"),
+                (String) payload.get("content"), (String) payload.get("fileUrl"), (String) payload.get("fileName"),
+                (Boolean) payload.getOrDefault("isViewOnce", false)));
+    }
 
 	@PatchMapping("/room/{roomId}/status")
 	public ResponseEntity<?> updateRoom(Authentication auth, @PathVariable Long roomId, @RequestParam String action) {
