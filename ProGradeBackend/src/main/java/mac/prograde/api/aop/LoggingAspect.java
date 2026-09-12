@@ -28,9 +28,11 @@ public class LoggingAspect {
 	private DatabaseAuditService auditService;
 
 	// Matches all REST controllers
-	@Pointcut("within(mac.prograde.api.controller..*)")
-	public void controllerPointcut() {
-	}
+	@Pointcut("within(mac.prograde.api.controller..*) " +
+              "&& !within(mac.prograde.api.controller.NotificationController) " +
+              "&& !within(mac.prograde.api.controller.SystemHealthController)")
+    public void controllerPointcut() {
+    }
 
 	// Matches all service implementations, but EXCLUDES the auditing service itself
 	// to avoid infinite loops

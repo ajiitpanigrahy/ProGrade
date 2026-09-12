@@ -1,5 +1,7 @@
 package mac.prograde.api.controller;
 
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -38,4 +40,10 @@ public class AdminLogController {
         Page<LoggingEvent> logs = logRepository.findFilteredLogs(level, startTime, endTime, pageRequest);
         return ResponseEntity.ok(logs);
     }
+
+    @DeleteMapping("/clear-all")
+public ResponseEntity<?> clearAllLogs() {
+    logRepository.deleteAll(); // 🌟 Instantly wipes the bloated table
+    return ResponseEntity.ok(Map.of("message", "Database logs truncated. Disk space freed."));
+}
 }
