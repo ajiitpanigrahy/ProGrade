@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { adminService } from '../../../../features/admin/adminService';
 import { Search, Edit, Trash2, ChevronLeft, ChevronRight, Terminal, AlertTriangle, X } from 'lucide-react';
 import CodeSnippetBox from '../../../../components/CodeSnippetBox';
+import { axiosClient } from '../../../../api/axiosClient';
 
 const renderQuestionContent = (text: string) => {
     if (!text) return null;
@@ -45,25 +46,27 @@ export default function QuestionGrid({ technology, techData, refreshTrigger, onE
     const [totalPages, setTotalPages] = useState(1);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
-
+const [totalElements, setTotalElements] = useState(0);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [questionToDelete, setQuestionToDelete] = useState<number | null>(null);
 
     const fetchQuestions = async (pageNumber: number, searchTerm: string) => {
-        setLoading(true);
-        try {
-            // Note: If you have matching issues here, you might need to use technology.toUpperCase().replace(/[\s_]/g, '') based on your DB
-            const res = await adminService.getQuestionsByTech(technology, pageNumber, searchTerm);
-            setQuestions(res?.content || (Array.isArray(res) ? res : []));
-            setTotalPages(res?.totalPages || 1);
-            setPage(res?.number || 0);
-        } catch (error) {
-            console.error("Failed to load questions", error);
-            setQuestions([]);
-        } finally {
-            setLoading(false);
-        }
-    };
+    try {
+        const response = await axiosClient.get(`/admin/questions`, {
+            params: { technology: selectedTech, page: pageNumber, size: 10, search: searchTerm, typeFilter: typeFilter }
+        });
+
+        const data = response.data;
+        setQuestions(data.content || []);
+        
+        //  Safely reads the new Spring Boot 3.3 VIA_DTO format
+        setTotalPages(data.page?.totalPages ?? data.totalPages ?? 0);
+        setTotalElements(data.page?.totalElements ?? data.totalElements ?? 0);
+
+    } catch (error) {
+        console.error("Failed to fetch questions:", error);
+    }
+};
 
     useEffect(() => {
         const timer = setTimeout(() => fetchQuestions(0, search), 400);
