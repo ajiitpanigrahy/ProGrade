@@ -8,7 +8,7 @@ import { axiosClient } from '../../../../api/axiosClient';
 const renderQuestionContent = (text: string) => {
     if (!text) return null;
 
-    // 🌟 FIX 1: Convert literal Excel "\n" characters into real line breaks
+    // Convert literal Excel "\n" characters into real line breaks
     const formattedText = text.replace(/\\n/g, '\n');
 
     const parts = formattedText.split(/(```[\s\S]*?```)/g);
@@ -21,14 +21,12 @@ const renderQuestionContent = (text: string) => {
                         <Terminal className="w-3 h-3 text-purple-400" />
                         <span className="text-[10px] uppercase font-bold text-purple-400 tracking-wider">Legacy Code</span>
                     </div>
-                    {/* 🌟 Ensure whitespace-pre is used for code blocks */}
                     <pre className="p-4 text-[13px] text-green-400 font-mono overflow-x-auto leading-relaxed custom-scrollbar whitespace-pre">
                         <code>{code}</code>
                     </pre>
                 </div>
             );
         }
-        // 🌟 Ensure whitespace-pre-wrap is here so text line breaks are respected
         return <span key={index} className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed">{part}</span>;
     });
 };
@@ -41,32 +39,46 @@ interface QuestionGridProps {
 }
 
 export default function QuestionGrid({ technology, techData, refreshTrigger, onEdit }: QuestionGridProps) {
+    // 🌟 FIX 1: All missing state declarations have been added, and the \useState typo is fixed.
     const [questions, setQuestions] = useState<any[]>([]);
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
-    const [search, setSearch] = useState('');
+    const [totalElements, setTotalElements] = useState(0);
+    const [search, setSearch] = useState(''); 
     const [loading, setLoading] = useState(false);
-const [totalElements, setTotalElements] = useState(0);
+    const [typeFilter, setTypeFilter] = useState('ALL');
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [questionToDelete, setQuestionToDelete] = useState<number | null>(null);
 
     const fetchQuestions = async (pageNumber: number, searchTerm: string) => {
-    try {
-        const response = await axiosClient.get(`/admin/questions`, {
-            params: { technology: selectedTech, page: pageNumber, size: 10, search: searchTerm, typeFilter: typeFilter }
-        });
+        setLoading(true);
+        try {
+            const response = await axiosClient.get(`/admin/questions`, {
+                params: { 
+                    technology: technology, // 🌟 FIX 2: Changed from undefined 'selectedTech' to the 'technology' prop
+                    page: pageNumber, 
+                    size: 10, 
+                    search: searchTerm, 
+                    typeFilter: typeFilter 
+                }
+            });
 
-        const data = response.data;
-        setQuestions(data.content || []);
-        
-        //  Safely reads the new Spring Boot 3.3 VIA_DTO format
-        setTotalPages(data.page?.totalPages ?? data.totalPages ?? 0);
-        setTotalElements(data.page?.totalElements ?? data.totalElements ?? 0);
+            const data = response.data;
+            setQuestions(data.content || []);
+            
+            // Safely reads the new Spring Boot 3.3 VIA_DTO format
+            setTotalPages(data.page?.totalPages ?? data.totalPages ?? 0);
+            setTotalElements(data.page?.totalElements ?? data.totalElements ?? 0);
 
-    } catch (error) {
-        console.error("Failed to fetch questions:", error);
-    }
-};
+            // Update the page state so the UI knows where it is
+            setPage(pageNumber);
+
+        } catch (error) {
+            console.error("Failed to fetch questions:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         const timer = setTimeout(() => fetchQuestions(0, search), 400);
@@ -140,22 +152,19 @@ const [totalElements, setTotalElements] = useState(0);
                                             </span>
                                         </td>
                                         <td className="py-4 px-6 max-w-[300px] lg:max-w-[500px]">
-                                            {/* 🌟 FIX 1: Render the Question Text exactly ONCE */}
                                             <div className="font-bold text-gray-900 dark:text-white mb-3 leading-relaxed whitespace-pre-wrap">
                                                 {renderQuestionContent(q.questionText?.replace(/\\n/g, '\n'))}
                                             </div>
 
-                                            {/* 🌟 FIX 2: Check that codeSnippet actually has text before rendering the Code Box */}
                                             {q.codeSnippet && q.codeSnippet.trim() !== '' && (
                                                 <div className="mb-4 animate-in slide-in-from-top-2">
                                                     <CodeSnippetBox
                                                         code={q.codeSnippet.replace(/\\n/g, '\n')}
-                                                        language={q.codeLanguage || q.technology}
+                                                        language={q.codeLanguage || technology}
                                                     />
                                                 </div>
                                             )}
 
-                                            {/* Options Grid */}
                                             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 opacity-70 hover:opacity-100 transition-opacity">
                                                 <div className={`truncate ${q.correctOption === 'A' ? 'text-green-500 font-bold bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded' : 'px-2 py-1'}`}>A: {q.optionA}</div>
                                                 <div className={`truncate ${q.correctOption === 'B' ? 'text-green-500 font-bold bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded' : 'px-2 py-1'}`}>B: {q.optionB}</div>

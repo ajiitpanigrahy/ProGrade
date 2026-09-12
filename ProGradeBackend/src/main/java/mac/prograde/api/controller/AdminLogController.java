@@ -30,7 +30,7 @@ public class AdminLogController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "DESC") String sortDirection) {
 
-        size = Math.min(size, 100);
+        size = Math.min(size, 1000);
 
         Sort sort = sortDirection.equalsIgnoreCase("ASC") ? Sort.by("timestamp").ascending()
                 : Sort.by("timestamp").descending();
@@ -42,8 +42,8 @@ public class AdminLogController {
     }
 
     @DeleteMapping("/clear-all")
-public ResponseEntity<?> clearAllLogs() {
-    logRepository.deleteAll(); // 🌟 Instantly wipes the bloated table
-    return ResponseEntity.ok(Map.of("message", "Database logs truncated. Disk space freed."));
-}
+    public ResponseEntity<?> clearAllLogs() {
+        logRepository.deleteAll(); // 🌟 Instantly wipes the bloated table
+        return ResponseEntity.ok(Map.of("message", "Database logs truncated. Disk space freed."));
+    }
 }
