@@ -1,6 +1,5 @@
 package mac.prograde.api.controller;
 
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,11 +28,13 @@ public class AdminLogController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "DESC") String sortDirection) {
 
-        Sort sort = sortDirection.equalsIgnoreCase("ASC") ? 
-                Sort.by("timestamp").ascending() : Sort.by("timestamp").descending();
-                
+        size = Math.min(size, 100);
+
+        Sort sort = sortDirection.equalsIgnoreCase("ASC") ? Sort.by("timestamp").ascending()
+                : Sort.by("timestamp").descending();
+
         PageRequest pageRequest = PageRequest.of(page, size, sort);
-        
+
         Page<LoggingEvent> logs = logRepository.findFilteredLogs(level, startTime, endTime, pageRequest);
         return ResponseEntity.ok(logs);
     }
