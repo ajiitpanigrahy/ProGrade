@@ -1,14 +1,15 @@
 package mac.prograde.api.controller;
 
-import lombok.RequiredArgsConstructor;
-import mac.prograde.api.dto.LeaderboardDTO;
-import mac.prograde.api.dto.StudentDashboardDTO;
-import mac.prograde.api.service.StudentAssessmentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import lombok.RequiredArgsConstructor;
+import mac.prograde.api.dto.LeaderboardDTO;
+import mac.prograde.api.dto.StudentDashboardDTO;
+import mac.prograde.api.service.StudentAssessmentService;
 
 @RestController
 @RequestMapping("/api/v1/student/dashboard")

@@ -1,5 +1,9 @@
 package mac.prograde.api.service.impl;
 
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -8,10 +12,6 @@ import org.springframework.stereotype.Service;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.mail.internet.MimeMessage;
 import mac.prograde.api.service.OtpService;
-
-import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class OtpServiceImpl implements OtpService {

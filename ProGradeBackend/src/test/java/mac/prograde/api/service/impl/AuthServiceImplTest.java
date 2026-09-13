@@ -1,14 +1,13 @@
 package mac.prograde.api.service.impl;
 
-import mac.prograde.api.dto.AuthDto;
-import mac.prograde.api.entity.SystemSetting;
-import mac.prograde.api.entity.User;
-import mac.prograde.api.enums.Role;
-import mac.prograde.api.repository.UserRepository;
-import mac.prograde.api.security.JwtService;
-import mac.prograde.api.service.NotificationService;
-import mac.prograde.api.service.SystemSettingService;
-import mac.prograde.api.service.impl.AuthServiceImpl;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,9 +19,14 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import mac.prograde.api.dto.AuthDto;
+import mac.prograde.api.entity.SystemSetting;
+import mac.prograde.api.entity.User;
+import mac.prograde.api.enums.Role;
+import mac.prograde.api.repository.UserRepository;
+import mac.prograde.api.security.JwtService;
+import mac.prograde.api.service.NotificationService;
+import mac.prograde.api.service.SystemSettingService;
 
 @ExtendWith(MockitoExtension.class)
 public class AuthServiceImplTest {

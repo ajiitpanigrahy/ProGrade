@@ -1,9 +1,5 @@
 package mac.prograde.api.aop;
 
-import mac.prograde.api.entity.Assessment; // Adjust import based on your actual entity
-import mac.prograde.api.entity.Notification;
-import mac.prograde.api.enums.NotificationType;
-import mac.prograde.api.service.NotificationService;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;
@@ -11,6 +7,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+
+import mac.prograde.api.entity.Assessment; // Adjust import based on your actual entity
+import mac.prograde.api.entity.Notification;
+import mac.prograde.api.enums.NotificationType;
+import mac.prograde.api.service.NotificationService;
 
 @Aspect
 @Component

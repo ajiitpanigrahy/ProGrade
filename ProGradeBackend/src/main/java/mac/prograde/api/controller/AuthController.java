@@ -1,5 +1,20 @@
 package mac.prograde.api.controller;
 
+import java.time.LocalDateTime;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import mac.prograde.api.dto.AuthDto;
 import mac.prograde.api.entity.TokenBlacklist;
@@ -9,18 +24,6 @@ import mac.prograde.api.repository.UserRepository;
 import mac.prograde.api.security.RateLimiterService;
 import mac.prograde.api.service.AuthService;
 import mac.prograde.api.service.OtpService;
-
-import java.time.LocalDateTime;
-import java.util.Map;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/auth")

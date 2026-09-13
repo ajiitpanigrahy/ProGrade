@@ -9,8 +9,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -80,7 +78,6 @@ public class LiveExamController {
         ));
 	}
 
-	@CacheEvict(value = {"studentOverview", "leaderboards", "adminMetrics"}, allEntries = true)
     @PostMapping("/{assessmentId}/submit")
     public ResponseEntity<?> submitExam(@PathVariable Long assessmentId, @RequestBody Map<String, Object> payload, Authentication auth, HttpServletRequest request) {
         String clientIp = request.getRemoteAddr();
@@ -306,7 +303,6 @@ public class LiveExamController {
 		};
 	}
 
-	@Cacheable(value = "aiReviews", key = "#submissionId")
     @GetMapping("/analysis/{submissionId}/ai-insights")
     public ResponseEntity<?> getGeminiInsights(@PathVariable Long submissionId, HttpServletRequest request, Authentication auth) {
         String clientIp = request.getRemoteAddr();

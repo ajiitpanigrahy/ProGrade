@@ -1,21 +1,22 @@
 package mac.prograde.api.service.impl;
 
-import lombok.RequiredArgsConstructor;
-import mac.prograde.api.dto.ProfileUpdateRequest;
-import mac.prograde.api.entity.User;
-import mac.prograde.api.repository.UserRepository;
-import mac.prograde.api.service.ProfileService;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
+
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import lombok.RequiredArgsConstructor;
+import mac.prograde.api.dto.ProfileUpdateRequest;
+import mac.prograde.api.entity.User;
+import mac.prograde.api.repository.UserRepository;
+import mac.prograde.api.service.ProfileService;
 
 @Service
 @RequiredArgsConstructor

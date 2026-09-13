@@ -1,9 +1,10 @@
 package mac.prograde.api.service;
 
-import mac.prograde.api.dto.AdminDto;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import mac.prograde.api.dto.AdminDto;
 
 public interface AdminService {
     AdminDto.DashboardMetrics getKpiMetrics();

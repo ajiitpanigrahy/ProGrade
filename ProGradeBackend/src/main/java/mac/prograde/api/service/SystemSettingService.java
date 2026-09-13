@@ -1,5 +1,10 @@
 package mac.prograde.api.service;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import mac.prograde.api.entity.Notification;
 import mac.prograde.api.entity.SystemSetting;
 import mac.prograde.api.entity.User;
@@ -7,10 +12,6 @@ import mac.prograde.api.enums.NotificationType;
 import mac.prograde.api.enums.Role;
 import mac.prograde.api.repository.SystemSettingRepository;
 import mac.prograde.api.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class SystemSettingService {

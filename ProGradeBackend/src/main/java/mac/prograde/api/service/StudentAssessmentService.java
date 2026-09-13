@@ -1,9 +1,10 @@
 package mac.prograde.api.service;
 
-import mac.prograde.api.dto.StudentDashboardDTO;
-import mac.prograde.api.entity.Assessment;
 import java.util.List;
 import java.util.Map;
+
+import mac.prograde.api.dto.StudentDashboardDTO;
+import mac.prograde.api.entity.Assessment;
 
 public interface StudentAssessmentService {
     List<Assessment> getPublicAssessments();

@@ -2,8 +2,6 @@ package mac.prograde.api.repository;
 
 import mac.prograde.api.entity.User;
 import mac.prograde.api.enums.Role;
-
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -14,8 +12,6 @@ import java.util.UUID;
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
 
-    // Find a user by email (used by Auth)
-    @Cacheable(value = "users", key = "#email")
     User findByEmail(String email);
 
     // Get all educators who are NOT yet approved

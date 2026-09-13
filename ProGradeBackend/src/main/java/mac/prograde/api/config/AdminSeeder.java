@@ -1,14 +1,15 @@
 package mac.prograde.api.config;
 
-import lombok.RequiredArgsConstructor;
-import mac.prograde.api.entity.User;
-import mac.prograde.api.enums.Role;
-import mac.prograde.api.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import lombok.RequiredArgsConstructor;
+import mac.prograde.api.entity.User;
+import mac.prograde.api.enums.Role;
+import mac.prograde.api.repository.UserRepository;
 
 @Configuration
 @RequiredArgsConstructor

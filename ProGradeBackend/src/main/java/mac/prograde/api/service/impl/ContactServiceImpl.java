@@ -1,5 +1,12 @@
 package mac.prograde.api.service.impl;
 
+import java.util.List;
+
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.stereotype.Service;
+
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import mac.prograde.api.dto.ContactRequest;
 import mac.prograde.api.entity.Notification;
@@ -9,12 +16,6 @@ import mac.prograde.api.enums.Role;
 import mac.prograde.api.repository.UserRepository;
 import mac.prograde.api.service.ContactService;
 import mac.prograde.api.service.NotificationService;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.stereotype.Service;
-
-import jakarta.mail.internet.MimeMessage;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor

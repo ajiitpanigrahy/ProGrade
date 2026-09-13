@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-ProGradeBackendApplication<ProGrade>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "mac.prograde.api.ProGradeBackendApplication",
+            "projectName": "ProGrade",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

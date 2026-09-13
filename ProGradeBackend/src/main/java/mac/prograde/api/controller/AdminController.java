@@ -1,19 +1,27 @@
 package mac.prograde.api.controller;
 
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile; // 🌟 Added import
+
 import lombok.RequiredArgsConstructor;
 import mac.prograde.api.dto.AdminDto;
 import mac.prograde.api.service.AdminService;
 import mac.prograde.api.service.BatchUploadService; // 🌟 Added import
 import mac.prograde.api.service.StudentAssessmentService;
-
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile; // 🌟 Added import
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin")
@@ -24,13 +32,13 @@ public class AdminController {
 	private final BatchUploadService batchUploadService; // Added Injection
 	private final StudentAssessmentService studentAssessmentService;
 
-	@Cacheable("adminMetrics")
+	@Cacheable("admin_metrics_v3")
 	@GetMapping("/metrics")
 	public ResponseEntity<AdminDto.DashboardMetrics> getMetrics() {
 		return ResponseEntity.ok(adminService.getKpiMetrics());
 	}
 
-	@Cacheable("adminCharts")
+	@Cacheable("admin_charts_v3")
 	@GetMapping("/charts")
 	public ResponseEntity<AdminDto.DashboardCharts> getCharts() {
 		return ResponseEntity.ok(adminService.getChartData());

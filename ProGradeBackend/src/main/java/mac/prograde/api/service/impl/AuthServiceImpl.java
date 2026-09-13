@@ -1,5 +1,7 @@
 package mac.prograde.api.service.impl;
 
+import java.util.List;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
@@ -19,8 +21,6 @@ import mac.prograde.api.security.JwtService;
 import mac.prograde.api.service.AuthService;
 import mac.prograde.api.service.NotificationService;
 import mac.prograde.api.service.SystemSettingService;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor

@@ -1,14 +1,26 @@
 package mac.prograde.api.service;
 
-import mac.prograde.api.entity.*;
-import mac.prograde.api.enums.*;
-import mac.prograde.api.repository.*;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // 🌟 IMPORT THIS
 
-import java.time.LocalDateTime;
-import java.util.*;
+import mac.prograde.api.entity.ChatMessage;
+import mac.prograde.api.entity.ChatRoom;
+import mac.prograde.api.entity.Notification;
+import mac.prograde.api.entity.User;
+import mac.prograde.api.enums.ChatRoomStatus;
+import mac.prograde.api.enums.MessageStatus;
+import mac.prograde.api.enums.NotificationType;
+import mac.prograde.api.repository.ChatMessageRepository;
+import mac.prograde.api.repository.ChatRoomRepository;
+import mac.prograde.api.repository.UserRepository;
 
 @Service
 public class ChatService {

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Database, ArrowUpDown, ArrowRight, ArrowLeft, Loader2, UserCircle, Globe, Clock, ShieldAlert, Sparkles, AlertTriangle, Bug, ChevronDown, ChevronUp, Activity, BarChart3, ListTree, User, Server, CheckCircle2, Terminal } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Database, ArrowUpDown, ArrowRight, ArrowLeft, Loader2, UserCircle, Globe, Clock, ShieldAlert, Sparkles, AlertTriangle, Bug, ChevronDown, ChevronUp, Activity, BarChart3, ListTree, User, Server, CheckCircle2, Terminal, Trash2, X } from 'lucide-react';
 import { adminService } from '../../../features/admin/adminService';
+import { axiosClient } from '../../../api/axiosClient';
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface LogEvent {
@@ -20,7 +22,7 @@ interface LogEvent {
     exception?: string;
 }
 
-const PAGE_SIZE = 100; // Keeps the table fast and paginated
+const PAGE_SIZE = 100;
 
 export default function SystemLogsTab() {
     const [activeSubTab, setActiveSubTab] = useState<'AUDIT_STREAM' | 'ANALYTICS'>('AUDIT_STREAM');
@@ -40,13 +42,17 @@ export default function SystemLogsTab() {
     const [isLoading, setIsLoading] = useState(false);
     const [expandedRow, setExpandedRow] = useState<number | null>(null);
 
-    // 🌟 Global Analytics State
+    // Analytics State
     const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
     const [analytics, setAnalytics] = useState({ severityData: [], moduleData: [], timelineData: [], actorData: [], totalGlobalLogs: 0 });
 
+    // Delete Modal State
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [deleteDuration, setDeleteDuration] = useState('ALL');
+    const [isDeleting, setIsDeleting] = useState(false);
+
     const input3DClass = "w-full bg-white dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl px-4 py-2.5 focus:border-purple-500 focus:ring-4 ring-purple-600/20 outline-none text-gray-900 dark:text-white transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] cursor-pointer font-bold text-xs uppercase tracking-wider";
 
-    // 🌟 FETCH PAGINATED LOGS FOR TABLE
     const fetchLogs = async () => {
         setIsLoading(true);
         try {
@@ -63,13 +69,11 @@ export default function SystemLogsTab() {
         }
     };
 
-    // 🌟 FETCH GLOBAL LOGS FOR ANALYTICS (Background Task)
     const fetchAnalytics = async () => {
         setIsAnalyticsLoading(true);
         try {
-            // Fetch up to 50,000 logs for the current filter to guarantee accurate graphs!
             const data = await adminService.getSystemLogs(
-                levelFilter, dateFilter, customStart, customEnd, 1, 50000, sortOrder
+                levelFilter, dateFilter, customStart, customEnd, 1, 1000, sortOrder
             );
             const globalLogs = data.content || [];
 
@@ -78,30 +82,25 @@ export default function SystemLogsTab() {
             const timelineCounts: Record<string, number> = {};
             const actorCounts: Record<string, number> = {};
 
-            // Sort oldest to newest for timeline
             [...globalLogs].reverse().forEach((log: any) => {
-                // Severity
                 const lvl = (log.level || log.levelString || 'INFO').toUpperCase();
                 if (severityCounts[lvl as keyof typeof severityCounts] !== undefined) severityCounts[lvl as keyof typeof severityCounts]++;
                 else severityCounts.INFO++;
 
-                // Modules
                 const modName = log.className || log.callerClass?.split('.').pop() || 'Unknown';
                 moduleCounts[modName] = (moduleCounts[modName] || 0) + 1;
 
-                // Actors
                 const actorName = log.actor || 'SYSTEM';
                 actorCounts[actorName] = (actorCounts[actorName] || 0) + 1;
 
-                // Smart Timeline Grouping (Prevents chart crash with 6000+ logs)
                 const d = new Date(log.timestamp);
                 let timeKey = '';
                 if (dateFilter === 'TODAY') {
-                    timeKey = d.toLocaleTimeString([], { hour: '2-digit', hour12: true }); // Groups by Hour
+                    timeKey = d.toLocaleTimeString([], { hour: '2-digit', hour12: true }); 
                 } else if (dateFilter === 'WEEKLY' || dateFilter === '15D' || dateFilter === '30D') {
-                    timeKey = d.toLocaleDateString([], { month: 'short', day: 'numeric' }); // Groups by Day
+                    timeKey = d.toLocaleDateString([], { month: 'short', day: 'numeric' }); 
                 } else {
-                    timeKey = d.toLocaleDateString([], { year: 'numeric', month: 'short' }); // Groups by Month
+                    timeKey = d.toLocaleDateString([], { year: 'numeric', month: 'short' }); 
                 }
                 timelineCounts[timeKey] = (timelineCounts[timeKey] || 0) + 1;
             });
@@ -127,7 +126,6 @@ export default function SystemLogsTab() {
 
     useEffect(() => { fetchLogs(); }, [currentPage, sortOrder]);
 
-    // Fetch Analytics ONLY when we first switch to the tab
     const handleTabSwitch = (tab: 'AUDIT_STREAM' | 'ANALYTICS') => {
         setActiveSubTab(tab);
         if (tab === 'ANALYTICS' && analytics.totalGlobalLogs === 0) {
@@ -139,6 +137,22 @@ export default function SystemLogsTab() {
         setCurrentPage(1); 
         fetchLogs(); 
         if (activeSubTab === 'ANALYTICS') fetchAnalytics(); 
+    };
+
+    const handlePurgeLogs = async () => {
+        setIsDeleting(true);
+        try {
+            await axiosClient.delete('/admin/logs/clear', { params: { duration: deleteDuration } });
+            setIsDeleteModalOpen(false);
+            setDeleteDuration('ALL');
+            setCurrentPage(1);
+            fetchLogs();
+            fetchAnalytics();
+        } catch (error) {
+            console.error("Failed to purge logs:", error);
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     const getLevelBadge = (level?: string) => {
@@ -154,7 +168,7 @@ export default function SystemLogsTab() {
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             return (
-                <div className="bg-white/90 dark:bg-[#150a29]/90 backdrop-blur-md border-2 border-gray-200 dark:border-purple-900/50 p-3 rounded-xl shadow-xl">
+                <div className="bg-white/90 dark:bg-[#150a29]/90 backdrop-blur-md border-2 border-gray-200 dark:border-purple-900/50 p-3 rounded-xl shadow-xl animate-in zoom-in-95 duration-200">
                     <p className="text-xs font-black text-gray-500 mb-1 uppercase tracking-wider">{label}</p>
                     {payload.map((p: any, idx: number) => (
                         <p key={idx} className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -169,7 +183,7 @@ export default function SystemLogsTab() {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500 relative min-h-screen">
+        <div className="space-y-6 animate-in fade-in duration-700 relative min-h-screen pb-10">
             
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0 opacity-40">
                 <div className="absolute -top-32 -right-32 w-96 h-96 bg-purple-500/20 rounded-full blur-[120px]"></div>
@@ -196,21 +210,21 @@ export default function SystemLogsTab() {
 
             <div className="relative z-10 flex flex-col lg:flex-row gap-4 bg-white/60 dark:bg-[#150a29]/60 backdrop-blur-md p-5 rounded-3xl border-2 border-gray-200 dark:border-purple-900/40 shadow-sm items-end">
                 <div className="flex-1 w-full lg:w-auto">
-                    <label className="block text-[10px] font-black uppercase text-gray-500 mb-1.5 tracking-wider">Severity Status</label>
+                    <label className="block text-[10px] font-black uppercase text-gray-500 mb-1.5 tracking-wider transition-colors hover:text-purple-500">Severity Status</label>
                     <select value={levelFilter} onChange={(e) => setLevelFilter(e.target.value)} className={input3DClass}>
                         <option value="ALL">All Levels</option><option value="ERROR">Errors & Failures</option><option value="WARN">Warnings & Slow APIs</option><option value="INFO">Info & Success</option><option value="DEBUG">Debug Traces</option>
                     </select>
                 </div>
 
                 <div className="flex-1 w-full lg:w-auto">
-                    <label className="block text-[10px] font-black uppercase text-gray-500 mb-1.5 tracking-wider">Time Window</label>
+                    <label className="block text-[10px] font-black uppercase text-gray-500 mb-1.5 tracking-wider transition-colors hover:text-purple-500">Time Window</label>
                     <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className={input3DClass}>
                         <option value="ALL">All Time History</option><option value="TODAY">Today Only</option><option value="WEEKLY">Last 7 Days</option><option value="30D">Last 30 Days</option><option value="CUSTOM">Custom Range...</option>
                     </select>
                 </div>
                 
                 {dateFilter === 'CUSTOM' && (
-                    <div className="flex gap-3 w-full lg:w-auto">
+                    <div className="flex gap-3 w-full lg:w-auto animate-in slide-in-from-left-4 fade-in duration-300">
                         <div className="flex-1">
                             <label className="block text-[10px] font-black uppercase text-gray-500 mb-1.5 tracking-wider">From</label>
                             <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className={`${input3DClass} [color-scheme:light] dark:[color-scheme:dark]`} />
@@ -222,28 +236,33 @@ export default function SystemLogsTab() {
                     </div>
                 )}
 
-                <button onClick={handleApplyFilters} disabled={isLoading || isAnalyticsLoading} className="w-full lg:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black px-10 py-3.5 rounded-xl border-b-4 border-indigo-900 active:border-b-0 active:translate-y-1 shadow-[0_10px_30px_-10px_rgba(147,51,234,0.6)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer uppercase tracking-widest text-xs">
-                    {(isLoading || isAnalyticsLoading) ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Sparkles className="w-4 h-4"/> Scan Telemetry</>}
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto mt-4 lg:mt-0">
+                    <button onClick={handleApplyFilters} disabled={isLoading || isAnalyticsLoading} className="flex-1 lg:flex-none bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black px-6 py-3.5 rounded-xl border-b-4 border-indigo-900 active:border-b-0 active:translate-y-1 hover:-translate-y-1 shadow-[0_10px_30px_-10px_rgba(147,51,234,0.6)] hover:shadow-[0_15px_40px_-10px_rgba(147,51,234,0.8)] transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer uppercase tracking-widest text-xs">
+                        {(isLoading || isAnalyticsLoading) ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Sparkles className="w-4 h-4"/> Scan</>}
+                    </button>
+                    
+                    <button onClick={() => setIsDeleteModalOpen(true)} className="flex-1 lg:flex-none bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 font-black px-6 py-3.5 rounded-xl border-2 border-red-200 dark:border-red-500/30 hover:border-red-300 dark:hover:border-red-500/50 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer uppercase tracking-widest text-xs shadow-sm active:scale-95">
+                        <Trash2 className="w-4 h-4"/> Purge Data
+                    </button>
+                </div>
             </div>
 
-            {/* 🌟 TAB 1: GRAPH ANALYTICS */}
+            {/* TAB 1: GRAPH ANALYTICS */}
             {activeSubTab === 'ANALYTICS' && (
-                <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4">
-                    
+                <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-8 duration-700 ease-out">
                     {/* Area Chart: Timeline */}
-                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-purple-900/30 lg:col-span-2 relative overflow-hidden group min-h-[350px]">
-                        {isAnalyticsLoading && <div className="absolute inset-0 bg-white/60 dark:bg-[#1a0d36]/60 backdrop-blur-sm z-20 flex items-center justify-center"><Loader2 className="w-8 h-8 text-purple-600 animate-spin" /></div>}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-colors"></div>
+                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-purple-900/30 lg:col-span-2 relative overflow-hidden group min-h-[350px] transition-all duration-300 hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-900/10">
+                        {isAnalyticsLoading && <div className="absolute inset-0 bg-white/60 dark:bg-[#1a0d36]/60 backdrop-blur-sm z-20 flex items-center justify-center animate-in fade-in"><Loader2 className="w-8 h-8 text-purple-600 animate-spin" /></div>}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/30 transition-colors duration-700"></div>
                         
                         <div className="flex justify-between items-center mb-6 relative z-10">
-                            <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2"><Activity className="w-5 h-5 text-purple-500"/> Traffic Pulse (Filtered Window)</h3>
-                            <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 px-3 py-1 rounded-full text-[10px] font-black uppercase">Analyzed: {analytics.totalGlobalLogs} Logs</span>
+                            <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2"><Activity className="w-5 h-5 text-purple-500"/> Traffic Pulse</h3>
+                            <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-sm">Analyzed: {analytics.totalGlobalLogs} Logs</span>
                         </div>
 
                         <div className="h-72 w-full relative z-10">
                             {analytics.timelineData.length === 0 ? (
-                                <div className="h-full flex items-center justify-center text-gray-400 font-bold text-sm">No telemetry data available.</div>
+                                <div className="h-full flex items-center justify-center text-gray-400 font-bold text-sm">No telemetry data.</div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={analytics.timelineData}>
@@ -257,7 +276,7 @@ export default function SystemLogsTab() {
                                         <XAxis dataKey="time" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
                                         <YAxis stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
                                         <Tooltip content={<CustomTooltip />} />
-                                        <Area type="monotone" dataKey="count" name="Events" stroke="#8b5cf6" strokeWidth={4} fillOpacity={1} fill="url(#colorPulse)" activeDot={{ r: 6, fill: '#fff', stroke: '#8b5cf6', strokeWidth: 3 }} />
+                                        <Area type="monotone" dataKey="count" stroke="#8b5cf6" strokeWidth={4} fillOpacity={1} fill="url(#colorPulse)" activeDot={{ r: 6, fill: '#fff', stroke: '#8b5cf6', strokeWidth: 3 }} />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             )}
@@ -265,18 +284,18 @@ export default function SystemLogsTab() {
                     </div>
 
                     {/* Doughnut Chart: Severity */}
-                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-purple-900/30 relative overflow-hidden group min-h-[350px]">
+                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-purple-900/30 relative overflow-hidden group min-h-[350px] transition-all duration-300 hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-900/10">
                         {isAnalyticsLoading && <div className="absolute inset-0 bg-white/60 dark:bg-[#1a0d36]/60 backdrop-blur-sm z-20 flex items-center justify-center"><Loader2 className="w-8 h-8 text-purple-600 animate-spin" /></div>}
-                        <div className="absolute bottom-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-3xl group-hover:bg-rose-500/20 transition-colors"></div>
+                        <div className="absolute bottom-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/30 transition-colors duration-700"></div>
                         <h3 className="text-sm font-black text-gray-900 dark:text-white mb-2 uppercase tracking-wider flex items-center gap-2 relative z-10"><ShieldAlert className="w-5 h-5 text-amber-500"/> Severity Index</h3>
                         <div className="h-64 w-full relative mt-4 z-10">
                             {analytics.severityData.length === 0 ? (
-                                <div className="h-full flex items-center justify-center text-gray-400 font-bold text-sm">No telemetry data available.</div>
+                                <div className="h-full flex items-center justify-center text-gray-400 font-bold text-sm">No telemetry data.</div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie data={analytics.severityData} cx="50%" cy="50%" innerRadius={70} outerRadius={95} paddingAngle={5} cornerRadius={8} dataKey="value" stroke="none">
-                                            {analytics.severityData.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                                            {analytics.severityData.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={entry.color} className="hover:opacity-80 transition-opacity duration-300 cursor-pointer" />)}
                                         </Pie>
                                         <Tooltip content={<CustomTooltip />} />
                                         <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'black' }} />
@@ -291,13 +310,13 @@ export default function SystemLogsTab() {
                     </div>
 
                     {/* Bar Chart: Modules */}
-                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-purple-900/30 lg:col-span-2 relative overflow-hidden group min-h-[350px]">
+                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-purple-900/30 lg:col-span-2 relative overflow-hidden group min-h-[350px] transition-all duration-300 hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-900/10">
                         {isAnalyticsLoading && <div className="absolute inset-0 bg-white/60 dark:bg-[#1a0d36]/60 backdrop-blur-sm z-20 flex items-center justify-center"><Loader2 className="w-8 h-8 text-purple-600 animate-spin" /></div>}
-                        <div className="absolute top-0 left-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors"></div>
+                        <div className="absolute top-0 left-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/30 transition-colors duration-700"></div>
                         <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2 relative z-10"><Server className="w-5 h-5 text-blue-500"/> Most Active Modules</h3>
                         <div className="h-72 w-full relative z-10">
                             {analytics.moduleData.length === 0 ? (
-                                <div className="h-full flex items-center justify-center text-gray-400 font-bold text-sm">No telemetry data available.</div>
+                                <div className="h-full flex items-center justify-center text-gray-400 font-bold text-sm">No telemetry data.</div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={analytics.moduleData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
@@ -311,21 +330,21 @@ export default function SystemLogsTab() {
                                         <XAxis dataKey="name" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
                                         <YAxis stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
                                         <Tooltip cursor={{fill: 'rgba(107, 114, 128, 0.1)'}} content={<CustomTooltip />} />
-                                        <Bar dataKey="count" name="Calls" fill="url(#colorBar)" radius={[8,8,0,0]} barSize={40} />
+                                        <Bar dataKey="count" fill="url(#colorBar)" radius={[8,8,0,0]} barSize={40} className="hover:opacity-80 transition-opacity duration-300" />
                                     </BarChart>
                                 </ResponsiveContainer>
                             )}
                         </div>
                     </div>
 
-                    {/* Bar Chart: Top Actors (Horizontal) */}
-                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-purple-900/30 relative overflow-hidden group min-h-[350px]">
+                    {/* Bar Chart: Top Actors */}
+                    <div className="bg-white dark:bg-[#1a0d36] p-6 rounded-3xl shadow-sm border-2 border-gray-100 dark:border-purple-900/30 relative overflow-hidden group min-h-[350px] transition-all duration-300 hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-900/10">
                         {isAnalyticsLoading && <div className="absolute inset-0 bg-white/60 dark:bg-[#1a0d36]/60 backdrop-blur-sm z-20 flex items-center justify-center"><Loader2 className="w-8 h-8 text-purple-600 animate-spin" /></div>}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-colors"></div>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/30 transition-colors duration-700"></div>
                         <h3 className="text-sm font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2 relative z-10"><User className="w-5 h-5 text-emerald-500"/> Top System Actors</h3>
                         <div className="h-72 w-full relative z-10">
                             {analytics.actorData.length === 0 ? (
-                                <div className="h-full flex items-center justify-center text-gray-400 font-bold text-sm">No telemetry data available.</div>
+                                <div className="h-full flex items-center justify-center text-gray-400 font-bold text-sm">No telemetry data.</div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={analytics.actorData} layout="vertical" margin={{ top: 0, right: 0, left: 20, bottom: 0 }}>
@@ -339,7 +358,7 @@ export default function SystemLogsTab() {
                                         <XAxis type="number" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
                                         <YAxis dataKey="name" type="category" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} width={80} />
                                         <Tooltip cursor={{fill: 'rgba(107, 114, 128, 0.1)'}} content={<CustomTooltip />} />
-                                        <Bar dataKey="count" name="Triggers" fill="url(#colorActor)" radius={[0,8,8,0]} barSize={20} />
+                                        <Bar dataKey="count" fill="url(#colorActor)" radius={[0,8,8,0]} barSize={20} className="hover:opacity-80 transition-opacity duration-300" />
                                     </BarChart>
                                 </ResponsiveContainer>
                             )}
@@ -348,11 +367,11 @@ export default function SystemLogsTab() {
                 </div>
             )}
 
-            {/* 🌟 TAB 2: AUDIT STREAM TABLE */}
+            {/* TAB 2: AUDIT STREAM TABLE */}
             {activeSubTab === 'AUDIT_STREAM' && (
-                <div className="relative z-10 bg-white/80 dark:bg-[#1a0d36]/90 backdrop-blur-xl border-2 border-gray-200 dark:border-purple-900/50 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] overflow-hidden min-h-[600px] flex flex-col animate-in slide-in-from-bottom-4">
+                <div className="relative z-10 bg-white/80 dark:bg-[#1a0d36]/90 backdrop-blur-xl border-2 border-gray-200 dark:border-purple-900/50 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] overflow-hidden min-h-[600px] flex flex-col animate-in slide-in-from-bottom-8 duration-700 ease-out">
                     {isLoading && (
-                        <div className="absolute inset-0 bg-white/40 dark:bg-[#1a0d36]/40 backdrop-blur-sm z-20 flex flex-col items-center justify-center">
+                        <div className="absolute inset-0 bg-white/40 dark:bg-[#1a0d36]/40 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in">
                             <div className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-600 rounded-full animate-spin mb-4"></div>
                             <p className="text-xs font-black uppercase tracking-widest text-purple-600">Querying Audit Tables...</p>
                         </div>
@@ -375,7 +394,7 @@ export default function SystemLogsTab() {
                                 {logs.length === 0 && !isLoading ? (
                                     <tr>
                                         <td colSpan={5} className="py-24 text-center">
-                                            <Database className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                                            <Database className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4 animate-bounce" />
                                             <p className="text-gray-500 font-bold text-sm tracking-wide">No telemetry matches your parameters.</p>
                                         </td>
                                     </tr>
@@ -387,15 +406,14 @@ export default function SystemLogsTab() {
                                         const Icon = badge.icon;
                                         const isExpanded = expandedRow === logId;
                                         const msg = log.message || log.formattedMessage || '--';
-                                        
-                                        const isSlow = msg.includes("SLOW") || msg.includes("Duration:") && parseInt(msg.split("Duration:")[1]) > 2000;
+                                        const isSlow = msg.includes("SLOW") || msg.includes("Duration:") && parseInt(msg.split("Duration:")[1] || "0") > 2000;
 
                                         return (
                                             <React.Fragment key={logId}>
-                                                <tr onClick={() => toggleRow(logId)} className={`group transition-all duration-200 cursor-pointer ${isExpanded ? 'bg-purple-50/50 dark:bg-purple-900/10' : 'hover:bg-gray-50 dark:hover:bg-[#110820]'}`}>
-                                                    <td className="py-4 px-5 border-l-4 border-transparent group-hover:border-purple-500 transition-colors">
+                                                <tr onClick={() => toggleRow(logId as number)} className={`group transition-all duration-300 cursor-pointer ${isExpanded ? 'bg-purple-50/50 dark:bg-purple-900/10' : 'hover:bg-gray-50 dark:hover:bg-[#110820]'}`}>
+                                                    <td className="py-4 px-5 border-l-4 border-transparent group-hover:border-purple-500 transition-colors duration-300">
                                                         <div className="flex items-center gap-2">
-                                                            <Clock className="w-3.5 h-3.5 text-gray-400" />
+                                                            <Clock className="w-3.5 h-3.5 text-gray-400 group-hover:text-purple-500 transition-colors" />
                                                             <div>
                                                                 <div className="text-[11px] font-black text-gray-700 dark:text-gray-300">{new Date(log.timestamp).toLocaleDateString()}</div>
                                                                 <div className="text-[10px] font-bold text-gray-400">{new Date(log.timestamp).toLocaleTimeString()}</div>
@@ -403,14 +421,14 @@ export default function SystemLogsTab() {
                                                         </div>
                                                     </td>
                                                     <td className="py-4 px-5">
-                                                        <span className={`flex items-center w-max gap-1.5 px-3 py-1.5 rounded-lg border-2 text-[10px] font-black uppercase tracking-wider ${badge.colors}`}>
+                                                        <span className={`flex items-center w-max gap-1.5 px-3 py-1.5 rounded-lg border-2 text-[10px] font-black uppercase tracking-wider transition-transform duration-300 group-hover:scale-105 ${badge.colors}`}>
                                                             <Icon className="w-3.5 h-3.5" /> {badge.name}
                                                         </span>
                                                     </td>
                                                     <td className="py-4 px-5">
                                                         <div className="flex items-center gap-2.5">
-                                                            <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center border-2 border-gray-200 dark:border-gray-700 shrink-0 shadow-sm">
-                                                                <UserCircle className="w-4 h-4 text-gray-500" />
+                                                            <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center border-2 border-gray-200 dark:border-gray-700 shrink-0 shadow-sm transition-transform duration-300 group-hover:rotate-12">
+                                                                <UserCircle className="w-4 h-4 text-gray-500 group-hover:text-purple-500 transition-colors" />
                                                             </div>
                                                             <div>
                                                                 <div className="text-xs font-black text-gray-900 dark:text-white uppercase">{log.actor || 'SYSTEM'}</div>
@@ -422,15 +440,15 @@ export default function SystemLogsTab() {
                                                         <div className="text-xs font-black text-purple-600 dark:text-purple-400 truncate max-w-[200px]" title={log.className || log.callerClass}>
                                                             {log.className || log.callerClass?.split('.').pop() || '--'}
                                                         </div>
-                                                        <div className="text-[10px] font-mono text-gray-500 mt-0.5">.{log.methodName || 'execute'}()</div>
+                                                        <div className="text-[10px] font-mono text-gray-500 mt-0.5 group-hover:text-purple-400 transition-colors">.{log.methodName || 'execute'}()</div>
                                                     </td>
                                                     <td className="py-4 px-5">
                                                         <div className="flex items-center justify-between gap-4">
-                                                            <div className={`text-xs font-semibold truncate max-w-[300px] xl:max-w-[400px] ${isSlow ? 'text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300'}`} title={msg}>
+                                                            <div className={`text-xs font-semibold truncate max-w-[300px] xl:max-w-[400px] transition-colors duration-300 ${isSlow ? 'text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white'}`} title={msg}>
                                                                 {msg}
                                                             </div>
-                                                            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center group-hover:bg-purple-100 dark:group-hover:bg-purple-900/50 transition-colors">
-                                                                {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" />}
+                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 ${isExpanded ? 'bg-purple-100 dark:bg-purple-900/50 rotate-180' : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-purple-100 dark:group-hover:bg-purple-900/50'}`}>
+                                                                <ChevronDown className={`w-4 h-4 transition-colors ${isExpanded ? 'text-purple-600' : 'text-gray-400 group-hover:text-purple-600'}`} />
                                                             </div>
                                                         </div>
                                                     </td>
@@ -438,11 +456,11 @@ export default function SystemLogsTab() {
 
                                                 {isExpanded && (
                                                     <tr className="bg-gray-50/50 dark:bg-[#0d0714]/50 border-b-2 border-gray-100 dark:border-purple-900/30">
-                                                        <td colSpan={5} className="p-4 sm:p-6">
+                                                        <td colSpan={5} className="p-4 sm:p-6 animate-in slide-in-from-top-2 fade-in duration-200">
                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                                 <div className="space-y-3">
                                                                     <h4 className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Execution Payload</h4>
-                                                                    <div className="bg-white dark:bg-[#150a29] p-4 rounded-xl border-2 border-gray-200 dark:border-gray-800 shadow-inner">
+                                                                    <div className="bg-white dark:bg-[#150a29] p-4 rounded-xl border-2 border-gray-200 dark:border-gray-800 shadow-inner hover:border-purple-500/50 transition-colors duration-300">
                                                                         <div className="flex items-center gap-2 mb-2 pb-2 border-b-2 border-gray-100 dark:border-gray-800">
                                                                             <Terminal className="w-3.5 h-3.5 text-purple-500" />
                                                                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Message Trace</span>
@@ -452,7 +470,7 @@ export default function SystemLogsTab() {
                                                                 </div>
                                                                 <div className="space-y-3">
                                                                     <h4 className="text-[10px] font-black uppercase text-gray-500 tracking-wider">System Fingerprint</h4>
-                                                                    <div className="bg-white dark:bg-[#150a29] p-4 rounded-xl border-2 border-gray-200 dark:border-gray-800 shadow-inner space-y-2">
+                                                                    <div className="bg-white dark:bg-[#150a29] p-4 rounded-xl border-2 border-gray-200 dark:border-gray-800 shadow-inner space-y-2 hover:border-purple-500/50 transition-colors duration-300">
                                                                         <div className="flex justify-between text-xs border-b border-gray-100 dark:border-gray-800 pb-1.5"><span className="text-gray-500 font-bold">Event ID</span><span className="font-mono text-gray-900 dark:text-white">{logId}</span></div>
                                                                         <div className="flex justify-between text-xs border-b border-gray-100 dark:border-gray-800 pb-1.5"><span className="text-gray-500 font-bold">Origin Class</span><span className="font-mono text-gray-900 dark:text-white truncate max-w-[200px]">{log.className || log.loggerName || '--'}</span></div>
                                                                         <div className="flex justify-between text-xs pb-1.5"><span className="text-gray-500 font-bold">Authentication</span><span className="font-black text-emerald-600 dark:text-emerald-400 uppercase">{log.actor || 'SYSTEM'}</span></div>
@@ -478,20 +496,59 @@ export default function SystemLogsTab() {
                             <button 
                                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                 disabled={currentPage === 1 || isLoading}
-                                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-white dark:bg-[#1a0d36] border-2 border-gray-200 dark:border-purple-900/50 hover:border-purple-500 dark:hover:border-purple-500 text-gray-700 dark:text-gray-300 disabled:opacity-50 transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer font-bold text-xs uppercase" 
+                                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-white dark:bg-[#1a0d36] border-2 border-gray-200 dark:border-purple-900/50 hover:border-purple-500 dark:hover:border-purple-500 text-gray-700 dark:text-gray-300 disabled:opacity-50 transition-all duration-300 hover:-translate-y-0.5 shadow-sm active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer font-bold text-xs uppercase" 
                             >
                                 <ArrowLeft className="w-4 h-4" /> Prev
                             </button>
                             <button 
                                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                 disabled={currentPage === totalPages || totalPages === 0 || isLoading}
-                                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-white dark:bg-[#1a0d36] border-2 border-gray-200 dark:border-purple-900/50 hover:border-purple-500 dark:hover:border-purple-500 text-gray-700 dark:text-gray-300 disabled:opacity-50 transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer font-bold text-xs uppercase"
+                                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-white dark:bg-[#1a0d36] border-2 border-gray-200 dark:border-purple-900/50 hover:border-purple-500 dark:hover:border-purple-500 text-gray-700 dark:text-gray-300 disabled:opacity-50 transition-all duration-300 hover:-translate-y-0.5 shadow-sm active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer font-bold text-xs uppercase"
                             >
                                 Next <ArrowRight className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* 🌟 ENHANCED DELETE LOGS PORTAL MODAL */}
+            {isDeleteModalOpen && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/80 dark:bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
+                    <div className="bg-white dark:bg-[#150a29] rounded-3xl shadow-2xl border border-gray-200 dark:border-purple-900/50 w-full max-w-sm overflow-hidden flex flex-col p-8 relative animate-in zoom-in-95 duration-300 ease-out">
+                        <button onClick={() => setIsDeleteModalOpen(false)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-50 dark:bg-gray-800 rounded-full transition-all hover:scale-110 active:scale-95 cursor-pointer"><X className="w-4 h-4" /></button>
+
+                        <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-6 shadow-inner border-2 border-red-200 dark:border-red-800/50 mx-auto transform transition-transform hover:scale-110 duration-300">
+                            <Trash2 className="w-8 h-8 text-red-600 dark:text-red-400" />
+                        </div>
+
+                        <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2 text-center">Purge System Telemetry</h3>
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-6 leading-relaxed text-center">
+                            Select the duration of telemetry data you want to permanently delete from the database.
+                        </p>
+
+                        <div className="mb-8">
+                            <label className="block text-[10px] font-black uppercase text-gray-500 mb-2 tracking-wider">Select Log Window</label>
+                            <select value={deleteDuration} onChange={(e) => setDeleteDuration(e.target.value)} className={input3DClass}>
+                                <option value="ALL">All Time (Complete Database Wipe)</option>
+                                <option value="30D">Older than 30 Days</option>
+                                <option value="15D">Older than 15 Days</option>
+                                <option value="7D">Older than 7 Days</option>
+                                <option value="TODAY">Older than Today (Keep last 24h)</option>
+                            </select>
+                        </div>
+
+                        <div className="flex w-full gap-3 mt-auto">
+                            <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-wider text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all hover:-translate-y-0.5 duration-300 cursor-pointer">
+                                Cancel Operation
+                            </button>
+                            <button onClick={handlePurgeLogs} disabled={isDeleting} className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/20 transition-all hover:-translate-y-0.5 hover:shadow-red-600/40 duration-300 cursor-pointer active:scale-95 disabled:opacity-50 flex justify-center items-center gap-2">
+                                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Permanently Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
         </div>
     );

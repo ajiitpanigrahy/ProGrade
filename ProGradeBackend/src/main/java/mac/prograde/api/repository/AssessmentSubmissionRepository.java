@@ -1,13 +1,14 @@
 package mac.prograde.api.repository;
 
-import mac.prograde.api.entity.AssessmentSubmission;
-
 import java.time.LocalDateTime;
 import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import mac.prograde.api.entity.AssessmentSubmission;
 
 @Repository
 public interface AssessmentSubmissionRepository extends JpaRepository<AssessmentSubmission, Long> {

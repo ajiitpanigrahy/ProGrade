@@ -196,12 +196,6 @@
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 
-		<!-- Spring Data Redis for High-Speed Caching -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-redis</artifactId>
-		</dependency>
-
 		<!-- Connection Pooling (Recommended for high concurrency) -->
 		<dependency>
 			<groupId>org.apache.commons</groupId>
