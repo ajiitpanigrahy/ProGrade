@@ -23,6 +23,7 @@ import mac.prograde.api.dto.AssessmentRequestDTO;
 import mac.prograde.api.entity.Assessment;
 import mac.prograde.api.entity.AssessmentSubmission;
 import mac.prograde.api.entity.MalpracticeLog;
+import mac.prograde.api.entity.Question;
 import mac.prograde.api.service.AssessmentService;
 
 @RestController
@@ -38,6 +39,9 @@ public class AssessmentController {
 
 	@Autowired
 	private mac.prograde.api.repository.MalpracticeLogRepository malpracticeLogRepository;
+
+	@Autowired
+	private mac.prograde.api.repository.QuestionRepository questionRepository;
 
 	@SuppressWarnings("null")
 	@PostMapping("/create")
@@ -152,13 +156,12 @@ public class AssessmentController {
 	}
 
 	// FETCH QUESTIONS FOR BLUEPRINT TAB
-	@SuppressWarnings("null")
 	@GetMapping("/{id}/questions")
 	public ResponseEntity<?> getAssessmentBlueprintQuestions(@PathVariable Long id) {
 		try {
-			// Adjust the service call to match your actual service method
-			Assessment assessment = assessmentService.findByAssessmentId(id);
-			return ResponseEntity.ok(assessment.getQuestions());
+			// Directly fetch the list of questions, avoiding the LazyInitialization crash
+			List<Question> questions = questionRepository.findQuestionsByAssessmentId(id);
+			return ResponseEntity.ok(questions);
 		} catch (Exception e) {
 			return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
 		}

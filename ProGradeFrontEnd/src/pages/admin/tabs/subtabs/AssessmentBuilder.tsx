@@ -66,7 +66,7 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
     const [selectedBatches, setSelectedBatches] = useState<string[]>([]);
 
     const [mode, setMode] = useState<'MANUAL' | 'AUTOMATIC'>('AUTOMATIC');
-    
+
     // Default to the first taxonomy technology
     const defaultTech = ALL_TECHNOLOGIES[0] || 'Java';
 
@@ -128,7 +128,7 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
         }
 
         if (total === 0) return 'MIXED';
-        
+
         if (easy / total >= 0.7) return 'EASY';
         if (hard / total >= 0.7) return 'HARD';
         if (medium / total >= 0.6) return 'MEDIUM';
@@ -169,7 +169,7 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
     const handleUpdateRule = (index: number, field: string, value: string | number) => {
         setError('');
         const updated = [...autoRules];
-        
+
         if (field === 'technology') {
             const newTech = value as string;
             updated[index] = { ...updated[index], technology: newTech, topic: 'ALL' };
@@ -187,8 +187,8 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                 const filtered = techStats.filter((item: any) => item.difficulty === updated[index].difficulty);
                 totalAvailableInDb = filtered.reduce((acc: number, curr: any) => acc + Number(curr[field] || 0), 0);
             } else {
-                const matchingStat = techStats.find((item: any) => 
-                    item.topic && item.topic.toLowerCase().trim() === String(updated[index].topic).toLowerCase().trim() && 
+                const matchingStat = techStats.find((item: any) =>
+                    item.topic && item.topic.toLowerCase().trim() === String(updated[index].topic).toLowerCase().trim() &&
                     item.difficulty === updated[index].difficulty
                 );
                 totalAvailableInDb = matchingStat ? Number(matchingStat[field] || 0) : 0;
@@ -202,14 +202,14 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
             const effectiveAvailable = totalAvailableInDb > 0 ? Math.max(0, totalAvailableInDb - claimedByOtherRules) : newValue;
             const boundedValue = totalAvailableInDb > 0 ? Math.min(newValue, effectiveAvailable) : newValue;
 
-            const sumWithoutCurrent = autoRules.reduce((acc, rule, i) => 
+            const sumWithoutCurrent = autoRules.reduce((acc, rule, i) =>
                 i !== index ? acc + rule.theoryCount + rule.codingCount : acc + (field === 'theoryCount' ? rule.codingCount : rule.theoryCount), 0);
-            
+
             if (sumWithoutCurrent + boundedValue > totalQuestions) {
                 updated[index] = { ...updated[index], [field]: totalQuestions - sumWithoutCurrent };
                 setError(`Adjusted to max limit of ${totalQuestions}.`);
-            } else { 
-                updated[index] = { ...updated[index], [field]: boundedValue }; 
+            } else {
+                updated[index] = { ...updated[index], [field]: boundedValue };
             }
         } else {
             updated[index] = { ...updated[index], [field]: value };
@@ -243,7 +243,7 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
             const payload = {
                 title, description, durationMinutes, totalQuestions, positiveMarks, negativeMarks,
                 maxAttempts, startTime: startTime ? startTime : null, creationMode: mode,
-                difficultyLevel: overallDifficulty, 
+                difficultyLevel: overallDifficulty,
                 questionIds: mode === 'MANUAL' ? selectedQuestionIds : [],
                 autoRules: mode === 'AUTOMATIC' ? autoRules.map(r => ({
                     technology: r.technology,
@@ -258,7 +258,7 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
             };
             await adminService.createAssessment(payload);
             onSuccess();
-        } catch (err: any) { setError(err.response?.data?.error || "Failed to create assessment"); } 
+        } catch (err: any) { setError(err.response?.data?.error || "Failed to create assessment"); }
         finally { setLoading(false); }
     };
 
@@ -372,7 +372,7 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                     <div className="space-y-6 animate-in slide-in-from-right-4 h-full flex flex-col justify-center max-w-4xl mx-auto">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                             <div onClick={() => { setMode('AUTOMATIC'); setError(''); }} className={`group relative p-8 sm:p-10 rounded-[2rem] border-2 cursor-pointer transition-all duration-300 transform ${mode === 'AUTOMATIC' ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/20 dark:to-[#1a0d36] shadow-[0_20px_50px_rgba(147,51,234,0.15)] -translate-y-2' : 'border-gray-200 dark:border-purple-900/30 bg-white dark:bg-[#1a0d36] hover:border-purple-400 hover:-translate-y-1 hover:shadow-xl'}`}>
-                                {mode === 'AUTOMATIC' && <div className="absolute top-4 right-4 bg-purple-500 text-white p-1 rounded-full"><CheckCircle2 className="w-5 h-5"/></div>}
+                                {mode === 'AUTOMATIC' && <div className="absolute top-4 right-4 bg-purple-500 text-white p-1 rounded-full"><CheckCircle2 className="w-5 h-5" /></div>}
                                 <div className={`w-20 h-20 rounded-2xl mb-6 flex items-center justify-center transition-colors ${mode === 'AUTOMATIC' ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 group-hover:bg-purple-100 group-hover:text-purple-500'}`}>
                                     <Bot className="w-10 h-10" />
                                 </div>
@@ -381,7 +381,7 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                             </div>
 
                             <div onClick={() => { setMode('MANUAL'); setError(''); }} className={`group relative p-8 sm:p-10 rounded-[2rem] border-2 cursor-pointer transition-all duration-300 transform ${mode === 'MANUAL' ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-[#1a0d36] shadow-[0_20px_50px_rgba(59,130,246,0.15)] -translate-y-2' : 'border-gray-200 dark:border-purple-900/30 bg-white dark:bg-[#1a0d36] hover:border-blue-400 hover:-translate-y-1 hover:shadow-xl'}`}>
-                                {mode === 'MANUAL' && <div className="absolute top-4 right-4 bg-blue-500 text-white p-1 rounded-full"><CheckCircle2 className="w-5 h-5"/></div>}
+                                {mode === 'MANUAL' && <div className="absolute top-4 right-4 bg-blue-500 text-white p-1 rounded-full"><CheckCircle2 className="w-5 h-5" /></div>}
                                 <div className={`w-20 h-20 rounded-2xl mb-6 flex items-center justify-center transition-colors ${mode === 'MANUAL' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-500'}`}>
                                     <FileText className="w-10 h-10" />
                                 </div>
@@ -395,7 +395,7 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                 {/* STEP 3 */}
                 {step === 3 && (
                     <div className="animate-in slide-in-from-right-4 h-full flex flex-col min-h-[500px]">
-                        
+
                         {/* 🌟 DYNAMIC DIFFICULTY & STATUS BAR */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 bg-white/50 dark:bg-[#150a29]/50 backdrop-blur-md p-4 rounded-2xl border border-gray-200 dark:border-purple-900/50 shadow-sm">
                             <div className="flex items-center gap-4">
@@ -403,14 +403,14 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                                     {mode === 'AUTOMATIC' ? 'Rule Matrices' : 'Question Selection'}
                                 </h3>
                                 <span className="text-xs font-black bg-purple-600 text-white px-3 py-1.5 rounded-lg shadow-sm border border-purple-800 flex items-center gap-1.5">
-                                    <CheckCircle2 className="w-3.5 h-3.5"/> 
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
                                     {mode === 'AUTOMATIC' ? autoRules.reduce((a, b) => a + b.theoryCount + b.codingCount, 0) : selectedQuestionIds.length} / {totalQuestions}
                                 </span>
                             </div>
 
                             <div className="flex items-center gap-3 bg-gray-100 dark:bg-[#0f0a1c] px-4 py-2 rounded-xl shadow-inner border border-gray-200 dark:border-gray-800">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-1">
-                                    <Activity className="w-3.5 h-3.5"/> Computed Level:
+                                    <Activity className="w-3.5 h-3.5" /> Computed Level:
                                 </span>
                                 <span className={`text-xs font-black uppercase tracking-widest px-2.5 py-1 rounded-md ${getDifficultyColor(overallDifficulty)}`}>
                                     {overallDifficulty}
@@ -429,7 +429,7 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                                 <div className="space-y-4">
                                     {autoRules.map((rule, index) => {
                                         const techStats = techAvailability[rule.technology] || [];
-                                        
+
                                         // 🌟 GUARANTEED TOPIC DISCOVERY: Central taxonomy + any DB inventory topics
                                         const taxonomyTopics = getTopicsForTech(rule.technology);
                                         const dbTopics = techStats.map((item: any) => item.topic).filter(Boolean);
@@ -443,8 +443,8 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                                             totalAvailableTheoryInDb = filtered.reduce((acc: number, curr: any) => acc + Number(curr.theoryCount || 0), 0);
                                             totalAvailableCodingInDb = filtered.reduce((acc: number, curr: any) => acc + Number(curr.codingCount || 0), 0);
                                         } else {
-                                            const matchingStat = techStats.find((item: any) => 
-                                                item.topic && item.topic.toLowerCase().trim() === String(rule.topic).toLowerCase().trim() && 
+                                            const matchingStat = techStats.find((item: any) =>
+                                                item.topic && item.topic.toLowerCase().trim() === String(rule.topic).toLowerCase().trim() &&
                                                 item.difficulty === rule.difficulty
                                             );
                                             totalAvailableTheoryInDb = matchingStat ? Number(matchingStat.theoryCount || 0) : 0;
@@ -460,9 +460,9 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
 
                                         return (
                                             <div key={index} className="flex flex-col bg-white/80 dark:bg-[#150a29]/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border-2 border-gray-200 dark:border-purple-900/50 shadow-sm hover:shadow-md transition-shadow gap-4">
-                                                
+
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                    
+
                                                     {/* 🌟 DYNAMIC TAXONOMY LOOP FOR AUTO ENGINE */}
                                                     <select value={rule.technology} onChange={(e) => handleUpdateRule(index, 'technology', e.target.value)} className="w-full bg-gray-50 dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl p-3 outline-none font-black text-xs uppercase tracking-wider text-gray-700 dark:text-gray-200 focus:border-purple-500 transition-colors cursor-pointer shadow-inner">
                                                         {ALL_TECHNOLOGIES.map(t => (
@@ -484,21 +484,23 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                                                 </div>
 
                                                 <div className="flex flex-col sm:flex-row items-center gap-4 justify-between border-t border-gray-200 dark:border-gray-800 pt-4 mt-2">
-                                                    <div className="flex w-full sm:w-auto gap-4">
+                                                    <div className="flex flex-col min-[450px]:flex-row w-full sm:w-auto gap-2 sm:gap-4">
+                                                        {/* Theory Input Box */}
                                                         <div className="flex-1 sm:flex-none flex items-center justify-between gap-3 bg-blue-50 dark:bg-blue-900/10 border-2 border-blue-200 dark:border-blue-900/50 rounded-xl p-2 focus-within:border-blue-500 transition-colors shadow-inner">
                                                             <div className="flex flex-col pl-2">
-                                                                <span className="text-[10px] uppercase text-blue-600 dark:text-blue-400 font-black flex items-center gap-1"><BookOpen className="w-3 h-3"/> Theory</span>
+                                                                <span className="text-[10px] uppercase text-blue-600 dark:text-blue-400 font-black flex items-center gap-1"><BookOpen className="w-3 h-3" /> Theory</span>
                                                                 <span className="text-[9px] font-bold text-gray-500">Avail: {totalAvailableTheoryInDb > 0 ? effectiveTheoryLeft : 'Open'}</span>
                                                             </div>
-                                                            <input type="number" min="0" value={rule.theoryCount} onChange={(e) => handleUpdateRule(index, 'theoryCount', e.target.value)} className="w-16 bg-white dark:bg-black p-2 rounded-lg border border-blue-200 dark:border-blue-800 outline-none font-black text-base text-center text-blue-600 dark:text-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none cursor-text" />
+                                                            <input type="number" min="0" value={rule.theoryCount} onChange={(e) => handleUpdateRule(index, 'theoryCount', e.target.value)} className="w-14 sm:w-16 bg-white dark:bg-black p-2 rounded-lg border border-blue-200 dark:border-blue-800 outline-none font-black text-sm sm:text-base text-center text-blue-600 dark:text-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none cursor-text" />
                                                         </div>
 
+                                                        {/* Coding Input Box */}
                                                         <div className="flex-1 sm:flex-none flex items-center justify-between gap-3 bg-emerald-50 dark:bg-emerald-900/10 border-2 border-emerald-200 dark:border-emerald-900/50 rounded-xl p-2 focus-within:border-emerald-500 transition-colors shadow-inner">
                                                             <div className="flex flex-col pl-2">
-                                                                <span className="text-[10px] uppercase text-emerald-600 dark:text-emerald-400 font-black flex items-center gap-1"><Code2 className="w-3 h-3"/> Coding</span>
+                                                                <span className="text-[10px] uppercase text-emerald-600 dark:text-emerald-400 font-black flex items-center gap-1"><Code2 className="w-3 h-3" /> Coding</span>
                                                                 <span className="text-[9px] font-bold text-gray-500">Avail: {totalAvailableCodingInDb > 0 ? effectiveCodingLeft : 'Open'}</span>
                                                             </div>
-                                                            <input type="number" min="0" value={rule.codingCount} onChange={(e) => handleUpdateRule(index, 'codingCount', e.target.value)} className="w-16 bg-white dark:bg-black p-2 rounded-lg border border-emerald-200 dark:border-emerald-800 outline-none font-black text-base text-center text-emerald-600 dark:text-emerald-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none cursor-text" />
+                                                            <input type="number" min="0" value={rule.codingCount} onChange={(e) => handleUpdateRule(index, 'codingCount', e.target.value)} className="w-14 sm:w-16 bg-white dark:bg-black p-2 rounded-lg border border-emerald-200 dark:border-emerald-800 outline-none font-black text-sm sm:text-base text-center text-emerald-600 dark:text-emerald-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none cursor-text" />
                                                         </div>
                                                     </div>
 
@@ -514,10 +516,10 @@ export default function AssessmentBuilder({ onCancel, onSuccess }: { onCancel: (
                         )}
 
                         {mode === 'MANUAL' && (
-                           <div className="flex flex-col h-full space-y-4">
+                            <div className="flex flex-col h-full space-y-4">
                                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white/80 dark:bg-[#150a29]/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border-2 border-gray-200 dark:border-purple-900/50 shadow-sm shrink-0">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex items-center gap-3 w-full lg:w-auto">
-                                        
+
                                         {/* 🌟 DYNAMIC TAXONOMY FOR MANUAL PICKER */}
                                         <select value={manualTechFilter} onChange={e => { setManualTechFilter(e.target.value); setManualTopicFilter('ALL'); }} className="w-full bg-gray-50 dark:bg-[#0f0a1c] border-2 border-gray-200 dark:border-purple-900/50 rounded-xl p-3 font-black text-xs uppercase tracking-wider outline-none shadow-inner focus:border-purple-500 cursor-pointer">
                                             {ALL_TECHNOLOGIES.map(t => <option key={t} value={t}>{t}</option>)}

@@ -119,4 +119,7 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
             "GROUP BY q.createdByEmail, q.createdByName, q.creatorRole " +
             "ORDER BY MAX(q.createdAt) DESC")
     List<QuestionContributionDTO> getContributionHistory();
+
+@Query("SELECT q FROM Assessment a JOIN a.questions q WHERE a.id = :assessmentId")
+List<Question> findQuestionsByAssessmentId(@Param("assessmentId") Long assessmentId);
 }

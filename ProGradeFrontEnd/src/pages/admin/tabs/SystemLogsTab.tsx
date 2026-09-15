@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Database, ArrowUpDown, ArrowRight, ArrowLeft, Loader2, UserCircle, Globe, Clock, ShieldAlert, Sparkles, AlertTriangle, Bug, ChevronDown, ChevronUp, Activity, BarChart3, ListTree, User, Server, CheckCircle2, Terminal, Trash2, X } from 'lucide-react';
+import { Database, ArrowUpDown, ArrowRight, ArrowLeft, Loader2, UserCircle, Globe, Clock, ShieldAlert, Sparkles, AlertTriangle, Bug, ChevronDown, Activity, BarChart3, ListTree, User, Server, CheckCircle2, Terminal, Trash2, X } from 'lucide-react';
 import { adminService } from '../../../features/admin/adminService';
 import { axiosClient } from '../../../api/axiosClient';
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -22,23 +22,21 @@ interface LogEvent {
     exception?: string;
 }
 
-const PAGE_SIZE = 100;
-
 export default function SystemLogsTab() {
     const [activeSubTab, setActiveSubTab] = useState<'AUDIT_STREAM' | 'ANALYTICS'>('AUDIT_STREAM');
 
-    // Filters & Pagination State
+    // 🌟 Added pageSize state for dynamic rows per page
     const [levelFilter, setLevelFilter] = useState('ALL');
     const [dateFilter, setDateFilter] = useState('ALL'); 
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
+    const [currentPage, setCurrentPage] = useState(0); // Slice API is 0-indexed
+    const [pageSize, setPageSize] = useState(20); 
     const [sortOrder, setSortOrder] = useState('DESC');
     
-    // Table Data State
+    // 🌟 Slice Data States
     const [logs, setLogs] = useState<LogEvent[]>([]);
-    const [totalPages, setTotalPages] = useState(1);
-    const [totalElements, setTotalElements] = useState(0);
+    const [hasNext, setHasNext] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [expandedRow, setExpandedRow] = useState<number | null>(null);
 
@@ -46,7 +44,6 @@ export default function SystemLogsTab() {
     const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
     const [analytics, setAnalytics] = useState({ severityData: [], moduleData: [], timelineData: [], actorData: [], totalGlobalLogs: 0 });
 
-    // Delete Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [deleteDuration, setDeleteDuration] = useState('ALL');
     const [isDeleting, setIsDeleting] = useState(false);
@@ -57,11 +54,11 @@ export default function SystemLogsTab() {
         setIsLoading(true);
         try {
             const data = await adminService.getSystemLogs(
-                levelFilter, dateFilter, customStart, customEnd, currentPage, PAGE_SIZE, sortOrder
+                levelFilter, dateFilter, customStart, customEnd, currentPage, pageSize, sortOrder
             );
+            // 🌟 Use Slice Response Fields
             setLogs(data.content || []);
-            setTotalPages(data.totalPages || 1);
-            setTotalElements(data.totalElements || 0);
+            setHasNext(data.hasNext || false);
         } catch (error) {
             console.error("Failed to fetch logs", error);
         } finally {
@@ -73,7 +70,7 @@ export default function SystemLogsTab() {
         setIsAnalyticsLoading(true);
         try {
             const data = await adminService.getSystemLogs(
-                levelFilter, dateFilter, customStart, customEnd, 1, 1000, sortOrder
+                levelFilter, dateFilter, customStart, customEnd, 0, 1000, sortOrder
             );
             const globalLogs = data.content || [];
 
@@ -124,7 +121,8 @@ export default function SystemLogsTab() {
         }
     };
 
-    useEffect(() => { fetchLogs(); }, [currentPage, sortOrder]);
+    // 🌟 Re-fetch when Page, PageSize, or Sort Order changes
+    useEffect(() => { fetchLogs(); }, [currentPage, pageSize, sortOrder]);
 
     const handleTabSwitch = (tab: 'AUDIT_STREAM' | 'ANALYTICS') => {
         setActiveSubTab(tab);
@@ -134,7 +132,7 @@ export default function SystemLogsTab() {
     };
 
     const handleApplyFilters = () => { 
-        setCurrentPage(1); 
+        setCurrentPage(0); // Reset slice to start
         fetchLogs(); 
         if (activeSubTab === 'ANALYTICS') fetchAnalytics(); 
     };
@@ -145,7 +143,7 @@ export default function SystemLogsTab() {
             await axiosClient.delete('/admin/logs/clear', { params: { duration: deleteDuration } });
             setIsDeleteModalOpen(false);
             setDeleteDuration('ALL');
-            setCurrentPage(1);
+            setCurrentPage(0);
             fetchLogs();
             fetchAnalytics();
         } catch (error) {
@@ -488,21 +486,37 @@ export default function SystemLogsTab() {
                         </table>
                     </div>
                     
+                    {/* 🌟 SLICE PAGINATION BAR (Replaces total element counting) */}
                     <div className="p-4 sm:p-6 border-t-2 border-gray-200 dark:border-purple-900/50 bg-gray-50 dark:bg-[#110820] flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0">
-                        <span className="text-xs font-black text-gray-500 uppercase tracking-wider">
-                            Page <span className="text-purple-600 dark:text-purple-400">{currentPage}</span> of {totalPages || 1} <span className="text-gray-400 lowercase mx-1">•</span> {totalElements} Events Logged
-                        </span>
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-black text-gray-500 uppercase tracking-wider">
+                                Page <span className="text-purple-600 dark:text-purple-400">{currentPage + 1}</span>
+                            </span>
+                            <select 
+                                value={pageSize} 
+                                onChange={(e) => {
+                                    setPageSize(Number(e.target.value));
+                                    setCurrentPage(0); // Reset to first page when changing size
+                                }} 
+                                className="bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-purple-900/50 rounded-lg px-2 py-1 text-xs font-bold text-gray-700 dark:text-gray-300 outline-none cursor-pointer"
+                            >
+                                <option value="10">10 / pg</option>
+                                <option value="20">20 / pg</option>
+                                <option value="50">50 / pg</option>
+                                <option value="100">100 / pg</option>
+                            </select>
+                        </div>
                         <div className="flex gap-2 w-full sm:w-auto">
                             <button 
-                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                disabled={currentPage === 1 || isLoading}
+                                onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                                disabled={currentPage === 0 || isLoading}
                                 className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-white dark:bg-[#1a0d36] border-2 border-gray-200 dark:border-purple-900/50 hover:border-purple-500 dark:hover:border-purple-500 text-gray-700 dark:text-gray-300 disabled:opacity-50 transition-all duration-300 hover:-translate-y-0.5 shadow-sm active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer font-bold text-xs uppercase" 
                             >
                                 <ArrowLeft className="w-4 h-4" /> Prev
                             </button>
                             <button 
-                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                disabled={currentPage === totalPages || totalPages === 0 || isLoading}
+                                onClick={() => setCurrentPage(prev => prev + 1)}
+                                disabled={!hasNext || isLoading}
                                 className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-white dark:bg-[#1a0d36] border-2 border-gray-200 dark:border-purple-900/50 hover:border-purple-500 dark:hover:border-purple-500 text-gray-700 dark:text-gray-300 disabled:opacity-50 transition-all duration-300 hover:-translate-y-0.5 shadow-sm active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer font-bold text-xs uppercase"
                             >
                                 Next <ArrowRight className="w-4 h-4" />

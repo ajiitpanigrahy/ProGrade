@@ -1,5 +1,6 @@
+// AssessmentDetails.tsx
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Settings, Users, ShieldAlert, CheckCircle2, AlertTriangle, Filter, Lock, Download, Search, Clock, Trophy, Frown, X, FileText, Trash2, PauseCircle, PlayCircle, CalendarClock, Loader2, Database, Code2, BookOpen, Terminal } from 'lucide-react';
+import { ArrowLeft, Settings, Users, ShieldAlert, CheckCircle2, AlertTriangle, Filter, Download, Search, Clock, Trophy, Frown, Trash2, PauseCircle, PlayCircle, CalendarClock, Loader2, Database, Code2, BookOpen } from 'lucide-react';
 import { axiosClient } from '../../../../api/axiosClient';
 import { useAuth } from '../../../../context/AuthContext';
 import { adminService } from '../../../../features/admin/adminService';
@@ -12,10 +13,10 @@ interface Props {
 
 const renderQuestionContent = (text: string) => {
     if (!text) return null;
-    
+
     const formattedText = text.replace(/\\n/g, '\n');
     const parts = formattedText.split(/(```[\s\S]*?```)/g);
-    
+
     return parts.map((part, index) => {
         if (part.startsWith('```') && part.endsWith('```')) {
             const code = part.replace(/```[a-z]*\n?/i, '').replace(/```$/, '');
@@ -37,6 +38,12 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
 
     const [localAssessment, setLocalAssessment] = useState(assessment);
     const [assessmentQuestions, setAssessmentQuestions] = useState<any[]>([]);
+
+    // 🌟 Blueprint Filter States
+    const [bpSearch, setBpSearch] = useState('');
+    const [bpTechFilter, setBpTechFilter] = useState('ALL');
+    const [bpTopicFilter, setBpTopicFilter] = useState('ALL');
+    const [bpTypeFilter, setBpTypeFilter] = useState('ALL');
 
     const [fraudFilter, setFraudFilter] = useState('ALL');
     const [lbSearch, setLbSearch] = useState('');
@@ -162,15 +169,27 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
         return a.rank - b.rank;
     });
 
-    // 🌟 FIX: Bulletproof parsing to stop React crashes on malformed database strings
     const safeFraudLogs = Array.isArray(reportData?.fraudLogs) ? reportData.fraudLogs : [];
-    const filteredFraud = fraudFilter === 'ALL' 
-        ? safeFraudLogs 
+    const filteredFraud = fraudFilter === 'ALL'
+        ? safeFraudLogs
         : safeFraudLogs.filter((log: any) => log?.infractionType === fraudFilter);
-        
+
     const uniqueFraudTypes = Array.from(
         new Set(safeFraudLogs.map((log: any) => log?.infractionType).filter(Boolean))
     ) as string[];
+
+    // 🌟 Blueprint Question Filtering Logic
+    const filteredBlueprint = assessmentQuestions.filter(q => {
+        const matchSearch = q.questionText?.toLowerCase().includes(bpSearch.toLowerCase()) || false;
+        const matchTech = bpTechFilter === 'ALL' || q.technology === bpTechFilter;
+        const matchTopic = bpTopicFilter === 'ALL' || (q.topic && q.topic.toLowerCase().trim() === bpTopicFilter.toLowerCase().trim());
+        const qType = (q.questionType === 'CODING' || q.codeSnippet) ? 'CODING' : 'THEORY';
+        const matchType = bpTypeFilter === 'ALL' || qType === bpTypeFilter;
+        return matchSearch && matchTech && matchTopic && matchType;
+    });
+
+    const uniqueBpTechs = Array.from(new Set(assessmentQuestions.map((q: any) => q.technology).filter(Boolean))) as string[];
+    const uniqueBpTopics = Array.from(new Set(assessmentQuestions.filter((q: any) => bpTechFilter === 'ALL' || q.technology === bpTechFilter).map((q: any) => q.topic).filter(Boolean))) as string[];
 
     const handleExport = (format: 'CSV' | 'PDF') => {
         if (format === 'PDF') { window.print(); return; }
@@ -242,9 +261,6 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
             </div>
         );
     };
-
-    const codingQCount = assessmentQuestions.filter((q: any) => q.questionType === 'CODING' || q.codeSnippet).length;
-    const theoryQCount = assessmentQuestions.length - codingQCount;
 
     return (
         <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-right-4 relative">
@@ -372,69 +388,77 @@ export default function AssessmentDetailsPanel({ assessment, onBack }: Props) {
 
                     {activeTab === 'QUESTIONS' && (
                         <div className="flex flex-col h-full max-h-[80vh]">
-                            <div className="flex items-center justify-between mb-4 bg-gray-50 dark:bg-[#0f0a1c] p-4 rounded-xl border border-gray-100 dark:border-purple-900/50 shrink-0">
+                            <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between mb-4 bg-gray-50 dark:bg-[#0f0a1c] p-3 sm:p-4 rounded-xl border border-gray-100 dark:border-purple-900/50 shrink-0 gap-4">
                                 <div>
                                     <h3 className="font-black text-gray-900 dark:text-white flex items-center gap-2">
                                         <Database className="w-5 h-5 text-purple-600" /> Embedded Assessment Blueprint
                                     </h3>
-                                    <p className="text-xs text-gray-500 font-bold mt-1">Reviewing the exact question pool compiled for this exam.</p>
                                 </div>
-                                <div className="flex gap-3">
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg text-[10px] font-black uppercase border border-blue-200 dark:border-blue-900/50">
-                                        <BookOpen className="w-3.5 h-3.5" /> Theory: {theoryQCount}
-                                    </div>
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-[10px] font-black uppercase border border-emerald-200 dark:border-emerald-900/50">
-                                        <Code2 className="w-3.5 h-3.5" /> Coding: {codingQCount}
+                                
+                                <div className="grid grid-cols-2 md:flex md:flex-row md:items-center gap-2 w-full 2xl:w-auto">
+                                    <select value={bpTechFilter} onChange={e => { setBpTechFilter(e.target.value); setBpTopicFilter('ALL'); }} className="w-full md:w-auto bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-purple-900/50 rounded-lg px-2 py-1.5 text-[10px] font-bold uppercase outline-none focus:border-purple-500 cursor-pointer text-gray-700 dark:text-gray-300">
+                                        <option value="ALL">All Tech</option>
+                                        {uniqueBpTechs.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                    <select value={bpTopicFilter} onChange={e => setBpTopicFilter(e.target.value)} className="w-full md:w-auto bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-purple-900/50 rounded-lg px-2 py-1.5 text-[10px] font-bold uppercase outline-none focus:border-purple-500 cursor-pointer text-gray-700 dark:text-gray-300 max-w-[150px] truncate">
+                                        <option value="ALL">All Topics</option>
+                                        {uniqueBpTopics.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                    <select value={bpTypeFilter} onChange={e => setBpTypeFilter(e.target.value)} className="w-full md:w-auto bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-purple-900/50 rounded-lg px-2 py-1.5 text-[10px] font-bold uppercase outline-none focus:border-purple-500 cursor-pointer text-gray-700 dark:text-gray-300">
+                                        <option value="ALL">All Types</option>
+                                        <option value="THEORY">Theory</option>
+                                        <option value="CODING">Coding</option>
+                                    </select>
+                                    <div className="col-span-2 md:col-auto relative w-full md:w-48">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+                                        <input type="text" placeholder="Search questions..." value={bpSearch} onChange={e => setBpSearch(e.target.value)} className="w-full pl-7 pr-2 py-1.5 bg-white dark:bg-[#1a0d36] border border-gray-200 dark:border-purple-900/50 rounded-lg text-[10px] font-bold focus:outline-none focus:border-purple-500 text-gray-900 dark:text-white" />
                                     </div>
                                 </div>
                             </div>
 
-                            {assessmentQuestions.length === 0 ? (
-                                <div className="text-center text-gray-500 py-10 font-medium border border-dashed border-gray-200 rounded-xl">No questions found for this assessment.</div>
+                            {filteredBlueprint.length === 0 ? (
+                                <div className="text-center text-gray-500 py-10 font-medium border border-dashed border-gray-200 dark:border-gray-800 rounded-xl">No questions match your filters.</div>
                             ) : (
                                 <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2">
-                                    {assessmentQuestions.map((q: any, index: number) => (
+                                    {filteredBlueprint.map((q: any, index: number) => (
                                         <div key={q.id} className="p-5 sm:p-6 rounded-[1.5rem] border-2 border-gray-100 dark:border-purple-900/30 bg-white dark:bg-[#150a29] shadow-sm">
-                                            <div className="flex flex-wrap items-center justify-between gap-2 mb-4 border-b border-gray-100 dark:border-purple-900/30 pb-3">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500">Q{index + 1}</span>
+                                            
+                                            {/* 🌟 FIX: Stacked the Topic to prevent horizontal overflow */}
+                                            <div className="flex flex-col gap-2.5 mb-4 border-b border-gray-100 dark:border-purple-900/30 pb-4">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500">
+                                                        {String(index + 1).padStart(2, '0')}
+                                                    </span>
                                                     <span className={`text-[9px] font-black px-2.5 py-1 rounded uppercase tracking-wider ${q.difficultyLevel === 'EASY' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400' : q.difficultyLevel === 'MEDIUM' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-400'}`}>
                                                         {q.difficultyLevel}
                                                     </span>
                                                     <span className="text-[9px] font-black text-purple-700 bg-purple-100 dark:bg-purple-900/40 dark:text-purple-300 px-2.5 py-1 rounded uppercase tracking-wider">
                                                         {q.technology}
                                                     </span>
-                                                    <span className="text-[9px] font-black text-gray-600 bg-gray-200 dark:bg-gray-800 dark:text-gray-300 px-2.5 py-1 rounded uppercase tracking-wider truncate max-w-full">
+                                                    
+                                                    {q.questionType === 'CODING' || q.codeSnippet ? (
+                                                        <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded border border-emerald-200 dark:border-emerald-800/50 shadow-sm"><Code2 className="w-3 h-3" /> Coding</span>
+                                                    ) : (
+                                                        <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded border border-blue-200 dark:border-blue-800/50 shadow-sm"><BookOpen className="w-3 h-3" /> Theory</span>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex items-center">
+                                                    <span className="text-[9px] font-black text-gray-600 bg-gray-200 dark:bg-gray-800 dark:text-gray-300 px-2.5 py-1.5 rounded uppercase tracking-wider break-words whitespace-normal text-left max-w-full">
                                                         {q.topic || 'Uncategorized'}
                                                     </span>
                                                 </div>
-
-                                                {q.questionType === 'CODING' || q.codeSnippet ? (
-                                                    <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/50 shadow-sm"><Code2 className="w-3 h-3" /> Coding</span>
-                                                ) : (
-                                                    <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800/50 shadow-sm"><BookOpen className="w-3 h-3" /> Theory</span>
-                                                )}
                                             </div>
 
                                             <div className="text-sm font-semibold text-gray-900 dark:text-white mb-5 leading-relaxed">
                                                 {renderQuestionContent(q.questionText)}
 
-                                                {/* 🌟 FIX: Multi-line Colorful Syntax Highlighting! */}
+                                                {/* 🌟 FIX: Removed Redundant >_ DEVELOPER CODE wrapper */}
                                                 {q.codeSnippet && (
-                                                    <div className="mt-5 bg-[#0c0618] border-2 border-purple-900/50 rounded-xl overflow-hidden shadow-2xl w-full text-left animate-in fade-in">
-                                                        <div className="bg-[#150a29] px-4 py-2.5 flex items-center gap-2 border-b border-purple-900/50">
-                                                            <Terminal className="w-4 h-4 text-emerald-400"/>
-                                                            <span className="text-xs uppercase font-black text-emerald-400 tracking-wider">
-                                                                Developer Code ({q.codeLanguage || q.technology || 'Code'})
-                                                            </span>
-                                                        </div>
-                                                        <div className="p-2">
-                                                            <CodeSnippetBox 
-                                                                code={q.codeSnippet.replace(/\\n/g, '\n')} 
-                                                                language={q.codeLanguage || 'javascript'} 
-                                                            />
-                                                        </div>
-                                                    </div>
+                                                    <CodeSnippetBox
+                                                        code={q.codeSnippet.replace(/\\n/g, '\n')}
+                                                        language={q.codeLanguage || q.technology || 'javascript'}
+                                                    />
                                                 )}
                                             </div>
 
