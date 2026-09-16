@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Transactional; // 🌟 Make sure this is imported
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,65 +31,73 @@ import mac.prograde.api.service.StudentAssessmentService;
 @Service
 public class StudentAssessmentServiceImpl implements StudentAssessmentService {
 
-	@Autowired
-	private AssessmentRepository assessmentRepository;
-	@Autowired
-	private BatchStudentRepository batchStudentRepository;
-	@Autowired
-	private AssessmentSubmissionRepository submissionRepository;
-	@Autowired
-	private UserRepository userRepository;
+    @Autowired
+    private AssessmentRepository assessmentRepository;
+    @Autowired
+    private BatchStudentRepository batchStudentRepository;
+    @Autowired
+    private AssessmentSubmissionRepository submissionRepository;
+    @Autowired
+    private UserRepository userRepository;
 
-	private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper = new ObjectMapper();
 
-	@Override
-	public List<Assessment> getPublicAssessments() {
-		return assessmentRepository.findAll().stream().filter(a -> "PUBLISHED".equals(a.getStatus()))
-				.collect(Collectors.toList());
-	}
+    @Override
+    @Transactional(readOnly = true) // 🌟 FIX: Keeps connection open for lazy loading
+    public List<Assessment> getPublicAssessments() {
+        return assessmentRepository.findAll().stream().filter(a -> "PUBLISHED".equals(a.getStatus()))
+                .collect(Collectors.toList());
+    }
 
-	@Override
-	public Assessment searchAssessmentByExamId(String examId) {
-		return assessmentRepository.findAll().stream()
-				.filter(a -> a.getExamId() != null && a.getExamId().equalsIgnoreCase(examId)).findFirst()
-				.orElseThrow(() -> new RuntimeException("Assessment not found"));
-	}
+    @Override
+    @Transactional(readOnly = true) // 🌟 FIX: Keeps connection open for lazy loading
+    public Assessment searchAssessmentByExamId(String examId) {
+        return assessmentRepository.findAll().stream()
+                .filter(a -> a.getExamId() != null && a.getExamId().equalsIgnoreCase(examId)).findFirst()
+                .orElseThrow(() -> new RuntimeException("Assessment not found"));
+    }
 
-	@Override
-	public boolean verifyPasskey(String examId, String password) {
-		return searchAssessmentByExamId(examId).getPassword().equals(password);
-	}
+    @Override
+    @Transactional(readOnly = true) // 🌟 FIX: Safely reads the password
+    public boolean verifyPasskey(String examId, String password) {
+        return searchAssessmentByExamId(examId).getPassword().equals(password);
+    }
 
-	@Override
-	public List<Assessment> getPermittedPublicAssessments(String studentEmail) {
-		List<Assessment> publicExams = getPublicAssessments();
-		List<UUID> myBatchIds = batchStudentRepository.findByEmail(studentEmail).stream()
-				.map(bs -> bs.getBatch().getId()).collect(Collectors.toList());
+    @Override
+    @Transactional(readOnly = true) // 🌟 FIX: Prevents LazyInitializationException on getAssignedBatches()
+    public List<Assessment> getPermittedPublicAssessments(String studentEmail) {
+        List<Assessment> publicExams = getPublicAssessments();
+        List<UUID> myBatchIds = batchStudentRepository.findByEmail(studentEmail).stream()
+                .map(bs -> bs.getBatch().getId()).collect(Collectors.toList());
 
-		return publicExams.stream().filter(exam -> {
-			if (exam.getAssignedBatches() == null || exam.getAssignedBatches().isEmpty())
-				return true;
-			return exam.getAssignedBatches().stream().anyMatch(b -> myBatchIds.contains(b.getId()));
-		}).collect(Collectors.toList());
-	}
+        return publicExams.stream().filter(exam -> {
+            // Because of @Transactional, this lazy load will now work perfectly
+            if (exam.getAssignedBatches() == null || exam.getAssignedBatches().isEmpty())
+                return true;
+            return exam.getAssignedBatches().stream().anyMatch(b -> myBatchIds.contains(b.getId()));
+        }).collect(Collectors.toList());
+    }
 
-	@Override
-	public Assessment getPermittedPrivateAssessment(String examId, String studentEmail) {
-		Assessment assessment = searchAssessmentByExamId(examId);
-		List<UUID> myBatchIds = batchStudentRepository.findByEmail(studentEmail).stream()
-				.map(bs -> bs.getBatch().getId()).collect(Collectors.toList());
+    @Override
+    @Transactional(readOnly = true) // 🌟 FIX: Prevents LazyInitializationException on getAssignedBatches()
+    public Assessment getPermittedPrivateAssessment(String examId, String studentEmail) {
+        Assessment assessment = searchAssessmentByExamId(examId);
+        List<UUID> myBatchIds = batchStudentRepository.findByEmail(studentEmail).stream()
+                .map(bs -> bs.getBatch().getId()).collect(Collectors.toList());
 
-		if (assessment.getAssignedBatches() != null && !assessment.getAssignedBatches().isEmpty()) {
-			if (!assessment.getAssignedBatches().stream().anyMatch(b -> myBatchIds.contains(b.getId()))) {
-				throw new IllegalArgumentException(
-						"Access Restricted: You are not assigned to the operational batch for this assessment.");
-			}
-		}
-		return assessment;
-	}
+        if (assessment.getAssignedBatches() != null && !assessment.getAssignedBatches().isEmpty()) {
+            if (!assessment.getAssignedBatches().stream().anyMatch(b -> myBatchIds.contains(b.getId()))) {
+                throw new IllegalArgumentException(
+                        "Access Restricted: You are not assigned to the operational batch for this assessment.");
+            }
+        }
+        return assessment;
+    }
 
-	@Override
-	public Map<String, Object> checkMaxAttemptsStatus(String examId, String studentEmail) {
+    @Override
+    @Transactional
+    public Map<String, Object> checkMaxAttemptsStatus(String examId, String studentEmail) {
+        // ... (Keep the rest of your existing code inside this method unchanged)
 		Assessment assessment = searchAssessmentByExamId(examId);
 		int maxAttempts = (assessment.getMaxAttempts() != null && assessment.getMaxAttempts() > 0)
 				? assessment.getMaxAttempts()
@@ -118,7 +126,7 @@ public class StudentAssessmentServiceImpl implements StudentAssessmentService {
 	}
 
 	@Override
-	@Transactional(readOnly = true)
+	@Transactional
 	public Map<String, Object> getSecureExamPayload(String idString) {
 		Long dbId = Long.parseLong(idString);
 		Assessment assessment = assessmentRepository.findById(dbId).orElseThrow();

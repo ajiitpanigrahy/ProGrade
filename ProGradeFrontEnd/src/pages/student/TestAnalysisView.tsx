@@ -10,7 +10,7 @@ const renderQuestionContent = (text: string) => {
     if (!text) return null;
     const formattedText = text.replace(/\\n/g, '\n');
     const parts = formattedText.split(/(```[\s\S]*?```)/g);
-    
+
     return parts.map((part, index) => {
         if (part.startsWith('```') && part.endsWith('```')) {
             const code = part.replace(/```[a-z]*\n?/i, '').replace(/```$/, '');
@@ -67,12 +67,12 @@ export default function TestAnalysisView() {
         setTimeout(() => {
             window.print();
             document.getElementById('dark-pdf-theme')?.remove();
-        }, 250); 
+        }, 250);
     };
 
     if (loading) return (
         <div className="h-screen flex flex-col items-center justify-center bg-[#05020a] text-purple-600">
-            <Loader2 className="w-10 h-10 animate-spin mb-4" /> 
+            <Loader2 className="w-10 h-10 animate-spin mb-4" />
             <p className="font-bold text-sm tracking-wider uppercase">Loading Performance Analytics...</p>
         </div>
     );
@@ -109,10 +109,10 @@ export default function TestAnalysisView() {
     return (
         <div className="min-h-screen bg-[#05020a] text-white p-3 sm:p-6 lg:p-8 font-sans">
             <div className="max-w-6xl mx-auto space-y-4 sm:space-y-8 relative">
-                
+
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print relative z-50">
                     <button onClick={() => navigate('/student/dashboard?view=transcripts')} className="flex items-center gap-1.5 sm:gap-2 text-gray-400 text-xs sm:text-sm font-bold hover:text-purple-400 transition-colors w-fit cursor-pointer">
-                        <ArrowLeft className="w-4 h-4"/> Back to Transcripts
+                        <ArrowLeft className="w-4 h-4" /> Back to Transcripts
                     </button>
                     <button onClick={handleDownloadPDF} className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition-all active:scale-95 text-xs sm:text-sm w-full sm:w-auto cursor-pointer">
                         <Download className="w-4 h-4" /> Download Analysis Report
@@ -126,7 +126,7 @@ export default function TestAnalysisView() {
                     </div>
                     <div className="text-right text-xs text-gray-400">
                         <p>Issued: {new Date().toLocaleDateString()}</p>
-                        <p className="font-bold text-emerald-400 flex items-center justify-end gap-1"><ShieldCheck className="w-3 h-3"/> Authenticated</p>
+                        <p className="font-bold text-emerald-400 flex items-center justify-end gap-1"><ShieldCheck className="w-3 h-3" /> Authenticated</p>
                     </div>
                 </div>
 
@@ -151,18 +151,18 @@ export default function TestAnalysisView() {
                     </div>
 
                     <div className="bg-[#150a29] rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 shadow-sm border border-purple-900/50 flex flex-col justify-center print-shadow-none">
-                        <h3 className="font-bold text-white flex items-center gap-2 mb-4 sm:mb-6"><Clock className="w-5 h-5 text-amber-500"/> Exam Timestamps</h3>
+                        <h3 className="font-bold text-white flex items-center gap-2 mb-4 sm:mb-6"><Clock className="w-5 h-5 text-amber-500" /> Exam Timestamps</h3>
                         <div className="space-y-3 sm:space-y-4">
                             <div className="flex justify-between items-center border-b border-purple-900/30 pb-2 sm:pb-3">
-                                <span className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5"/> Started</span>
+                                <span className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Started</span>
                                 <span className="text-[10px] sm:text-xs font-semibold text-gray-200 text-right">{formatDate(analysis.startedAt)}</span>
                             </div>
                             <div className="flex justify-between items-center border-b border-purple-900/30 pb-2 sm:pb-3">
-                                <span className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5"/> Submitted</span>
+                                <span className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Submitted</span>
                                 <span className="text-[10px] sm:text-xs font-semibold text-gray-200 text-right">{formatDate(analysis.submittedAt)}</span>
                             </div>
                             <div className="flex justify-between items-center pt-1">
-                                <span className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Clock className="w-3.5 h-3.5"/> Total Time</span>
+                                <span className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Total Time</span>
                                 <span className="text-xs sm:text-sm font-black text-amber-400 bg-amber-900/20 px-2 sm:px-3 py-1 rounded-lg">{formatDuration(totalTimeSeconds)}</span>
                             </div>
                         </div>
@@ -170,7 +170,7 @@ export default function TestAnalysisView() {
                 </div>
 
                 <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 text-white shadow-lg print-shadow-none print-break-inside">
-                    <h2 className="font-black text-lg sm:text-xl flex items-center gap-2 mb-3"><Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300"/> AI Overall Assessment Analysis</h2>
+                    <h2 className="font-black text-lg sm:text-xl flex items-center gap-2 mb-3"><Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" /> AI Overall Assessment Analysis</h2>
                     {aiData ? (
                         <p className="text-purple-50 font-medium leading-relaxed text-xs sm:text-base whitespace-pre-wrap">{aiData.overallAnalysis}</p>
                     ) : (
@@ -180,31 +180,31 @@ export default function TestAnalysisView() {
 
                 <div className="bg-[#150a29] rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-sm border border-purple-900/50 print-shadow-none print-break-inside overflow-hidden">
                     <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-4 sm:mb-6">
-                        <h3 className="font-bold text-base sm:text-lg text-white flex items-center gap-2"><BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500"/> Time Spent per Question</h3>
+                        <h3 className="font-bold text-base sm:text-lg text-white flex items-center gap-2"><BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" /> Time Spent per Question</h3>
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[9px] sm:text-[10px] font-bold uppercase text-gray-500 no-print">
-                            <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded" style={{backgroundColor: '#34d399'}}></div> Correct</span>
-                            <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded" style={{backgroundColor: '#f87171'}}></div> Incorrect</span>
-                            <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded" style={{backgroundColor: '#374151'}}></div> Skipped</span>
+                            <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded" style={{ backgroundColor: '#34d399' }}></div> Correct</span>
+                            <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded" style={{ backgroundColor: '#f87171' }}></div> Incorrect</span>
+                            <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded" style={{ backgroundColor: '#374151' }}></div> Skipped</span>
                         </div>
                     </div>
 
                     <div className="h-48 sm:h-56 w-full flex items-end justify-start gap-2 sm:gap-4 overflow-x-auto pt-10 sm:pt-12 pb-2 px-1 sm:px-2 border-b border-purple-900/30 custom-scrollbar">
                         {analysis.details.map((q: any, i: number) => {
                             const timeSec = q.timeSpentSeconds || 0;
-                            const heightPercent = Math.max((timeSec / maxTimeSpent) * 100, 5); 
+                            const heightPercent = Math.max((timeSec / maxTimeSpent) * 100, 5);
 
-                            let barColor = "#374151"; 
-                            if (q.isCorrect) barColor = "#34d399"; 
-                            else if (q.studentOption !== "UNATTEMPTED") barColor = "#f87171"; 
+                            let barColor = "#374151";
+                            if (q.isCorrect) barColor = "#34d399";
+                            else if (q.studentOption !== "UNATTEMPTED") barColor = "#f87171";
 
                             return (
                                 <div key={i} className="flex flex-col items-center justify-end h-full gap-1 sm:gap-2 shrink-0 w-8 sm:w-10 group relative">
                                     <div className="absolute top-0 bg-white text-gray-900 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20 no-print">
-                                        Q{i+1}: {formatDuration(timeSec)}
+                                        Q{i + 1}: {formatDuration(timeSec)}
                                     </div>
                                     <span className="text-[8px] sm:text-[10px] font-black text-gray-400">{timeSec}s</span>
                                     <div className="w-full rounded-t-sm sm:rounded-t-md transition-all duration-500 shadow-sm" style={{ height: `${heightPercent}%`, backgroundColor: barColor }}></div>
-                                    <span className="text-[8px] sm:text-[10px] font-bold text-gray-400 mt-1">Q{i+1}</span>
+                                    <span className="text-[8px] sm:text-[10px] font-bold text-gray-400 mt-1">Q{i + 1}</span>
                                 </div>
                             );
                         })}
@@ -212,7 +212,7 @@ export default function TestAnalysisView() {
                 </div>
 
                 <h2 className="text-lg sm:text-2xl font-black text-white pt-2 sm:pt-4 px-2">Detailed Question Review</h2>
-                
+
                 <div className="space-y-4 sm:space-y-6">
                     {analysis.details.map((q: any, i: number) => {
                         const isCorrect = q.isCorrect;
@@ -221,37 +221,44 @@ export default function TestAnalysisView() {
 
                         return (
                             <div key={i} className={`bg-[#1a0d36] rounded-2xl p-4 sm:p-6 shadow-sm border-2 print-shadow-none print-break-inside ${isCorrect ? 'border-emerald-500/50' : isUnattempted ? 'border-purple-900/30' : 'border-red-500/50'}`}>
+
+                                {/* 🌟 FIX: The main flex container wrapping the question and timer */}
                                 <div className="flex items-start justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-                                    <div className="flex gap-2.5 sm:gap-4 items-start w-full">
+
+                                    {/* 🌟 FIX: Added flex-1 and min-w-0 to physically constrain the width */}
+                                    <div className="flex gap-2.5 sm:gap-4 items-start flex-1 min-w-0">
                                         <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isCorrect ? 'bg-emerald-900/50 text-emerald-400' : isUnattempted ? 'bg-gray-800 text-gray-400' : 'bg-red-900/50 text-red-400'}`}>
-                                            {isCorrect ? <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5"/> : isUnattempted ? <MinusCircle className="w-4 h-4 sm:w-5 sm:h-5"/> : <XCircle className="w-4 h-4 sm:w-5 sm:h-5"/>}
+                                            {isCorrect ? <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" /> : isUnattempted ? <MinusCircle className="w-4 h-4 sm:w-5 sm:h-5" /> : <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />}
                                         </div>
-                                        <div className="w-full">
+
+                                        {/* 🌟 FIX: Added min-w-0 here as well */}
+                                        <div className="flex-1 min-w-0 w-full">
                                             <div className="flex items-center gap-3 mb-2">
-                                                <p className="text-[10px] sm:text-xs text-gray-400 font-bold">Question {i + 1}</p>
+                                                <p className="text-[10px] sm:text-xs text-gray-400 font-bold shrink-0">Question {i + 1}</p>
                                                 {isCoding ? (
-                                                    <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/30"><Code2 className="w-2.5 h-2.5"/> Coding</span>
+                                                    <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/30"><Code2 className="w-2.5 h-2.5" /> Coding</span>
                                                 ) : (
-                                                    <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-blue-400 bg-blue-900/20 px-1.5 py-0.5 rounded border border-blue-500/30"><BookOpen className="w-2.5 h-2.5"/> Theory</span>
+                                                    <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-blue-400 bg-blue-900/20 px-1.5 py-0.5 rounded border border-blue-500/30"><BookOpen className="w-2.5 h-2.5" /> Theory</span>
                                                 )}
                                             </div>
 
-                                            <div className="text-white font-semibold text-sm sm:text-lg leading-relaxed w-full">
+                                            {/* 🌟 FIX: min-w-0 and break-words ensures text and code wrap properly */}
+                                            <div className="text-white font-semibold text-sm sm:text-lg leading-relaxed w-full min-w-0 break-words">
                                                 {renderQuestionContent(q.questionText)}
-                                                
-                                                {/* 🌟 FIX: Apply Highlighting and multi-line conversion */}
+
                                                 {q.codeSnippet && (
                                                     <div className="mt-4 bg-[#0c0618] border border-purple-900/50 rounded-xl overflow-hidden shadow-xl w-full text-left">
                                                         <div className="bg-[#150a29] px-4 py-2 flex items-center gap-2 border-b border-purple-900/50">
-                                                            <Terminal className="w-4 h-4 text-emerald-400"/>
-                                                            <span className="text-xs uppercase font-black text-emerald-400 tracking-wider">
+                                                            <Terminal className="w-4 h-4 text-emerald-400 shrink-0" />
+                                                            <span className="text-xs uppercase font-black text-emerald-400 tracking-wider truncate">
                                                                 Developer Code ({q.codeLanguage || 'Code'})
                                                             </span>
                                                         </div>
-                                                        <div className="p-2">
-                                                            <CodeSnippetBox 
-                                                                code={q.codeSnippet.replace(/\\n/g, '\n')} 
-                                                                language={q.codeLanguage || 'javascript'} 
+                                                        {/* 🌟 FIX: w-full and overflow-x-auto ensures the scrollbar stays inside the box */}
+                                                        <div className="p-2 overflow-x-auto w-full">
+                                                            <CodeSnippetBox
+                                                                code={q.codeSnippet.replace(/\\n/g, '\n')}
+                                                                language={q.codeLanguage || 'javascript'}
                                                             />
                                                         </div>
                                                     </div>
@@ -259,36 +266,38 @@ export default function TestAnalysisView() {
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* Timer Badge (stays protected by shrink-0) */}
                                     <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-bold text-gray-500 bg-[#0f0a1c] border border-purple-900/50 px-2 sm:px-2.5 py-1 rounded-lg shrink-0">
-                                        <Clock className="w-2.5 h-2.5 sm:w-3 h-3 text-amber-500"/> {formatDuration(q.timeSpentSeconds)}
+                                        <Clock className="w-2.5 h-2.5 sm:w-3 h-3 text-amber-500" /> {formatDuration(q.timeSpentSeconds)}
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                                    {['A', 'B', 'C', 'D'].map(opt => {
-                                        const isStudentChoice = q.studentOption === opt;
-                                        const isActualCorrect = q.correctOption === opt;
-                                        
-                                        let bgClass = "bg-[#0f0a1c] border-purple-900/30 text-gray-300";
-                                        if (isActualCorrect && isStudentChoice) bgClass = "bg-emerald-900/30 border-emerald-600 text-emerald-100 font-bold shadow-sm";
-                                        else if (isActualCorrect) bgClass = "bg-emerald-900/10 border-emerald-300 border-dashed text-emerald-300";
-                                        else if (isStudentChoice) bgClass = "bg-red-900/30 border-red-600 text-red-100 font-bold shadow-sm";
+                                {/* --- Options Grid Below (Keep your existing code here) --- */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">                                    {['A', 'B', 'C', 'D'].map(opt => {
+                                    const isStudentChoice = q.studentOption === opt;
+                                    const isActualCorrect = q.correctOption === opt;
 
-                                        return (
-                                            <div key={opt} className={`p-3 sm:p-4 rounded-xl border flex flex-col justify-center gap-3 ${bgClass}`}>
-                                                <div className="flex items-start gap-3 w-full">
-                                                    <span className="w-6 h-6 rounded bg-black/20 flex items-center justify-center text-xs font-bold border border-inherit shrink-0 mt-0.5">{opt}</span>
-                                                    <span className="text-xs sm:text-sm leading-relaxed break-words pr-2">{q[`option${opt}`]}</span>
-                                                </div>
-                                                {(isStudentChoice || isActualCorrect) && (
-                                                    <div className="flex flex-wrap items-center gap-2 ml-9">
-                                                        {isStudentChoice && <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded bg-white/10 shrink-0 border border-white/20">Your Selection</span>}
-                                                        {isActualCorrect && <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded bg-emerald-500/30 text-emerald-300 shrink-0 border border-emerald-500/50">Correct Answer</span>}
-                                                    </div>
-                                                )}
+                                    let bgClass = "bg-[#0f0a1c] border-purple-900/30 text-gray-300";
+                                    if (isActualCorrect && isStudentChoice) bgClass = "bg-emerald-900/30 border-emerald-600 text-emerald-100 font-bold shadow-sm";
+                                    else if (isActualCorrect) bgClass = "bg-emerald-900/10 border-emerald-300 border-dashed text-emerald-300";
+                                    else if (isStudentChoice) bgClass = "bg-red-900/30 border-red-600 text-red-100 font-bold shadow-sm";
+
+                                    return (
+                                        <div key={opt} className={`p-3 sm:p-4 rounded-xl border flex flex-col justify-center gap-3 ${bgClass}`}>
+                                            <div className="flex items-start gap-3 w-full">
+                                                <span className="w-6 h-6 rounded bg-black/20 flex items-center justify-center text-xs font-bold border border-inherit shrink-0 mt-0.5">{opt}</span>
+                                                <span className="text-xs sm:text-sm leading-relaxed break-words pr-2">{q[`option${opt}`]}</span>
                                             </div>
-                                        );
-                                    })}
+                                            {(isStudentChoice || isActualCorrect) && (
+                                                <div className="flex flex-wrap items-center gap-2 ml-9">
+                                                    {isStudentChoice && <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded bg-white/10 shrink-0 border border-white/20">Your Selection</span>}
+                                                    {isActualCorrect && <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded bg-emerald-500/30 text-emerald-300 shrink-0 border border-emerald-500/50">Correct Answer</span>}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                                 </div>
                             </div>
                         );
